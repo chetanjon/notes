@@ -6,13 +6,14 @@ text the forms ask for.
 
 ## Before you start
 
-- A paid Apple Developer Program membership on the same team as Chalant
-  (`WV59PZX4A3`). The free tier cannot upload to App Store Connect.
+- A paid Apple Developer Program membership on team `WV59PZX4A3` (the
+  `DEVELOPMENT_TEAM` in `project.yml`). The free tier cannot upload to App Store Connect.
 - Xcode 15 or newer, signed into that account (Xcode → Settings → Accounts).
 - `xcodegen` (`brew install xcodegen`).
-- The privacy and support pages live. They ship with the Pages site from
-  `docs/notes/`; open https://chetanjon.github.io/chalant/notes/privacy.html
-  in a browser and confirm it loads before you fill in the form.
+- The privacy and support pages live. They are in `docs/`; turn on GitHub
+  Pages once (repository Settings → Pages → Deploy from a branch → `main`,
+  `/docs`), then open https://chetanjon.github.io/notes/privacy.html in a
+  browser and confirm it loads before you fill in the form.
 
 ## 1. Pick the store name
 
@@ -48,7 +49,6 @@ Repeat this whenever the `Note` model gains a field.
 
 ```bash
 git checkout main && git pull
-cd Notes
 xcodegen generate
 open Notes.xcodeproj
 ```
@@ -121,7 +121,7 @@ from the App Information page.
 ## Every release after this one
 
 1. Bump `MARKETING_VERSION` (what people see) and `CURRENT_PROJECT_VERSION`
-   (must go up every upload) in `Notes/project.yml`. Commit on a branch, PR,
+   (must go up every upload) in `project.yml`. Commit on a branch, PR,
    merge.
 2. `xcodegen generate`, Archive, Upload (steps 4.1 to 4.4).
 3. App Store Connect → **+** next to iOS App → new version → What's New →

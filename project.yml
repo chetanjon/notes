@@ -1,8 +1,8 @@
 # Notes: a dark, minimal notes app for iPhone. Native SwiftUI, SwiftData with
 # CloudKit sync, and a Lock Screen widget that shows the one pinned note.
 #
-# Generate the Xcode project with `xcodegen generate` from this directory
-# (Notes.xcodeproj is ignored by git, same rule as Chalant.xcodeproj above).
+# Generate the Xcode project with `xcodegen generate`; Notes.xcodeproj is
+# ignored by git and rebuilt from this file.
 name: Notes
 options:
   bundleIdPrefix: com.cj
@@ -12,7 +12,7 @@ options:
   createIntermediateGroups: true
 settings:
   base:
-    # Same team as Chalant. project.yml is the only place it is written down.
+    # project.yml is the only place the team is written down.
     DEVELOPMENT_TEAM: WV59PZX4A3
     CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: "5.9"

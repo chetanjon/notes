@@ -1,0 +1,37 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Builds the app, its widget and its tests for the simulator and runs the
+  # tests there. Signing is off because the runner has no team; entitlements
+  # are still checked for shape.
+  notes:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install xcodegen
+        run: brew install xcodegen
+      - name: Generate project
+        run: xcodegen generate
+      - name: Pick a simulator
+        id: sim
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          phones = [d for runtime, ds in devices.items() if "iOS" in runtime
+                    for d in ds if d["isAvailable"] and d["name"].startswith("iPhone")]
+          print(phones[-1]["udid"])')
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+      - name: Run unit tests
+        run: >
+          xcodebuild test
+          -project Notes.xcodeproj
+          -scheme Notes
+          -destination "id=${{ steps.sim.outputs.udid }}"
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGN_IDENTITY=""

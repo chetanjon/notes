@@ -4,9 +4,9 @@
 Every number below comes from the spec. To change the mark, change a number
 here and run this again; the PNG is never edited by hand.
 
-Usage:  python3 Notes/scripts/make-icon.py
+Usage:  python3 scripts/make-icon.py
 
-Writes Notes/Notes/Assets.xcassets/AppIcon.appiconset/AppIcon.png at 1024 px.
+Writes Notes/Assets.xcassets/AppIcon.appiconset/AppIcon.png at 1024 px.
 Xcode generates every other size from it.
 """
 

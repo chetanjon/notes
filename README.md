@@ -5,26 +5,27 @@ edit, delete, search, checklists, and one extra: pin a note to the Lock Screen.
 Notes sync between your own devices through iCloud; there are no accounts and
 no server.
 
-The spec this was built from is `NOTES_APP_SPEC.md` in the project root.
+The spec this was built from is `NOTES_APP_SPEC.md`.
 
 ## Layout
 
 ```
-Notes/
-├── project.yml                 xcodegen spec: app, widget, tests
-├── Notes/                      the app
-│   ├── NotesApp.swift          @main, model container, deep link
-│   ├── Models/                 Note (SwiftData) and NoteStore (create, delete, pin)
-│   ├── Views/                  list, row, editor, UITextView wrapper, widget hint
-│   ├── Logic/                  pure string logic: Checklist, NoteText, DateFormat, PinStore
-│   ├── Theme/                  colours, fonts, spacing
-│   └── Assets.xcassets/        AppIcon (generated), launch background
-├── NotesWidget/                the Lock Screen widget extension
-├── NotesTests/                 XCTest, runs on the simulator
-└── scripts/make-icon.py        draws AppIcon.png from the numbers in the spec
+project.yml                 xcodegen spec: app, widget, tests
+Notes/                      the app
+├── NotesApp.swift          @main, model container, deep link
+├── Models/                 Note (SwiftData) and NoteStore (create, delete, pin)
+├── Views/                  list, row, editor, UITextView wrapper, widget hint
+├── Logic/                  pure string logic: Checklist, NoteText, DateFormat, PinStore
+├── Theme/                  colours, fonts, spacing
+└── Assets.xcassets/        AppIcon (generated), launch background
+NotesWidget/                the Lock Screen widget extension
+NotesTests/                 XCTest, runs on the simulator
+AppStore/                   listing copy and the submission checklist
+docs/                       privacy policy and support pages (GitHub Pages)
+scripts/make-icon.py        draws AppIcon.png from the numbers in the spec
 ```
 
-Identifiers, all under the same team as Chalant:
+Identifiers:
 
 | What | Value |
 |---|---|
@@ -40,7 +41,6 @@ Needs Xcode 15 or newer and [xcodegen](https://github.com/yonaskolb/XcodeGen)
 (`brew install xcodegen`). Nothing else.
 
 ```bash
-cd Notes
 xcodegen generate
 open Notes.xcodeproj
 ```
@@ -91,7 +91,7 @@ widget opens the app on that note.
    TestFlight app and later builds update on their own.
 5. **App Store**: when it is stable, follow `AppStore/SUBMISSION.md` top to
    bottom. `AppStore/LISTING.md` has every field the form asks for, and the
-   privacy and support pages it links are in `docs/notes/`.
+   privacy and support pages it links are in `docs/`.
 
 Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml`
 before each upload; App Store Connect refuses a build number it has seen.

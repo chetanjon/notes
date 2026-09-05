@@ -9,9 +9,8 @@ from here. Character limits are Apple's; every field below is inside them.
 something else. The name on the Home Screen stays "Notes" regardless: that
 is `CFBundleDisplayName` in `project.yml`, and Apple allows the two to differ.
 
-Recommended: **Chalant Notes**
-
-Fallbacks if that is taken when you type it: **Noir Notes**, **Plain Notes**.
+Pick one that is free when you type it. Candidates: **Noir Notes**,
+**Plain Notes**, **Pinned Notes**, or your own name followed by Notes.
 
 ## Subtitle (30 characters)
 
@@ -61,11 +60,12 @@ notes,lock screen,widget,checklist,minimal,dark,black,quick notes,notepad,todo,m
 
 | Field | Value |
 |---|---|
-| Support URL | https://chetanjon.github.io/chalant/notes/ |
-| Marketing URL (optional) | https://chetanjon.github.io/chalant/notes/ |
-| Privacy Policy URL | https://chetanjon.github.io/chalant/notes/privacy.html |
+| Support URL | https://chetanjon.github.io/notes/ |
+| Marketing URL (optional) | https://chetanjon.github.io/notes/ |
+| Privacy Policy URL | https://chetanjon.github.io/notes/privacy.html |
 
-Both pages are in `docs/notes/` in this repo and go live with the Pages site.
+Both pages are in `docs/` in this repo. They go live once GitHub Pages is on:
+repository Settings → Pages → Source: Deploy from a branch → `main`, `/docs` → Save.
 
 ## Version information
 
