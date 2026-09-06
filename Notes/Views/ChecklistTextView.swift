@@ -34,6 +34,8 @@ struct ChecklistTextView: UIViewRepresentable {
         view.dataDetectorTypes = []
         view.delegate = context.coordinator
         view.text = text
+        // The cursor lands at the end on open, as the spec says.
+        view.selectedRange = NSRange(location: (text as NSString).length, length: 0)
         view.typingAttributes = Style.attributes(semibold: text.isEmpty || !text.contains("\n"))
         context.coordinator.restyle(view)
 
@@ -174,16 +176,27 @@ struct ChecklistTextView: UIViewRepresentable {
 
         // MARK: Helpers
 
+        /// Applies a checklist edit as one replacement of the changed range,
+        /// through `replace(_:withText:)`, so it lands on the text view's undo
+        /// stack like typing does and a shake takes it back.
         private func apply(_ edit: Checklist.Edit, to view: UITextView) {
-            guard view.text != edit.text else {
+            let old = view.text ?? ""
+            guard old != edit.text else {
                 view.selectedRange = NSRange(location: edit.cursor, length: 0)
                 return
             }
-            view.text = edit.text
+            let change = Checklist.difference(from: old, to: edit.text)
+            if let start = view.position(from: view.beginningOfDocument, offset: change.range.location),
+               let end = view.position(from: start, offset: change.range.length),
+               let textRange = view.textRange(from: start, to: end) {
+                view.replace(textRange, withText: change.replacement)
+            } else {
+                view.text = edit.text
+            }
             restyle(view)
-            let end = (edit.text as NSString).length
-            view.selectedRange = NSRange(location: min(edit.cursor, end), length: 0)
-            parent.text = edit.text
+            let length = (view.text as NSString).length
+            view.selectedRange = NSRange(location: min(edit.cursor, length), length: 0)
+            parent.text = view.text
         }
 
         /// First line semibold, the rest regular, everything white with the

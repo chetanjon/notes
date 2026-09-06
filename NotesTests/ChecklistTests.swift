@@ -62,6 +62,24 @@ final class ChecklistTests: XCTestCase {
         XCTAssertNil(Checklist.handleReturn(in: "Title\nmilk", selection: NSRange(location: 10, length: 0)))
     }
 
+    func testDifferenceIsTheOneChangedRange() {
+        let d1 = Checklist.difference(from: "Title\nmilk", to: "Title\n□ milk")
+        XCTAssertEqual(d1.range, NSRange(location: 6, length: 0))
+        XCTAssertEqual(d1.replacement, "□ ")
+        let d2 = Checklist.difference(from: "Title\n■ milk", to: "Title\n□ milk")
+        XCTAssertEqual(d2.range, NSRange(location: 6, length: 1))
+        XCTAssertEqual(d2.replacement, "□")
+        let d3 = Checklist.difference(from: "□ milk", to: "□ milk\n□ ")
+        XCTAssertEqual(d3.range, NSRange(location: 6, length: 0))
+        XCTAssertEqual(d3.replacement, "\n□ ")
+        let d4 = Checklist.difference(from: "a\n□ ", to: "a\n")
+        XCTAssertEqual(d4.range, NSRange(location: 2, length: 2))
+        XCTAssertEqual(d4.replacement, "")
+        let same = Checklist.difference(from: "x", to: "x")
+        XCTAssertEqual(same.range, NSRange(location: 1, length: 0))
+        XCTAssertEqual(same.replacement, "")
+    }
+
     func testReturnWithSelectionReplacesIt() {
         let edit = Checklist.handleReturn(in: "□ milk and eggs", selection: NSRange(location: 6, length: 9))
         XCTAssertEqual(edit, Checklist.Edit(text: "□ milk\n□ ", cursor: 9))
