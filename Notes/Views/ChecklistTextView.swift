@@ -127,7 +127,7 @@ struct ChecklistTextView: UIViewRepresentable {
         /// The marker character: invisible, and widened so the circle drawn
         /// over it has room before the item's text.
         static func markerAttributes(font: UIFont) -> [NSAttributedString.Key: Any] {
-            [.foregroundColor: UIColor.clear, .kern: font.pointSize * 0.4]
+            [.foregroundColor: UIColor.clear, .kern: font.pointSize * 0.25]
         }
     }
 
@@ -318,7 +318,7 @@ final class MarkerLayoutManager: NSLayoutManager {
         let glyphOrigin = location(forGlyphAt: glyph)
         let font = storage.attribute(.font, at: marker, effectiveRange: nil) as? UIFont
             ?? ChecklistTextView.Style.body
-        let size = font.pointSize * 1.05
+        let size = font.pointSize * 0.8
         let configuration = UIImage.SymbolConfiguration(pointSize: size, weight: .regular)
         guard let image = UIImage(systemName: done ? "checkmark.circle.fill" : "circle",
                                   withConfiguration: configuration)?
