@@ -74,8 +74,11 @@ items one to a row, and tapping a row ticks it, right there on the Lock
 Screen, through a `LiveActivityIntent` that runs in the app. A body line
 that ends in a number, like `Water 3` or `Pushups 20`, is a counter: it
 gets a + on the Lock Screen, and a tap makes it `Water 4` in the note. (A
-label with a digit in it, such as `Room 4`, is left alone.) Tapping the
-title opens the note. Pinning another note replaces it; unpinning or
+label with a digit in it, such as `Room 4`, is left alone.) A long list
+shows three rows and "+N more"; tapping that expands the card to five
+smaller rows, then turns the page, and tapping the title brings it back to
+the top. (iOS caps a Live Activity at about 160 points, which is why it
+pages rather than grows.) Tapping the title otherwise opens the note. Pinning another note replaces it; unpinning or
 deleting removes it. The widget draws the same rows and its taps do the
 same.
 
