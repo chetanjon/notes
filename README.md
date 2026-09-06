@@ -1,7 +1,8 @@
 # Notes
 
-A dark, minimal notes app for iPhone. Black and white, dark mode only. Write,
-edit, delete, search, checklists, and one extra: pin a note to the Lock Screen.
+A dark, minimal notes app for iPhone, sold on the App Store as **Matte** (the
+Home Screen icon says Notes). Black and white, dark mode only. Write, edit,
+delete, search, checklists, and one extra: pin a note to the Lock Screen.
 Notes sync between your own devices through iCloud; there are no accounts and
 no server.
 

@@ -5,18 +5,19 @@ from here. Character limits are Apple's; every field below is inside them.
 
 ## App name (30 characters)
 
-"Notes" alone is taken on the App Store, so the store name has to be
+**Matte**. Fallback if App Store Connect refuses it: **Matte Notes**.
+
+"Notes" alone is taken on the App Store, which is why the store name is
 something else. The name on the Home Screen stays "Notes" regardless: that
 is `CFBundleDisplayName` in `project.yml`, and Apple allows the two to differ.
-
-Pick one that is free when you type it. Candidates: **Noir Notes**,
-**Plain Notes**, **Pinned Notes**, or your own name followed by Notes.
+A search of the store in September 2026 found no app named Matte; the Name
+field is the final check.
 
 ## Subtitle (30 characters)
 
-Recommended: **Pinned to your Lock Screen**
+**Notes, pinned to Lock Screen** (28 characters)
 
-Fallback: **Minimal notes, Lock Screen**
+Fallback: **Notes for your Lock Screen**
 
 ## Category
 
@@ -28,9 +29,9 @@ The notes app that stays out of the way. Pure black, no clutter, and the one not
 
 ## Description (4000 characters)
 
-A notes app with nothing in the way.
+Matte is a notes app with nothing in the way.
 
-Notes is black and white and dark only. Open it and write. The first line is the title. Everything saves as you type; there is no save button and nothing to set up.
+It is black and white and dark only. Open it and write. The first line is the title. Everything saves as you type; there is no save button and nothing to set up.
 
 PIN ONE NOTE TO YOUR LOCK SCREEN
 Long-press a note and pin it. It appears on your Lock Screen right away, no setup, so the thing you must not forget is the first thing you see when you pick up the phone. A checklist shows how many items are done. Write "Water 0" and it becomes a counter with a + on your Lock Screen. Tap the card and the note opens. Pin a different note and it takes its place. Add the Notes widget once and the pin stays put for good.
@@ -57,7 +58,7 @@ Requires iOS 17 or later.
 
 ## Keywords (100 characters, comma separated, no spaces)
 
-notes,lock screen,widget,checklist,minimal,dark,black,quick notes,notepad,todo,memo,icloud
+notes,lock screen,widget,checklist,minimal,dark,black,matte,quick notes,notepad,todo,memo,icloud
 
 ## URLs
 
@@ -102,7 +103,8 @@ are no analytics, no crash reporting SDKs, no ads, no identifiers.
 
 Notes for the reviewer, paste as is:
 
-> Notes is a local-first notes app. No account is needed. To test the Lock
+> Matte is a local-first notes app; its icon on the Home Screen is labelled
+> "Notes". No account is needed. To test the Lock
 > Screen feature: create a note, long-press it in the list, choose "Pin to
 > Lock Screen", and lock the device: the note shows as a Live Activity
 > under the clock. The Notes widget (long-press the Lock Screen → Customize

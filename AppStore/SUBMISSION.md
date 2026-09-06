@@ -15,10 +15,11 @@ text the forms ask for.
   `/docs`), then open https://chetanjon.github.io/notes/privacy.html in a
   browser and confirm it loads before you fill in the form.
 
-## 1. Pick the store name
+## 1. The store name
 
-"Notes" is taken. Decide the store name now (see `LISTING.md`), because the
-next step needs it and it is awkward to change later.
+**Matte**, with **Matte Notes** as the fallback if the Name field refuses
+it. "Notes" alone is taken; the Home Screen icon still says "Notes". The
+next step needs the name and it is awkward to change later.
 
 ## 2. Create the app record
 
