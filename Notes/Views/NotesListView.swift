@@ -6,6 +6,7 @@ import UIKit
 struct NotesListView: View {
     @Environment(\.modelContext) private var context
     @Environment(Navigation.self) private var navigation
+    @Environment(Undo.self) private var undo
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Note.updatedAt, order: .reverse) private var notes: [Note]
 
@@ -14,6 +15,12 @@ struct NotesListView: View {
     @FocusState private var searchFocused: Bool
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
+
+    /// Changes when a different note is pinned or the pinned note is edited,
+    /// on this phone or, through iCloud, on another.
+    private var pinnedSignature: String? {
+        notes.first { $0.isPinned }.map { "\($0.id.uuidString)|\($0.updatedAt.timeIntervalSince1970)" }
+    }
 
     /// Pinned first, then newest edit first.
     private var visible: [Note] {
@@ -47,7 +54,19 @@ struct NotesListView: View {
                         .padding(.bottom, 12)
                     content
                 }
-                composeButton
+                VStack(spacing: 12) {
+                    if undo.deleted != nil {
+                        undoBar
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                    HStack {
+                        Spacer()
+                        composeButton
+                    }
+                }
+                .padding(.horizontal, Theme.pagePadding)
+                .padding(.bottom, 24)
+                .animation(.easeOut(duration: 0.2), value: undo.deleted != nil)
             }
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: UUID.self) { id in
@@ -60,6 +79,9 @@ struct NotesListView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { NoteStore.syncLockScreen(in: context) }
+        }
+        .onChange(of: pinnedSignature) { _, _ in
+            NoteStore.syncLockScreen(in: context)
         }
     }
 
@@ -157,7 +179,7 @@ struct NotesListView: View {
                         .listRowSeparator(.hidden)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             Button(role: .destructive) {
-                                NoteStore.delete(note, in: context)
+                                NoteStore.delete(note, in: context, undo: undo)
                             } label: {
                                 // A rendered image keeps its own colour, which
                                 // is the only way to get black text on the
@@ -177,7 +199,7 @@ struct NotesListView: View {
                                       systemImage: note.isPinned ? "pin.slash" : "pin")
                             }
                             Button(role: .destructive) {
-                                NoteStore.delete(note, in: context)
+                                NoteStore.delete(note, in: context, undo: undo)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
@@ -210,9 +232,32 @@ struct NotesListView: View {
                 .background(Theme.fg, in: Circle())
         }
         .buttonStyle(PressedButtonStyle())
-        .padding(.trailing, Theme.pagePadding)
-        .padding(.bottom, 24)
         .accessibilityLabel("New note")
+    }
+
+    /// "Deleted · Undo", for a few seconds after a delete. Black, ruled, no red.
+    private var undoBar: some View {
+        HStack(spacing: 12) {
+            Text("Deleted")
+                .font(Theme.Font.rowBody)
+                .foregroundStyle(Theme.muted)
+            Spacer()
+            Button {
+                undo.restore(in: context)
+            } label: {
+                Text("Undo")
+                    .font(Theme.Font.toolbar)
+                    .foregroundStyle(Theme.fg)
+                    .frame(height: Theme.tapTarget)
+                    .padding(.leading, 12)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 52)
+        .background(Theme.bg, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Theme.rule, lineWidth: 1))
+        .accessibilityElement(children: .contain)
     }
 
     private func open(_ note: Note) {
