@@ -25,8 +25,7 @@ enum PinActivity {
             await end(running)
             return
         }
-        let state = PinnedNoteAttributes.ContentState(
-            title: pinned.title, preview: pinned.preview, updatedAt: pinned.updatedAt)
+        let state = PinnedNoteAttributes.ContentState(pinned)
         let content = ActivityContent(state: state, staleDate: nil)
 
         if let current = running.first(where: {

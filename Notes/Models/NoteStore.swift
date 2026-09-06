@@ -6,6 +6,10 @@ import SwiftData
 /// editing the context directly so the pin invariant and the Lock Screen
 /// are kept in one place.
 enum NoteStore {
+    /// The one container. The app's views read it through the environment;
+    /// the Lock Screen intent reaches it through here.
+    static let container: ModelContainer = makeContainer()
+
     /// The container the app runs on. CloudKit when the entitlement is
     /// there, local storage when it is not, so a free-account build that
     /// cannot carry the iCloud capability still opens.
@@ -72,6 +76,16 @@ enum NoteStore {
     private static func showOnLockScreen(_ record: PinStore.Pinned?) {
         if PinStore.read() != record { PinStore.write(record) }
         PinActivity.show(record)
+    }
+
+    /// A tap on an item on the Lock Screen: flip that line, save, and the
+    /// Live Activity and widget follow through `update`.
+    @MainActor
+    static func toggleItem(noteID: UUID, line: Int) {
+        let context = container.mainContext
+        guard let note = note(withID: noteID, in: context),
+              let text = NoteText.togglingItem(at: line, in: note.text) else { return }
+        update(note, text: text, in: context)
     }
 
     static func note(withID id: UUID, in context: ModelContext) -> Note? {

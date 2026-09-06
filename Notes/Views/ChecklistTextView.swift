@@ -80,7 +80,7 @@ struct ChecklistTextView: UIViewRepresentable {
 
     enum Style {
         static let body = UIFont.systemFont(ofSize: Theme.Font.editorSize, weight: .regular)
-        static let title = UIFont.systemFont(ofSize: Theme.Font.editorSize, weight: .semibold)
+        static let title = UIFont.systemFont(ofSize: Theme.Font.editorTitleSize, weight: .semibold)
 
         static var paragraph: NSParagraphStyle {
             let style = NSMutableParagraphStyle()

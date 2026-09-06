@@ -8,8 +8,30 @@ import Foundation
 struct PinnedNoteAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         var title: String
+        /// One line, for the Dynamic Island's compact form.
         var preview: String
+        /// Stacked under the title: a checklist's open items, or body lines.
+        var lines: [String]
+        /// The note line each entry of `lines` is, for a checklist, so the
+        /// tap that ticks it can name it.
+        var lineNumbers: [Int]
+        var more: Int
+        var isChecklist: Bool
+        var done: Int
+        var total: Int
         var updatedAt: Date
+
+        init(_ pinned: PinStore.Pinned) {
+            title = pinned.title
+            preview = pinned.preview
+            lines = pinned.lines
+            lineNumbers = pinned.lineNumbers
+            more = pinned.more
+            isChecklist = pinned.isChecklist
+            done = pinned.done
+            total = pinned.total
+            updatedAt = pinned.updatedAt
+        }
     }
 
     /// The note this activity stands for; tapping the activity opens it.

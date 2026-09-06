@@ -17,8 +17,35 @@ enum PinStore {
     struct Pinned: Codable, Equatable {
         let id: UUID
         let title: String
+        /// One line, for the inline widget and the Dynamic Island.
         let preview: String
         let updatedAt: Date
+        /// Up to four lines to stack under the title: a checklist's open
+        /// items, or a plain note's body lines.
+        var lines: [String] = []
+        /// For a checklist, the line number in the note of each entry in
+        /// `lines`, so a tap can say which item it ticks.
+        var lineNumbers: [Int] = []
+        /// How many further lines there were.
+        var more: Int = 0
+        var isChecklist: Bool = false
+        var done: Int = 0
+        var total: Int = 0
+
+        init(id: UUID, title: String, preview: String, updatedAt: Date,
+             lines: [String] = [], lineNumbers: [Int] = [], more: Int = 0,
+             isChecklist: Bool = false, done: Int = 0, total: Int = 0) {
+            self.id = id
+            self.title = title
+            self.preview = preview
+            self.updatedAt = updatedAt
+            self.lines = lines
+            self.lineNumbers = lineNumbers
+            self.more = more
+            self.isChecklist = isChecklist
+            self.done = done
+            self.total = total
+        }
 
         /// `notes://note/<uuid>`, the URL the widget opens.
         var url: URL? { URL(string: "\(PinStore.urlScheme)://note/\(id.uuidString)") }

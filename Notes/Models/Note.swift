@@ -33,6 +33,10 @@ extension Note {
     var isBlank: Bool { NoteText.isBlank(text) }
 
     var pinned: PinStore.Pinned {
-        PinStore.Pinned(id: id, title: title, preview: NoteText.widgetPreview(text), updatedAt: updatedAt)
+        let stack = NoteText.stack(text)
+        return PinStore.Pinned(
+            id: id, title: title, preview: NoteText.widgetPreview(text), updatedAt: updatedAt,
+            lines: stack.lines, lineNumbers: stack.lineNumbers, more: stack.more,
+            isChecklist: stack.isChecklist, done: stack.done, total: stack.total)
     }
 }

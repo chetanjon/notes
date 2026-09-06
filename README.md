@@ -69,8 +69,11 @@ account last seven days.
 
 Pin a note (long-press it in the list, or the pin in the editor) and it is
 on the Lock Screen at once, as a Live Activity: the card under the clock,
-and the Dynamic Island on phones that have one. Tapping it opens the note.
-Pinning another note replaces it; unpinning or deleting removes it.
+and the Dynamic Island on phones that have one. A checklist shows its open
+items one to a row, and tapping a row ticks it, right there on the Lock
+Screen, through a `LiveActivityIntent` that runs in the app. Tapping the
+title opens the note. Pinning another note replaces it; unpinning or
+deleting removes it.
 
 iOS ends every Live Activity after eight hours, and a user can swipe one
 away. The app puts the pinned note back each time it comes to the
