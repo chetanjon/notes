@@ -14,6 +14,8 @@ struct NotesApp: App {
         StepCounterIntent.handler = { noteID, line, delta in
             NoteStore.stepCounter(noteID: noteID, line: line, delta: delta)
         }
+        ShowMoreItemsIntent.handler = { noteID in await PinActivity.showMore(noteID: noteID) }
+        CollapseItemsIntent.handler = { noteID in await PinActivity.collapse(noteID: noteID) }
     }
 
     var body: some Scene {
