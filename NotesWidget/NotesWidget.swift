@@ -257,11 +257,153 @@ struct NotesWidget: Widget {
     }
 }
 
+// MARK: - Home Screen widget: the latest notes, and a pencil
+
+/// Reads the list the app wrote to the App Group; never touches the store.
+struct RecentEntry: TimelineEntry {
+    let date: Date
+    let notes: [RecentStore.Summary]
+}
+
+struct RecentProvider: TimelineProvider {
+    private var sample: [RecentStore.Summary] {
+        [
+            RecentStore.Summary(id: UUID(), title: "Groceries", preview: "1/4 done · eggs, milk, rice",
+                                updatedAt: .now, isPinned: true),
+            RecentStore.Summary(id: UUID(), title: "Walking app", preview: "Voice notes on walks",
+                                updatedAt: .now, isPinned: false),
+            RecentStore.Summary(id: UUID(), title: "Call the dentist", preview: "Tuesday, after 3",
+                                updatedAt: .now, isPinned: false),
+        ]
+    }
+
+    func placeholder(in context: Context) -> RecentEntry {
+        RecentEntry(date: .now, notes: sample)
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (RecentEntry) -> Void) {
+        completion(RecentEntry(date: .now, notes: context.isPreview ? sample : RecentStore.read()))
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<RecentEntry>) -> Void) {
+        completion(Timeline(entries: [RecentEntry(date: .now, notes: RecentStore.read())], policy: .never))
+    }
+}
+
+/// Small: the pencil, one tap to a new note. Medium and large: the latest
+/// notes, each a link to itself, with the pencil at the side. Black, white,
+/// the app's greys; text styles, so it follows the phone's text size.
+struct RecentNotesView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: RecentEntry
+
+    private var rowCount: Int { family == .systemLarge ? 7 : 3 }
+    private var shown: [RecentStore.Summary] { Array(entry.notes.prefix(rowCount)) }
+
+    var body: some View {
+        Group {
+            if family == .systemSmall {
+                small
+            } else {
+                list
+            }
+        }
+        .containerBackground(Theme.bg, for: .widget)
+    }
+
+    private var small: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            pencil
+            Spacer(minLength: 0)
+            Text("New note")
+                .font(.headline)
+                .foregroundStyle(Theme.fg)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .widgetURL(PinStore.newNoteURL)
+    }
+
+    private var list: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
+                if shown.isEmpty {
+                    Text("No notes yet")
+                        .font(.headline)
+                        .foregroundStyle(Theme.muted)
+                    Text("Tap the pencil to write one.")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.faint)
+                } else {
+                    ForEach(Array(shown.enumerated()), id: \.offset) { index, note in
+                        if let url = note.url {
+                            Link(destination: url) { row(note) }
+                        } else {
+                            row(note)
+                        }
+                        if index < shown.count - 1 {
+                            Theme.rule.frame(height: 1)
+                        }
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            Link(destination: PinStore.newNoteURL) { pencil }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func row(_ note: RecentStore.Summary) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Text(note.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.fg)
+                    .lineLimit(1)
+                if note.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.muted)
+                }
+                Spacer(minLength: 0)
+            }
+            if !note.preview.isEmpty {
+                Text(note.preview)
+                    .font(.footnote)
+                    .foregroundStyle(Theme.muted)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+
+    /// The app's compose button, at widget size.
+    private var pencil: some View {
+        Image(systemName: "pencil")
+            .font(.system(size: 20, weight: .regular))
+            .foregroundStyle(Theme.bg)
+            .frame(width: 40, height: 40)
+            .background(Theme.fg, in: Circle())
+    }
+}
+
+struct RecentNotesWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "NotesRecent", provider: RecentProvider()) { entry in
+            RecentNotesView(entry: entry)
+        }
+        .configurationDisplayName("Notes")
+        .description("Your latest notes, and a pencil for a new one.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+    }
+}
+
 // MARK: - Bundle
 
 @main
 struct NotesWidgetBundle: WidgetBundle {
     var body: some Widget {
+        RecentNotesWidget()
         NotesWidget()
         PinnedNoteLiveActivity()
     }

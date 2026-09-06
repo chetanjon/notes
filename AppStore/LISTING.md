@@ -36,6 +36,9 @@ It is black and white and dark only. Open it and write. The first line is the ti
 PIN ONE NOTE TO YOUR LOCK SCREEN
 Long-press a note and pin it. It appears on your Lock Screen right away, no setup, so the thing you must not forget is the first thing you see when you pick up the phone. A checklist shows how many items are done. Write "Water 0" and it becomes a counter with a + on your Lock Screen. Tap the card and the note opens. Pin a different note and it takes its place. Add the Notes widget once and the pin stays put for good.
 
+ON YOUR HOME SCREEN
+A widget with your latest notes and a pencil. Tap a note to open it, tap the pencil to start one.
+
 CHECKLISTS INSIDE YOUR NOTES
 Turn any line into a checklist item with one tap. Tick items off in the note, and the list shows how far along you are: "2/5 done · milk, eggs".
 

@@ -16,10 +16,10 @@ Notes/                      the app
 ├── NotesApp.swift          @main, model container, deep link
 ├── Models/                 Note (SwiftData) and NoteStore (create, trash, delete, pin)
 ├── Views/                  list, row, editor, Trash, UITextView wrapper
-├── Logic/                  Checklist, NoteText, DateFormat, Trash, PinStore, the Live Activity
+├── Logic/                  Checklist, NoteText, DateFormat, Trash, PinStore, RecentStore, the Live Activity
 ├── Theme/                  colours, fonts, spacing
 └── Assets.xcassets/        AppIcon (generated), launch background
-NotesWidget/                the Live Activity and the widget (one extension)
+NotesWidget/                the Live Activity and the widgets (one extension)
 NotesTests/                 XCTest, runs on the simulator
 AppStore/                   listing copy and the submission checklist
 docs/                       privacy policy and support pages (GitHub Pages)
@@ -91,6 +91,16 @@ the Lock Screen, Customize, Lock Screen, tap under the clock, add Notes)
 sees the pinned note there for as long as it is pinned. The app writes a
 small record (id, title, preview, counters, count) to the App Group's `UserDefaults`
 and reloads WidgetKit whenever the pin changes; the widget only reads that.
+
+## The Home Screen widget
+
+A second widget, "Notes", for the Home Screen. Small, it is the pencil:
+one tap opens the app on a fresh note (`notes://new`). Medium and large,
+it lists the latest notes, three or seven, the pinned one first, each a
+link to itself, with the pencil at the side. The app writes the list
+(`RecentStore`, in the App Group) after every save and on each foreground,
+blank notes left out; the widget only reads it. Black, white, and the
+app's greys, at the phone's text size.
 
 ## Search and Siri
 

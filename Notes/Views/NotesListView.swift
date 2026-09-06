@@ -73,6 +73,7 @@ struct NotesListView: View {
             if phase == .active {
                 NoteStore.purgeTrash(in: context)
                 NoteStore.syncLockScreen(in: context)
+                NoteStore.syncRecent(in: context)
                 // The phone's search index and Siri's list of note names
                 // catch up with whatever iCloud brought in.
                 NoteIndex.reindex(in: context)

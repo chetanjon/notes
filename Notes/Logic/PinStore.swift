@@ -78,4 +78,11 @@ enum PinStore {
         guard url.scheme == urlScheme, url.host == "note" else { return nil }
         return UUID(uuidString: url.lastPathComponent)
     }
+
+    /// `notes://new`: the Home Screen widget's pencil, a fresh note.
+    static let newNoteURL = URL(string: "\(urlScheme)://new")!
+
+    static func isNewNote(_ url: URL) -> Bool {
+        url.scheme == urlScheme && url.host == "new"
+    }
 }

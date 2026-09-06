@@ -27,8 +27,9 @@ built from and wins on any question of behaviour.
 - Checklist, note-text and date logic is pure `String` code in
   `Notes/Logic/` with tests in `NotesTests/`. Keep it that way: it is the
   part that can be tested without a simulator.
-- `PinStore.swift` and `PinnedNoteAttributes.swift` are compiled into the
-  widget extension too. They must not import SwiftData or reference `Note`.
+- `PinStore.swift`, `RecentStore.swift` and `PinnedNoteAttributes.swift` are
+  compiled into the widget extension too. They must not import SwiftData or
+  reference `Note`.
   `PinActivity.swift` starts Live Activities and is app-only: extensions
   cannot start them. The Lock Screen card is the title and the count; the
   counters' + is the only tap.

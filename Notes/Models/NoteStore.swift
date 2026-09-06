@@ -120,6 +120,19 @@ enum NoteStore {
         showOnLockScreen(pinned?.pinned)
     }
 
+    /// The Home Screen widget's list: the pinned note, then the latest
+    /// edits, blank notes left out. Written after every save and on each
+    /// foreground, when iCloud may have changed things.
+    static func syncRecent(in context: ModelContext) {
+        let notes = (try? context.fetch(FetchDescriptor<Note>(
+            predicate: #Predicate { $0.deletedAt == nil }))) ?? []
+        let recent = RecentStore.order(notes.filter { !$0.isBlank }.map {
+            RecentStore.Summary(id: $0.id, title: $0.title, preview: $0.preview,
+                                updatedAt: $0.updatedAt, isPinned: $0.isPinned)
+        })
+        if RecentStore.read() != recent { RecentStore.write(recent) }
+    }
+
     /// The Live Activity is what the user sees at once; the App Group record
     /// feeds the widget for anyone who added it.
     private static func showOnLockScreen(_ record: PinStore.Pinned?) {
@@ -142,5 +155,6 @@ enum NoteStore {
 
     private static func save(_ context: ModelContext) {
         do { try context.save() } catch { assertionFailure("Save failed: \(error)") }
+        syncRecent(in: context)
     }
 }
