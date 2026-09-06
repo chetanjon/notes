@@ -6,13 +6,11 @@ struct NotesApp: App {
     @State private var navigation = Navigation()
 
     init() {
-        // Taps on the Lock Screen card. The intents run in this process, so
-        // this is where they learn how to reach the store and the activity.
+        // A tap on a counter on the Lock Screen card. The intent runs in
+        // this process, so this is where it learns how to reach the store.
         StepCounterIntent.handler = { noteID, line, delta in
             NoteStore.stepCounter(noteID: noteID, line: line, delta: delta)
         }
-        ShowMoreItemsIntent.handler = { noteID in await PinActivity.showMore(noteID: noteID) }
-        CollapseItemsIntent.handler = { noteID in await PinActivity.collapse(noteID: noteID) }
     }
 
     var body: some Scene {

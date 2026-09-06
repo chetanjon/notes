@@ -34,34 +34,6 @@ final class NoteTextTests: XCTestCase {
         XCTAssertEqual(NoteText.widgetPreview("Title"), "")
     }
 
-    func testStackListsOpenItemsAndCountsTheRest() {
-        let text = "Groceries\n■ eggs\n□ milk\n□ rice\n□ bread\n□ tea\n□ salt"
-        let stack = NoteText.stack(text, limit: 4)
-        XCTAssertEqual(stack.rows, [.item(text: "milk", line: 2), .item(text: "rice", line: 3),
-                                    .item(text: "bread", line: 4), .item(text: "tea", line: 5)])
-        XCTAssertEqual(stack.more, 1)
-        XCTAssertTrue(stack.isChecklist)
-        XCTAssertFalse(stack.hasCounters)
-        XCTAssertEqual(stack.done, 1)
-        XCTAssertEqual(stack.total, 6)
-    }
-
-    func testStackOfAPlainNoteIsItsBodyLines() {
-        let stack = NoteText.stack("Title\n\nfirst\n  second  \nthird", limit: 2)
-        XCTAssertEqual(stack.rows, [.text("first"), .text("second")])
-        XCTAssertEqual(stack.more, 1)
-        XCTAssertFalse(stack.isChecklist)
-        XCTAssertEqual(stack.total, 0)
-    }
-
-    func testStackOfAFinishedChecklistIsEmpty() {
-        let stack = NoteText.stack("Groceries\n■ eggs\n■ milk")
-        XCTAssertEqual(stack.rows, [])
-        XCTAssertEqual(stack.more, 0)
-        XCTAssertEqual(stack.done, 2)
-        XCTAssertEqual(stack.total, 2)
-    }
-
     func testCountersMatchLabelThenNumber() {
         let text = "Day\nWater 3\nPushups  20\n□ Water 3\nRoom 4b\n3\nCall 555 1234\nSteps 1234567"
         XCTAssertEqual(NoteText.counters(text), [
@@ -72,11 +44,9 @@ final class NoteTextTests: XCTestCase {
         XCTAssertEqual(NoteText.counters("Water 3"), [])
     }
 
-    func testCheckedItemBeatsCounter() {
-        let stack = NoteText.stack("Gym\n□ Water 3\nPushups 20")
-        XCTAssertEqual(stack.rows, [.item(text: "Water 3", line: 1), .counter(label: "Pushups", value: 20, line: 2)])
-        XCTAssertTrue(stack.isChecklist)
-        XCTAssertTrue(stack.hasCounters)
+    func testCheckedItemIsNeverACounter() {
+        XCTAssertEqual(NoteText.counters("Gym\n□ Water 3\nPushups 20"),
+                       [NoteText.Counter(label: "Pushups", value: 20, lineIndex: 2)])
     }
 
     func testSteppingKeepsWhitespaceAndFloorsAtZero() {
@@ -87,15 +57,16 @@ final class NoteTextTests: XCTestCase {
         XCTAssertNil(NoteText.stepping(counterAt: 0, by: 1, in: "Water 3"))
     }
 
-    func testStackMixesItemsAndCountersInNoteOrder() {
-        let stack = NoteText.stack("Gym\nPushups 20\n□ stretch\n■ warm up\nSquats 10\nnotes here")
-        XCTAssertEqual(stack.rows, [
-            .counter(label: "Pushups", value: 20, line: 1),
-            .item(text: "stretch", line: 2),
-            .counter(label: "Squats", value: 10, line: 4),
+    func testPinnedCountersKeepNoteOrderAndStopAtTheLimit() {
+        let text = "Gym\nPushups 20\n□ stretch\nSquats 10\nnotes here\nWater 3\nSteps 900"
+        XCTAssertEqual(NoteText.pinnedCounters(text), [
+            PinnedCounter(label: "Pushups", value: 20, line: 1),
+            PinnedCounter(label: "Squats", value: 10, line: 3),
+            PinnedCounter(label: "Water", value: 3, line: 5),
         ])
-        XCTAssertEqual(stack.done, 1)
-        XCTAssertEqual(stack.total, 2)
+        XCTAssertEqual(NoteText.pinnedCounters(text, limit: 1),
+                       [PinnedCounter(label: "Pushups", value: 20, line: 1)])
+        XCTAssertEqual(NoteText.pinnedCounters("Groceries\n□ eggs\n■ milk"), [])
     }
 
     func testBlankNotes() {

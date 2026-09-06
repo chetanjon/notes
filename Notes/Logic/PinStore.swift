@@ -14,35 +14,31 @@ enum PinStore {
     static let key = "pinned"
     static let urlScheme = "notes"
 
-    /// The most rows a record carries; the Lock Screen pages through them.
-    static let maxRows = 30
+    /// The most counters the card carries; a Live Activity has little height.
+    static let maxCounters = 3
 
     struct Pinned: Codable, Equatable {
         let id: UUID
         let title: String
-        /// One line, for the inline widget and the Dynamic Island.
+        /// One line under the title: a plain note's first body line, or a
+        /// checklist's "2/5 · milk, eggs" for the inline widget.
         let preview: String
         let updatedAt: Date
-        /// Up to `maxRows` rows to stack under the title, in note order.
-        var rows: [PinnedRow] = []
-        /// How many further rows there were.
-        var more: Int = 0
+        /// Up to `maxCounters` counter lines, each with a + on the card.
+        var counters: [PinnedCounter] = []
         var isChecklist: Bool = false
-        var hasCounters: Bool = false
         var done: Int = 0
         var total: Int = 0
 
         init(id: UUID, title: String, preview: String, updatedAt: Date,
-             rows: [PinnedRow] = [], more: Int = 0, isChecklist: Bool = false,
-             hasCounters: Bool = false, done: Int = 0, total: Int = 0) {
+             counters: [PinnedCounter] = [], isChecklist: Bool = false,
+             done: Int = 0, total: Int = 0) {
             self.id = id
             self.title = title
             self.preview = preview
             self.updatedAt = updatedAt
-            self.rows = rows
-            self.more = more
+            self.counters = counters
             self.isChecklist = isChecklist
-            self.hasCounters = hasCounters
             self.done = done
             self.total = total
         }

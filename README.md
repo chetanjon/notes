@@ -69,17 +69,15 @@ account last seven days.
 
 Pin a note (long-press it in the list, or the pin in the editor) and it is
 on the Lock Screen at once, as a Live Activity: the card under the clock,
-and the Dynamic Island on phones that have one. A checklist shows its open
-items one to a row, with the count at the right; ticking is done in the
-note, not on the Lock Screen. A body line
+and the Dynamic Island on phones that have one. The card is the title, and
+for a checklist the count at the right (`0/4`); the items themselves stay
+in the note. A plain note shows its first line under the title. A body line
 that ends in a number, like `Water 3` or `Pushups 20`, is a counter: it
-gets a + on the Lock Screen, and a tap makes it `Water 4` in the note. (A
-label with a digit in it, such as `Room 4`, is left alone.) A long list
-shows three rows and "+N more"; tapping that expands the card to five
-smaller rows, then turns the page, and tapping the title brings it back to
-the top. (iOS caps a Live Activity at about 160 points, which is why it
-pages rather than grows.) Tapping the title otherwise opens the note. Pinning another note replaces it; unpinning or
-deleting removes it. The widget draws the same rows.
+gets a + on the card, and a tap makes it `Water 4` in the note. (A label
+with a digit in it, such as `Room 4`, is left alone; the card carries three
+counters at most.) Tapping the card opens the note. Pinning another note
+replaces it; unpinning or deleting removes it. The widget draws the same
+card.
 
 iOS ends every Live Activity after eight hours, and a user can swipe one
 away. The app puts the pinned note back each time it comes to the
@@ -90,7 +88,7 @@ push server, and this app has none.
 The widget is the permanent alternative. Anyone who adds it once (long-press
 the Lock Screen, Customize, Lock Screen, tap under the clock, add Notes)
 sees the pinned note there for as long as it is pinned. The app writes a
-small record (id, title, preview, date) to the App Group's `UserDefaults`
+small record (id, title, preview, counters, count) to the App Group's `UserDefaults`
 and reloads WidgetKit whenever the pin changes; the widget only reads that.
 
 ## Ship

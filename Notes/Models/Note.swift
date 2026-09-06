@@ -38,10 +38,11 @@ extension Note {
     var isTrashed: Bool { deletedAt != nil }
 
     var pinned: PinStore.Pinned {
-        let stack = NoteText.stack(text)
+        let checklist = isChecklist
+        let summary = checklist ? checklistSummary : NoteText.Summary(done: 0, total: 0, open: [])
         return PinStore.Pinned(
             id: id, title: title, preview: NoteText.widgetPreview(text), updatedAt: updatedAt,
-            rows: stack.rows, more: stack.more, isChecklist: stack.isChecklist,
-            hasCounters: stack.hasCounters, done: stack.done, total: stack.total)
+            counters: NoteText.pinnedCounters(text), isChecklist: checklist,
+            done: summary.done, total: summary.total)
     }
 }
