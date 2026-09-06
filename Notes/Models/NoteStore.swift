@@ -3,7 +3,7 @@ import SwiftData
 
 /// The few operations that touch more than one note or reach outside the
 /// model context: creating, deleting, pinning. Views call these instead of
-/// editing the context directly so the pin invariant and the widget record
+/// editing the context directly so the pin invariant and the Lock Screen
 /// are kept in one place.
 enum NoteStore {
     /// The container the app runs on. CloudKit when the entitlement is
@@ -35,7 +35,7 @@ enum NoteStore {
         let wasPinned = note.isPinned
         context.delete(note)
         save(context)
-        if wasPinned { PinStore.write(nil) }
+        if wasPinned { showOnLockScreen(nil) }
     }
 
     /// Records an edit. Called by the editor's autosave.
@@ -44,7 +44,7 @@ enum NoteStore {
         note.text = text
         note.updatedAt = .now
         save(context)
-        if note.isPinned { PinStore.write(note.pinned) }
+        if note.isPinned { showOnLockScreen(note.pinned) }
     }
 
     /// Only one note is pinned at a time; pinning a new one unpins the old.
@@ -54,16 +54,24 @@ enum NoteStore {
         for other in all where other.isPinned { other.isPinned = false }
         note.isPinned = !wasPinned
         save(context)
-        PinStore.write(note.isPinned ? note.pinned : nil)
+        showOnLockScreen(note.isPinned ? note.pinned : nil)
     }
 
-    /// After a sync, another device may have pinned a different note. Make
-    /// the widget agree with the store.
-    static func syncPinnedRecord(in context: ModelContext) {
+    /// On every return to the foreground. Another device may have pinned a
+    /// different note, and iOS ends a Live Activity after eight hours, so
+    /// both the widget record and the activity are brought back in line
+    /// with the store.
+    static func syncLockScreen(in context: ModelContext) {
         let pinned = try? context.fetch(
             FetchDescriptor<Note>(predicate: #Predicate { $0.isPinned })).first
-        let record = pinned?.pinned
+        showOnLockScreen(pinned?.pinned)
+    }
+
+    /// The Live Activity is what the user sees at once; the App Group record
+    /// feeds the widget for anyone who added it.
+    private static func showOnLockScreen(_ record: PinStore.Pinned?) {
         if PinStore.read() != record { PinStore.write(record) }
+        PinActivity.show(record)
     }
 
     static func note(withID id: UUID, in context: ModelContext) -> Note? {
