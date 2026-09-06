@@ -26,7 +26,7 @@ struct ChecklistTextView: UIViewRepresentable {
         let storage = NSTextStorage()
         let layout = MarkerLayoutManager()
         storage.addLayoutManager(layout)
-        let container = NSTextContainer(size: CGSize(width: 0, height: .greatestFiniteMagnitude))
+        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
         container.widthTracksTextView = true
         layout.addTextContainer(container)
         let view = UITextView(frame: .zero, textContainer: container)
