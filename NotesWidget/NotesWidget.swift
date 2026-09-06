@@ -12,10 +12,10 @@ struct PinnedNoteLiveActivity: Widget {
         ActivityConfiguration(for: PinnedNoteAttributes.self) { context in
             LockScreenPinView(noteID: context.attributes.noteID, state: context.state)
                 .widgetURL(context.attributes.url)
-                // A clear tint is no background at all: the text sits on the
-                // wallpaper, like the round widgets beside it. iOS's default
-                // material for Live Activities is near-black.
-                .activityBackgroundTint(Color.clear)
+                // A faint white over the system's blur: frosted glass, like
+                // a notification, on any wallpaper. iOS's own default material
+                // for Live Activities is near-black; clear is no card at all.
+                .activityBackgroundTint(Color.white.opacity(0.2))
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
