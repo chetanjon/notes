@@ -24,11 +24,11 @@ struct PinnedNoteLiveActivity: Widget {
                         .padding(.top, 6)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    PinnedStackView(
-                        title: context.state.title, rows: context.state.visibleRows,
-                        more: context.state.remaining, isChecklist: context.state.isChecklist,
+                    PinnedCardView(
+                        title: context.state.title, preview: context.state.preview,
+                        counters: context.state.counters, isChecklist: context.state.isChecklist,
                         done: context.state.done, total: context.state.total,
-                        maxLines: 2, showsPin: false, noteID: context.attributes.noteID)
+                        showsPin: false, noteID: context.attributes.noteID)
                     .padding(.horizontal, 6)
                     .padding(.bottom, 4)
                 }
@@ -59,161 +59,97 @@ struct LockScreenPinView: View {
     let state: PinnedNoteAttributes.ContentState
 
     var body: some View {
-        PinnedStackView(
-            title: state.title, rows: state.visibleRows, more: state.remaining,
+        PinnedCardView(
+            title: state.title, preview: state.preview, counters: state.counters,
             isChecklist: state.isChecklist, done: state.done, total: state.total,
-            maxLines: state.page.size, showsPin: true, noteID: noteID,
-            page: state.page, paging: true)
-        .padding(state.page.expanded ? 14 : 16)
+            showsPin: true, noteID: noteID)
+        .padding(16)
     }
 }
 
-/// Title on top, then the note's rows one to a line: a checklist's open
-/// items with the count at the right, counters with a +, or a plain
-/// note's first lines. Shared by the Live Activity and the widgets,
-/// which differ in how many rows fit.
+/// The pinned note as one card: the title, with a checklist's count at the
+/// right; a plain note's first line under it; then its counters, each with
+/// a +. A checklist's items stay in the note. Shared by the Live Activity
+/// and the widgets. Text styles, so it follows the phone's text size.
 ///
-/// With a `noteID`, counter rows are buttons; checklist items are read
-/// only, since ticking belongs in the note. The intents are
-/// `LiveActivityIntent`s, which iOS runs in the app process whichever
+/// With a `noteID`, counter rows are buttons. The intent is a
+/// `LiveActivityIntent`, which iOS runs in the app process whichever
 /// surface the button is on, so a tap reaches the store from the widget
 /// too.
-struct PinnedStackView: View {
+struct PinnedCardView: View {
     let title: String
-    let rows: [PinnedRow]
-    let more: Int
+    let preview: String
+    let counters: [PinnedCounter]
     let isChecklist: Bool
     let done: Int
     let total: Int
-    var maxLines: Int
     var showsPin: Bool
     var noteID: UUID? = nil
-    /// Where a paging card is; only the Live Activity pages.
-    var page: RowPage = RowPage()
-    var paging: Bool = false
 
-    private var shown: [PinnedRow] { Array(rows.prefix(maxLines)) }
-    private var hidden: Int { more + (rows.count - shown.count) }
-    private var dense: Bool { paging && page.expanded }
-    private var titleSize: CGFloat { dense ? 15 : 17 }
-    private var rowSize: CGFloat { dense ? 13 : 15 }
-    private var allDone: Bool {
-        isChecklist && total > 0 && !rows.contains { if case .item = $0 { return true } else { return false } }
-    }
+    private var allDone: Bool { isChecklist && total > 0 && done == total }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: dense ? 2 : 4) {
-            if paging, let noteID, !page.isAtTop {
-                // While paged, the title takes the card back to the top.
-                Button(intent: CollapseItemsIntent(noteID: noteID)) {
-                    titleRow
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(Theme.fg)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if isChecklist, total > 0 {
+                    Text("\(done)/\(total)")
+                        .font(.subheadline)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.muted)
                 }
-                .buttonStyle(.plain)
-            } else {
-                titleRow
+                if showsPin {
+                    Image(systemName: "pin.fill")
+                        .font(.footnote)
+                        .foregroundStyle(Theme.muted)
+                }
             }
             if allDone {
                 Text("All done")
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.subheadline)
                     .foregroundStyle(Theme.muted)
+            } else if !isChecklist, !preview.isEmpty {
+                Text(preview)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.muted)
+                    .lineLimit(1)
             }
-            ForEach(Array(shown.enumerated()), id: \.offset) { _, row in
-                switch row {
-                case let .item(text, _):
-                    // Read-only: ticking is done in the note. The Lock Screen
-                    // shows the list; it does not edit it.
-                    itemRow(text)
-                case let .counter(label, value, line):
-                    if let noteID {
-                        Button(intent: StepCounterIntent(noteID: noteID, line: line)) {
-                            counterRow(label, value: value)
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        counterRow(label, value: value)
+            ForEach(counters, id: \.line) { counter in
+                if let noteID {
+                    Button(intent: StepCounterIntent(noteID: noteID, line: counter.line)) {
+                        counterRow(counter)
                     }
-                case let .text(text):
-                    textRow(text)
+                    .buttonStyle(.plain)
+                } else {
+                    counterRow(counter)
                 }
-            }
-            if paging, let noteID, hidden > 0 || page.index > 0 {
-                // "+N more" expands, then turns the page; on the last page
-                // it comes back to the top.
-                Button(intent: ShowMoreItemsIntent(noteID: noteID)) {
-                    Text(hidden > 0 ? "+\(hidden) more" : "Back to top")
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundStyle(Theme.muted)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            } else if hidden > 0 {
-                Text("+\(hidden) more")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(Theme.muted)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var titleRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(title)
-                .font(.system(size: titleSize, weight: .semibold))
-                .foregroundStyle(Theme.fg)
-                .lineLimit(1)
-            Spacer(minLength: 0)
-            if isChecklist, total > 0 {
-                Text("\(done)/\(total)")
-                    .font(.system(size: 13, weight: .regular))
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.muted)
-            }
-            if paging, !page.isAtTop {
-                Image(systemName: "chevron.up")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Theme.muted)
-            } else if showsPin {
-                Image(systemName: "pin.fill")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundStyle(Theme.muted)
-            }
-        }
-        .contentShape(Rectangle())
-    }
-
-    private func itemRow(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: rowSize, weight: .regular))
-            .foregroundStyle(Theme.fg)
-            .lineLimit(1)
-    }
-
     /// "Water  3  +": the number in monospaced digits, the plus at the edge.
-    private func counterRow(_ label: String, value: Int) -> some View {
+    private func counterRow(_ counter: PinnedCounter) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label)
-                .font(.system(size: rowSize, weight: .regular))
+            Text(counter.label)
+                .font(.subheadline)
                 .foregroundStyle(Theme.fg)
                 .lineLimit(1)
             Spacer(minLength: 8)
-            Text("\(value)")
-                .font(.system(size: rowSize, weight: .semibold))
+            Text("\(counter.value)")
+                .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(Theme.fg)
             Image(systemName: "plus")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(Theme.fg)
                 .frame(width: 20)
         }
         .contentShape(Rectangle())
-    }
-
-    private func textRow(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: rowSize, weight: .regular))
-            .foregroundStyle(Theme.muted)
-            .lineLimit(1)
     }
 }
 
@@ -229,8 +165,7 @@ struct PinnedProvider: TimelineProvider {
     func placeholder(in context: Context) -> PinnedEntry {
         PinnedEntry(date: .now, pinned: PinStore.Pinned(
             id: UUID(), title: "Groceries", preview: "1/4 · eggs, milk, rice", updatedAt: .now,
-            rows: [.item(text: "eggs", line: 1), .item(text: "milk", line: 2), .item(text: "rice", line: 3)],
-            more: 0, isChecklist: true, done: 1, total: 4))
+            isChecklist: true, done: 1, total: 4))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (PinnedEntry) -> Void) {
@@ -274,10 +209,10 @@ struct NotesWidgetView: View {
     private var rectangular: some View {
         VStack(alignment: .leading, spacing: 2) {
             if let pinned = entry.pinned {
-                PinnedStackView(
-                    title: pinned.title, rows: pinned.rows, more: pinned.more,
+                PinnedCardView(
+                    title: pinned.title, preview: pinned.preview, counters: pinned.counters,
                     isChecklist: pinned.isChecklist, done: pinned.done, total: pinned.total,
-                    maxLines: 2, showsPin: false, noteID: pinned.id)
+                    showsPin: false, noteID: pinned.id)
             } else {
                 Text("Nothing pinned")
                     .font(.headline)
@@ -293,10 +228,10 @@ struct NotesWidgetView: View {
     private var small: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let pinned = entry.pinned {
-                PinnedStackView(
-                    title: pinned.title, rows: pinned.rows, more: pinned.more,
+                PinnedCardView(
+                    title: pinned.title, preview: pinned.preview, counters: pinned.counters,
                     isChecklist: pinned.isChecklist, done: pinned.done, total: pinned.total,
-                    maxLines: 3, showsPin: false, noteID: pinned.id)
+                    showsPin: false, noteID: pinned.id)
             } else {
                 Text("Nothing pinned")
                     .font(.system(size: 17, weight: .semibold))

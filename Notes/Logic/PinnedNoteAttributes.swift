@@ -8,31 +8,20 @@ import Foundation
 struct PinnedNoteAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         var title: String
-        /// One line, for the Dynamic Island's compact form.
+        /// A plain note's first body line; shown under the title.
         var preview: String
-        /// Stacked under the title, in note order: open items, counters,
-        /// or a plain note's body lines.
-        var rows: [PinnedRow]
-        var more: Int
+        /// Counter lines, each with a + on the card.
+        var counters: [PinnedCounter]
         var isChecklist: Bool
-        var hasCounters: Bool
         var done: Int
         var total: Int
         var updatedAt: Date
-        /// Where the card is in the rows. Card state, never note state.
-        var page: RowPage = RowPage()
-
-        /// The rows on the current page, and how many come after them.
-        var visibleRows: [PinnedRow] { page.visible(rows) }
-        var remaining: Int { page.remaining(rowCount: rows.count, more: more) }
 
         init(_ pinned: PinStore.Pinned) {
             title = pinned.title
             preview = pinned.preview
-            rows = pinned.rows
-            more = pinned.more
+            counters = pinned.counters
             isChecklist = pinned.isChecklist
-            hasCounters = pinned.hasCounters
             done = pinned.done
             total = pinned.total
             updatedAt = pinned.updatedAt
@@ -45,14 +34,11 @@ struct PinnedNoteAttributes: ActivityAttributes {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             title = try c.decode(String.self, forKey: .title)
             preview = try c.decodeIfPresent(String.self, forKey: .preview) ?? ""
-            rows = try c.decodeIfPresent([PinnedRow].self, forKey: .rows) ?? []
-            more = try c.decodeIfPresent(Int.self, forKey: .more) ?? 0
+            counters = try c.decodeIfPresent([PinnedCounter].self, forKey: .counters) ?? []
             isChecklist = try c.decodeIfPresent(Bool.self, forKey: .isChecklist) ?? false
-            hasCounters = try c.decodeIfPresent(Bool.self, forKey: .hasCounters) ?? false
             done = try c.decodeIfPresent(Int.self, forKey: .done) ?? 0
             total = try c.decodeIfPresent(Int.self, forKey: .total) ?? 0
             updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
-            page = try c.decodeIfPresent(RowPage.self, forKey: .page) ?? RowPage()
         }
     }
 

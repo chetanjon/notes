@@ -123,42 +123,12 @@ enum NoteText {
         return all.joined(separator: "\n")
     }
 
-    /// What the Lock Screen stacks under the title, one line each.
-    struct Stack: Equatable {
-        var rows: [PinnedRow]
-        /// How many further rows there were past `rows`.
-        var more: Int
-        var isChecklist: Bool
-        var hasCounters: Bool
-        var done: Int
-        var total: Int
-    }
-
-    /// The rows the Lock Screen shows, in note order: a checklist's open
-    /// items (done ones are done), counters, and for a plain note its body
-    /// lines. An item line is never a counter.
-    static func stack(_ text: String, limit: Int = PinStore.maxRows) -> Stack {
-        let checklist = isChecklist(text)
-        var rows: [PinnedRow] = []
-        var hasCounters = false
-        for (index, line) in lines(text).enumerated().dropFirst() {
-            if Checklist.isItem(line) {
-                guard !Checklist.isDone(line) else { continue }
-                let item = Checklist.content(line).trimmingCharacters(in: .whitespaces)
-                if !item.isEmpty { rows.append(.item(text: item, line: index)) }
-            } else if let counter = counter(in: line, at: index) {
-                hasCounters = true
-                rows.append(.counter(label: counter.label, value: counter.value, line: index))
-            } else if !checklist {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                if !trimmed.isEmpty { rows.append(.text(trimmed)) }
-            }
+    /// The counters the Lock Screen card carries: the first few, in note
+    /// order. A checklist's items are not on the card; only its count is.
+    static func pinnedCounters(_ text: String, limit: Int = PinStore.maxCounters) -> [PinnedCounter] {
+        counters(text).prefix(max(0, limit)).map {
+            PinnedCounter(label: $0.label, value: $0.value, line: $0.lineIndex)
         }
-        let summary = checklist ? checklistSummary(text) : Summary(done: 0, total: 0, open: [])
-        let count = min(rows.count, max(0, limit))
-        return Stack(rows: Array(rows.prefix(count)), more: rows.count - count,
-                     isChecklist: checklist, hasCounters: hasCounters,
-                     done: summary.done, total: summary.total)
     }
 
     /// Only whitespace and bare markers. Such a note is discarded on dismiss.
