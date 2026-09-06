@@ -109,7 +109,7 @@ struct EditorView: View {
     private func barButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 20, weight: .regular))
+                .font(Theme.Font.barGlyph)
                 .foregroundStyle(Theme.fg)
                 .frame(width: Theme.tapTarget, height: Theme.tapTarget)
         }

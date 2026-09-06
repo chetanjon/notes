@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// One note in the list: title, then time and preview on a line, and a rule
-/// underneath. Search matches are marked white on black.
+/// One note in the list: title, then time and preview on a line. The rule
+/// underneath is the list's own separator, which stays put while the row
+/// slides. Search matches are marked white on black.
 struct NoteRow: View {
     let note: Note
     /// The search query to highlight, or empty.
     var highlight: String = ""
-    var isLast = false
     /// What the row's time shows; the last edit unless told otherwise.
     var date: Date? = nil
 
@@ -42,13 +42,6 @@ struct NoteRow: View {
         .padding(.horizontal, Theme.pagePadding)
         .padding(.vertical, Theme.rowPadding)
         .background(Theme.bg)
-        .overlay(alignment: .bottom) {
-            if !isLast {
-                Theme.rule
-                    .frame(height: 1)
-                    .padding(.horizontal, Theme.pagePadding)
-            }
-        }
         .accessibilityElement(children: .combine)
     }
 
