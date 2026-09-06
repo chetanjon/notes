@@ -14,9 +14,22 @@ import Foundation
 enum PinActivity {
     /// Show `pinned` on the Lock Screen, or clear it when nil. Safe to call
     /// often: an activity already showing the same content is left alone.
+    ///
+    /// Calls run one after another. Coming to the foreground, the app asks
+    /// twice within a moment (once for the scene, once as the notes load);
+    /// run side by side, both would find nothing showing and both would
+    /// start an activity, and the note would be on the Lock Screen twice.
     static func show(_ pinned: PinStore.Pinned?) {
-        Task { @MainActor in await sync(pinned) }
+        let previous = latest
+        latest = Task { @MainActor in
+            await previous?.value
+            await sync(pinned)
+        }
     }
+
+    /// The last call's task; the next waits on it. Only ever touched from
+    /// the main thread, where every caller runs.
+    private static var latest: Task<Void, Never>?
 
     @MainActor
     static func sync(_ pinned: PinStore.Pinned?) async {
