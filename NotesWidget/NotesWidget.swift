@@ -70,10 +70,11 @@ struct LockScreenPinView: View {
     }
 }
 
-/// What a row needs to tick its item when tapped. Only the Live Activity
-/// passes this: its intent runs in the app, where the store is. The widget
-/// runs intents in the extension, which has no store, so it shows the
-/// items without boxes rather than boxes that do nothing.
+/// What a row needs to tick its item when tapped. The intent is a
+/// `LiveActivityIntent`, which iOS runs in the app process, where the
+/// store is, whichever surface the button is on: the Live Activity or the
+/// widget. (If a widget tap turns out not to reach the app on some iOS,
+/// the fallback is a shared store the extension can open; see the plan.)
 struct TappableItems {
     let noteID: UUID
     let lineNumbers: [Int]
@@ -220,7 +221,8 @@ struct NotesWidgetView: View {
                 PinnedStackView(
                     title: pinned.title, lines: pinned.lines, more: pinned.more,
                     isChecklist: pinned.isChecklist, done: pinned.done, total: pinned.total,
-                    maxLines: 2, showsPin: false)
+                    maxLines: 2, showsPin: false,
+                    tappable: TappableItems(noteID: pinned.id, lineNumbers: pinned.lineNumbers))
             } else {
                 Text("Nothing pinned")
                     .font(.headline)
@@ -239,7 +241,8 @@ struct NotesWidgetView: View {
                 PinnedStackView(
                     title: pinned.title, lines: pinned.lines, more: pinned.more,
                     isChecklist: pinned.isChecklist, done: pinned.done, total: pinned.total,
-                    maxLines: 3, showsPin: false)
+                    maxLines: 3, showsPin: false,
+                    tappable: TappableItems(noteID: pinned.id, lineNumbers: pinned.lineNumbers))
             } else {
                 Text("Nothing pinned")
                     .font(.system(size: 17, weight: .semibold))
