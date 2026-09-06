@@ -19,6 +19,12 @@ struct PinnedNoteAttributes: ActivityAttributes {
         var done: Int
         var total: Int
         var updatedAt: Date
+        /// Where the card is in the rows. Card state, never note state.
+        var page: RowPage = RowPage()
+
+        /// The rows on the current page, and how many come after them.
+        var visibleRows: [PinnedRow] { page.visible(rows) }
+        var remaining: Int { page.remaining(rowCount: rows.count, more: more) }
 
         init(_ pinned: PinStore.Pinned) {
             title = pinned.title
@@ -46,6 +52,7 @@ struct PinnedNoteAttributes: ActivityAttributes {
             done = try c.decodeIfPresent(Int.self, forKey: .done) ?? 0
             total = try c.decodeIfPresent(Int.self, forKey: .total) ?? 0
             updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+            page = try c.decodeIfPresent(RowPage.self, forKey: .page) ?? RowPage()
         }
     }
 
