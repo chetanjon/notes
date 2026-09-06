@@ -40,7 +40,10 @@ CHECKLISTS INSIDE YOUR NOTES
 Turn any line into a checklist item with one tap. Tick items off in the note, and the list shows how far along you are: "2/5 done · milk, eggs".
 
 SEARCH EVERYTHING
-Search matches titles and bodies as you type, with every match highlighted.
+Search matches titles and bodies as you type, with every match highlighted. Notes show up in your iPhone's own search too.
+
+SIRI, NO SETUP
+"Add to Groceries in Matte", "New note in Matte", "Pin Groceries in Matte". Siri and the Shortcuts app do all three.
 
 WRITING TOOLS, RIGHT IN THE NOTE
 On an iPhone with Apple Intelligence, proofread, rewrite, or summarize a note with Apple's Writing Tools, inline. Checklists come through intact.
@@ -61,7 +64,7 @@ Requires iOS 17 or later.
 
 ## Keywords (100 characters, comma separated, no spaces)
 
-notes,lock screen,widget,checklist,minimal,dark,black,matte,quick notes,notepad,todo,memo,icloud
+notes,lock screen,widget,checklist,minimal,dark,black,matte,quick notes,notepad,todo,siri,icloud
 
 ## URLs
 

@@ -92,6 +92,23 @@ sees the pinned note there for as long as it is pinned. The app writes a
 small record (id, title, preview, counters, count) to the App Group's `UserDefaults`
 and reloads WidgetKit whenever the pin changes; the widget only reads that.
 
+## Search and Siri
+
+Every note that is not in the Trash is in the iPhone's own search index
+(Core Spotlight), so it turns up when the user searches from the Home
+Screen; tapping the result opens it. The index is rebuilt on each
+foreground, which also covers notes that iCloud brought in or took away.
+It lives on the phone; nothing leaves it.
+
+Three App Intents work from Siri and the Shortcuts app without setup:
+"New note in Matte", "Add to Groceries in Matte" (Siri asks what to add,
+and it lands as an open item at the end of the note), and "Pin Groceries
+in Matte" (which opens the app, since a Live Activity can only be started
+from the foreground). "In Notes" works too; `INAlternativeAppNames` in
+`project.yml` adds Matte because Apple's own Notes owns the plain word.
+Siri learns the note titles from `NoteQuery.suggestedEntities`, refreshed
+on each foreground.
+
 ## Ship
 
 1. **App Store Connect**: create the app record with bundle id `com.cj.notes`

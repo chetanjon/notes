@@ -112,6 +112,19 @@ enum Checklist {
         return found
     }
 
+    /// The text with `item` as a new open item on a line of its own at the
+    /// end. Blank lines and an empty item at the end give way to it. What
+    /// "add milk to Groceries" does from Siri.
+    static func appendingItem(_ item: String, to text: String) -> String {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        while lines.count > 1, let last = lines.last,
+              content(last).trimmingCharacters(in: .whitespaces).isEmpty {
+            lines.removeLast()
+        }
+        lines.append(open + item.trimmingCharacters(in: .whitespacesAndNewlines))
+        return lines.joined(separator: "\n")
+    }
+
     /// The one range that differs between two texts and what replaces it,
     /// in UTF-16 units: the longest common prefix and suffix are left alone.
     /// The editor applies checklist edits this way so they can be undone.

@@ -3,8 +3,8 @@ import SwiftData
 
 /// The few operations that touch more than one note or reach outside the
 /// model context: creating, trashing, deleting, pinning. Views call these
-/// instead of editing the context directly so the pin invariant and the
-/// Lock Screen are kept in one place.
+/// instead of editing the context directly so the pin invariant, the Lock
+/// Screen, and the phone's search index are kept in one place.
 enum NoteStore {
     /// The one container. The app's views read it through the environment;
     /// the Lock Screen intent reaches it through here.
@@ -43,6 +43,7 @@ enum NoteStore {
         note.isPinned = false
         note.deletedAt = .now
         save(context)
+        NoteIndex.remove([note.id])
         if wasPinned { showOnLockScreen(nil) }
     }
 
@@ -50,20 +51,26 @@ enum NoteStore {
     static func restore(_ note: Note, in context: ModelContext) {
         note.deletedAt = nil
         save(context)
+        NoteIndex.index(note)
     }
 
     /// Gone for good: the Trash's own delete, a blank note on dismiss, and
     /// what expiry does.
     static func erase(_ note: Note, in context: ModelContext) {
         let wasPinned = note.isPinned
+        let id = note.id
         context.delete(note)
         save(context)
+        NoteIndex.remove([id])
         if wasPinned { showOnLockScreen(nil) }
     }
 
     static func emptyTrash(in context: ModelContext) {
-        for note in trashed(in: context) { context.delete(note) }
+        let notes = trashed(in: context)
+        let ids = notes.map(\.id)
+        for note in notes { context.delete(note) }
         save(context)
+        NoteIndex.remove(ids)
     }
 
     /// Deletes every note that has sat in the Trash past `Trash.retention`.
@@ -73,8 +80,10 @@ enum NoteStore {
             note.deletedAt.map { Trash.isExpired(deletedAt: $0) } ?? false
         }
         guard !expired.isEmpty else { return }
+        let ids = expired.map(\.id)
         for note in expired { context.delete(note) }
         save(context)
+        NoteIndex.remove(ids)
     }
 
     private static func trashed(in context: ModelContext) -> [Note] {
@@ -87,6 +96,7 @@ enum NoteStore {
         note.text = text
         note.updatedAt = .now
         save(context)
+        if !note.isTrashed { NoteIndex.index(note) }
         if note.isPinned { showOnLockScreen(note.pinned) }
     }
 

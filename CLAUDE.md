@@ -30,5 +30,8 @@ built from and wins on any question of behaviour.
 - `PinStore.swift` and `PinnedNoteAttributes.swift` are compiled into the
   widget extension too. They must not import SwiftData or reference `Note`.
   `PinActivity.swift` starts Live Activities and is app-only: extensions
-  cannot start them. The Lock Screen shows a checklist but never ticks it;
-  counters and paging are the only taps.
+  cannot start them. The Lock Screen card is the title and the count; the
+  counters' + is the only tap.
+- `Notes/Intents/` (Siri and Shortcuts) and `Notes/Models/NoteIndex.swift`
+  (the phone's search index) are app-only too, and every write to a note
+  goes through `NoteStore` so the index and the Lock Screen keep up.
