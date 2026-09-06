@@ -76,24 +76,6 @@ enum NoteText {
             .first(where: { !$0.isEmpty }) ?? ""
     }
 
-    /// One row on the Lock Screen. Codable and Hashable so it can sit in the
-    /// pinned record and the Live Activity's state as it is.
-    enum Row: Codable, Hashable {
-        /// An open checklist item, and the note line it is on.
-        case item(text: String, line: Int)
-        /// A line like "Water 3": a label, a number, and the note line.
-        case counter(label: String, value: Int, line: Int)
-        /// A plain note's body line.
-        case text(String)
-
-        var line: Int? {
-            switch self {
-            case let .item(_, line), let .counter(_, _, line): return line
-            case .text: return nil
-            }
-        }
-    }
-
     struct Counter: Equatable {
         var label: String
         var value: Int
@@ -143,7 +125,7 @@ enum NoteText {
 
     /// What the Lock Screen stacks under the title, one line each.
     struct Stack: Equatable {
-        var rows: [Row]
+        var rows: [PinnedRow]
         /// How many further rows there were past `rows`.
         var more: Int
         var isChecklist: Bool
@@ -157,7 +139,7 @@ enum NoteText {
     /// lines. An item line is never a counter.
     static func stack(_ text: String, limit: Int = PinStore.maxRows) -> Stack {
         let checklist = isChecklist(text)
-        var rows: [Row] = []
+        var rows: [PinnedRow] = []
         var hasCounters = false
         for (index, line) in lines(text).enumerated().dropFirst() {
             if Checklist.isItem(line) {
