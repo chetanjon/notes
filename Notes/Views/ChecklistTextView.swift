@@ -8,8 +8,12 @@ import UIKit
 /// The first line is drawn semibold, the rest regular with the spec's line
 /// height, at the phone's text size. That styling is applied to the storage
 /// after every change, so the text itself stays a plain `String`: the
-/// checklist markers are still `□ ` and `■ ` in it, and `MarkerLayoutManager`
+/// checklist markers are still `□ ` and `■ ` in it, and `MarkerLayoutFragment`
 /// draws a circle over each in their place.
+///
+/// The view runs on TextKit 2, which is what lets iOS's Writing Tools
+/// (Proofread, Rewrite, Summarize, on phones with Apple Intelligence) work
+/// inline. The markers are kept out of their reach.
 struct ChecklistTextView: UIViewRepresentable {
     enum Command: Equatable {
         /// The toolbar's checklist button.
@@ -21,15 +25,10 @@ struct ChecklistTextView: UIViewRepresentable {
     @Binding var command: Command?
 
     func makeUIView(context: Context) -> UITextView {
-        // TextKit 1, built by hand, so the layout manager is ours and can
-        // draw the checklist circles.
-        let storage = NSTextStorage()
-        let layout = MarkerLayoutManager()
-        storage.addLayoutManager(layout)
-        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
-        container.widthTracksTextView = true
-        layout.addTextContainer(container)
-        let view = UITextView(frame: .zero, textContainer: container)
+        // TextKit 2: the layout manager asks the coordinator for each
+        // paragraph's fragment, and item lines get one that draws a circle.
+        let view = UITextView(usingTextLayoutManager: true)
+        view.textLayoutManager?.delegate = context.coordinator
         view.backgroundColor = .black
         view.textColor = .white
         view.tintColor = .white
@@ -43,6 +42,12 @@ struct ChecklistTextView: UIViewRepresentable {
         view.smartDashesType = .no
         view.smartQuotesType = .default
         view.dataDetectorTypes = []
+        if #available(iOS 18.0, *) {
+            // Writing Tools inline, and plain text only: a list or a table
+            // would need rich text, and a note is a string.
+            view.writingToolsBehavior = .complete
+            view.allowedWritingToolsResultOptions = .plainText
+        }
         view.delegate = context.coordinator
         view.text = text
         // The cursor lands at the end on open, as the spec says.
@@ -65,7 +70,7 @@ struct ChecklistTextView: UIViewRepresentable {
     func updateUIView(_ view: UITextView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
-        if view.text != text {
+        if view.text != text, !coordinator.writingToolsActive {
             // A change from outside (sync, or the delete blanking the note).
             let selection = view.selectedRange
             view.text = text
@@ -133,9 +138,13 @@ struct ChecklistTextView: UIViewRepresentable {
 
     // MARK: Coordinator
 
-    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
+    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate,
+                             NSTextLayoutManagerDelegate {
         var parent: ChecklistTextView
         weak var textView: UITextView?
+        /// True while Writing Tools has the text. iOS is then rewriting it in
+        /// place and asks that nothing else touch the storage until it is done.
+        var writingToolsActive = false
 
         init(_ parent: ChecklistTextView) {
             self.parent = parent
@@ -151,9 +160,24 @@ struct ChecklistTextView: UIViewRepresentable {
             restyle(view)
         }
 
+        // MARK: Layout
+
+        /// An item line gets the fragment that draws its circle; every other
+        /// paragraph the plain one.
+        func textLayoutManager(_ textLayoutManager: NSTextLayoutManager,
+                               textLayoutFragmentFor location: any NSTextLocation,
+                               in textElement: NSTextElement) -> NSTextLayoutFragment {
+            if let paragraph = textElement as? NSTextParagraph,
+               Checklist.isItem(paragraph.attributedString.string) {
+                return MarkerLayoutFragment(textElement: paragraph, range: paragraph.elementRange)
+            }
+            return NSTextLayoutFragment(textElement: textElement, range: textElement.elementRange)
+        }
+
         // MARK: Editing
 
         func textViewDidChange(_ view: UITextView) {
+            guard !writingToolsActive else { return }
             restyle(view)
             parent.text = view.text
         }
@@ -180,6 +204,30 @@ struct ChecklistTextView: UIViewRepresentable {
             }
             apply(edit, to: view)
             return false
+        }
+
+        // MARK: Writing Tools
+
+        /// The markers of the item lines in what Writing Tools is about to
+        /// rewrite. iOS leaves these ranges as they are, so a rewritten
+        /// checklist is still a checklist.
+        @available(iOS 18.0, *)
+        func textView(_ view: UITextView,
+                      writingToolsIgnoredRangesInEnclosingRange enclosingRange: NSRange) -> [NSValue] {
+            Checklist.markerRanges(in: view.text, within: enclosingRange).map { NSValue(range: $0) }
+        }
+
+        @available(iOS 18.0, *)
+        func textViewWritingToolsWillBegin(_ view: UITextView) {
+            writingToolsActive = true
+        }
+
+        /// The rewrite is in the text now: style it and save it.
+        @available(iOS 18.0, *)
+        func textViewWritingToolsDidEnd(_ view: UITextView) {
+            writingToolsActive = false
+            restyle(view)
+            parent.text = view.text
         }
 
         // MARK: Commands
@@ -242,7 +290,7 @@ struct ChecklistTextView: UIViewRepresentable {
 
         /// First line semibold, the rest regular, everything white with the
         /// spec's line height; on an item line the marker is hidden (the
-        /// layout manager draws a circle there) and a done item's text is
+        /// layout fragment draws a circle there) and a done item's text is
         /// muted. Edits the storage directly, which does not call back into
         /// `textViewDidChange`.
         func restyle(_ view: UITextView) {
@@ -288,47 +336,35 @@ struct ChecklistTextView: UIViewRepresentable {
     }
 }
 
-/// Draws a circle over every checklist marker: an empty one for an open
-/// item, a filled one with a check for a done item, in white and muted. The
-/// marker character itself is drawn clear by `restyle`, so only the circle
-/// shows; the text underneath is unchanged, and so are taps and the cursor.
-final class MarkerLayoutManager: NSLayoutManager {
-    override func drawGlyphs(forGlyphRange glyphsToShow: NSRange, at origin: CGPoint) {
-        super.drawGlyphs(forGlyphRange: glyphsToShow, at: origin)
-        guard let storage = textStorage else { return }
-        let text = storage.string
-        let ns = text as NSString
-        let characters = characterRange(forGlyphRange: glyphsToShow, actualGlyphRange: nil)
-        var index = characters.location
-        while index < NSMaxRange(characters) {
-            let line = Checklist.lineRange(in: text, at: index)
-            let content = ns.substring(with: line)
-            if Checklist.isItem(content), line.length > 0 {
-                draw(marker: line.location, done: Checklist.isDone(content), storage: storage, origin: origin)
-            }
-            let next = ns.lineRange(for: NSRange(location: line.location, length: 0))
-            if next.length == 0 { break }
-            index = NSMaxRange(next)
-        }
-    }
-
-    private func draw(marker: Int, done: Bool, storage: NSTextStorage, origin: CGPoint) {
-        let glyph = glyphIndexForCharacter(at: marker)
-        let fragment = lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil)
-        let glyphOrigin = location(forGlyphAt: glyph)
-        let font = storage.attribute(.font, at: marker, effectiveRange: nil) as? UIFont
+/// The layout fragment for an item line. Draws the paragraph as TextKit
+/// would, then a circle over its marker: empty for an open item, filled with
+/// a check for a done one, in white and muted. The marker character itself is
+/// drawn clear by `restyle`, so only the circle shows; the text underneath is
+/// unchanged, and so are taps, the cursor, and Writing Tools.
+final class MarkerLayoutFragment: NSTextLayoutFragment {
+    override func draw(at point: CGPoint, in context: CGContext) {
+        super.draw(at: point, in: context)
+        guard let paragraph = textElement as? NSTextParagraph,
+              let line = textLineFragments.first else { return }
+        let text = paragraph.attributedString
+        guard text.length > 0, Checklist.isItem(text.string) else { return }
+        let done = Checklist.isDone(text.string)
+        let font = text.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
             ?? ChecklistTextView.Style.body
-        let size = font.pointSize * 0.8
-        let configuration = UIImage.SymbolConfiguration(pointSize: size, weight: .regular)
+        let configuration = UIImage.SymbolConfiguration(pointSize: font.pointSize * 0.8, weight: .regular)
         guard let image = UIImage(systemName: done ? "checkmark.circle.fill" : "circle",
                                   withConfiguration: configuration)?
             .withTintColor(done ? ChecklistTextView.Style.muted : .white, renderingMode: .alwaysOriginal)
         else { return }
-        // Sit the circle on the line, centred on the cap height like a glyph.
-        let baseline = fragment.origin.y + glyphOrigin.y + origin.y
-        let x = fragment.origin.x + glyphOrigin.x + origin.x
+        // The marker is the first glyph of the first line. Sit the circle on
+        // that glyph's baseline, centred on the cap height like a letter.
+        let bounds = line.typographicBounds
+        let baseline = point.y + bounds.minY + line.glyphOrigin.y
+        let x = point.x + bounds.minX + line.glyphOrigin.x
         let y = baseline - font.capHeight / 2 - image.size.height / 2
+        UIGraphicsPushContext(context)
         image.draw(in: CGRect(x: x, y: y, width: image.size.width, height: image.size.height))
+        UIGraphicsPopContext()
     }
 }
 
