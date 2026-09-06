@@ -63,6 +63,10 @@ targets:
         # Pinning a note starts a Live Activity, which is how it reaches the
         # Lock Screen without the user adding anything.
         NSSupportsLiveActivities: true
+        # Siri takes "in Matte" (the store name) as well as "in Notes" (the
+        # Home Screen name) in a phrase; Apple's Notes owns the plain word.
+        INAlternativeAppNames:
+          - INAlternativeAppName: Matte
     entitlements:
       path: Notes/Notes.entitlements
       properties:

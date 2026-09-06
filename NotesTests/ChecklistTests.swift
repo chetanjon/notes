@@ -80,6 +80,15 @@ final class ChecklistTests: XCTestCase {
         XCTAssertEqual(same.replacement, "")
     }
 
+    func testAppendingItemGoesOnItsOwnLineAtTheEnd() {
+        XCTAssertEqual(Checklist.appendingItem("milk", to: "Groceries\n□ eggs"), "Groceries\n□ eggs\n□ milk")
+        XCTAssertEqual(Checklist.appendingItem(" milk ", to: "Groceries\n□ eggs\n\n□ "), "Groceries\n□ eggs\n□ milk")
+        XCTAssertEqual(Checklist.appendingItem("milk", to: "Groceries"), "Groceries\n□ milk")
+        XCTAssertEqual(Checklist.appendingItem("milk", to: "Groceries\n"), "Groceries\n□ milk")
+        // The title line is never dropped, even when empty.
+        XCTAssertEqual(Checklist.appendingItem("milk", to: ""), "\n□ milk")
+    }
+
     func testReturnWithSelectionReplacesIt() {
         let edit = Checklist.handleReturn(in: "□ milk and eggs", selection: NSRange(location: 6, length: 9))
         XCTAssertEqual(edit, Checklist.Edit(text: "□ milk\n□ ", cursor: 9))

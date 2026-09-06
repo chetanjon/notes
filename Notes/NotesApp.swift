@@ -1,3 +1,4 @@
+import CoreSpotlight
 import SwiftData
 import SwiftUI
 
@@ -22,6 +23,12 @@ struct NotesApp: App {
                 .onOpenURL { url in
                     // notes://note/<uuid>, from the widget.
                     guard let id = PinStore.noteID(from: url) else { return }
+                    navigation.open(id)
+                }
+                .onContinueUserActivity(CSSearchableItemActionType) { activity in
+                    // A note tapped in the iPhone's search.
+                    guard let raw = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String,
+                          let id = UUID(uuidString: raw) else { return }
                     navigation.open(id)
                 }
         }
