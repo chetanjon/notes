@@ -24,7 +24,7 @@ enum PinStore {
         let preview: String
         let updatedAt: Date
         /// Up to `maxRows` rows to stack under the title, in note order.
-        var rows: [NoteText.Row] = []
+        var rows: [PinnedRow] = []
         /// How many further rows there were.
         var more: Int = 0
         var isChecklist: Bool = false
@@ -33,7 +33,7 @@ enum PinStore {
         var total: Int = 0
 
         init(id: UUID, title: String, preview: String, updatedAt: Date,
-             rows: [NoteText.Row] = [], more: Int = 0, isChecklist: Bool = false,
+             rows: [PinnedRow] = [], more: Int = 0, isChecklist: Bool = false,
              hasCounters: Bool = false, done: Int = 0, total: Int = 0) {
             self.id = id
             self.title = title

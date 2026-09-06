@@ -12,7 +12,7 @@ struct PinnedNoteAttributes: ActivityAttributes {
         var preview: String
         /// Stacked under the title, in note order: open items, counters,
         /// or a plain note's body lines.
-        var rows: [NoteText.Row]
+        var rows: [PinnedRow]
         var more: Int
         var isChecklist: Bool
         var hasCounters: Bool
@@ -23,7 +23,7 @@ struct PinnedNoteAttributes: ActivityAttributes {
         var page: RowPage = RowPage()
 
         /// The rows on the current page, and how many come after them.
-        var visibleRows: [NoteText.Row] { page.visible(rows) }
+        var visibleRows: [PinnedRow] { page.visible(rows) }
         var remaining: Int { page.remaining(rowCount: rows.count, more: more) }
 
         init(_ pinned: PinStore.Pinned) {
@@ -45,13 +45,13 @@ struct PinnedNoteAttributes: ActivityAttributes {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             title = try c.decode(String.self, forKey: .title)
             preview = try c.decodeIfPresent(String.self, forKey: .preview) ?? ""
-            rows = try c.decodeIfPresent([NoteText.Row].self, forKey: .rows) ?? []
+            rows = try c.decodeIfPresent([PinnedRow].self, forKey: .rows) ?? []
             more = try c.decodeIfPresent(Int.self, forKey: .more) ?? 0
             isChecklist = try c.decodeIfPresent(Bool.self, forKey: .isChecklist) ?? false
             hasCounters = try c.decodeIfPresent(Bool.self, forKey: .hasCounters) ?? false
             done = try c.decodeIfPresent(Int.self, forKey: .done) ?? 0
             total = try c.decodeIfPresent(Int.self, forKey: .total) ?? 0
-            updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .now
+            updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
             page = try c.decodeIfPresent(RowPage.self, forKey: .page) ?? RowPage()
         }
     }

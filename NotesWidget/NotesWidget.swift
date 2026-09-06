@@ -80,7 +80,7 @@ struct LockScreenPinView: View {
 /// is a store the extension can open; see the plan.)
 struct PinnedStackView: View {
     let title: String
-    let rows: [NoteText.Row]
+    let rows: [PinnedRow]
     let more: Int
     let isChecklist: Bool
     let done: Int
@@ -92,7 +92,7 @@ struct PinnedStackView: View {
     var page: RowPage = RowPage()
     var paging: Bool = false
 
-    private var shown: [NoteText.Row] { Array(rows.prefix(maxLines)) }
+    private var shown: [PinnedRow] { Array(rows.prefix(maxLines)) }
     private var hidden: Int { more + (rows.count - shown.count) }
     private var dense: Bool { paging && page.expanded }
     private var titleSize: CGFloat { dense ? 15 : 17 }
