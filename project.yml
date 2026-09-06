@@ -89,6 +89,8 @@ targets:
       - path: Notes/Logic/PinnedNoteAttributes.swift
       - path: Notes/Logic/ToggleChecklistItemIntent.swift
       - path: Notes/Logic/StepCounterIntent.swift
+      - path: Notes/Logic/PageIntents.swift
+      - path: Notes/Logic/RowPage.swift
       - path: Notes/Theme/Theme.swift
     info:
       path: NotesWidget/Info.plist

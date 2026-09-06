@@ -25,8 +25,8 @@ struct PinnedNoteLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     PinnedStackView(
-                        title: context.state.title, rows: context.state.rows,
-                        more: context.state.more, isChecklist: context.state.isChecklist,
+                        title: context.state.title, rows: context.state.visibleRows,
+                        more: context.state.remaining, isChecklist: context.state.isChecklist,
                         done: context.state.done, total: context.state.total,
                         maxLines: 2, showsPin: false, noteID: context.attributes.noteID)
                     .padding(.horizontal, 6)
@@ -60,10 +60,11 @@ struct LockScreenPinView: View {
 
     var body: some View {
         PinnedStackView(
-            title: state.title, rows: state.rows, more: state.more,
+            title: state.title, rows: state.visibleRows, more: state.remaining,
             isChecklist: state.isChecklist, done: state.done, total: state.total,
-            maxLines: 3, showsPin: true, noteID: noteID)
-        .padding(16)
+            maxLines: state.page.size, showsPin: true, noteID: noteID,
+            page: state.page, paging: true)
+        .padding(state.page.expanded ? 14 : 16)
     }
 }
 
@@ -87,32 +88,29 @@ struct PinnedStackView: View {
     var maxLines: Int
     var showsPin: Bool
     var noteID: UUID? = nil
+    /// Where a paging card is; only the Live Activity pages.
+    var page: RowPage = RowPage()
+    var paging: Bool = false
 
     private var shown: [PinnedRow] { Array(rows.prefix(maxLines)) }
     private var hidden: Int { more + (rows.count - shown.count) }
+    private var dense: Bool { paging && page.expanded }
+    private var titleSize: CGFloat { dense ? 15 : 17 }
+    private var rowSize: CGFloat { dense ? 13 : 15 }
     private var allDone: Bool {
         isChecklist && total > 0 && !rows.contains { if case .item = $0 { return true } else { return false } }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(title)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Theme.fg)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                if isChecklist, total > 0 {
-                    Text("\(done)/\(total)")
-                        .font(.system(size: 13, weight: .regular))
-                        .monospacedDigit()
-                        .foregroundStyle(Theme.muted)
+        VStack(alignment: .leading, spacing: dense ? 2 : 4) {
+            if paging, let noteID, !page.isAtTop {
+                // While paged, the title takes the card back to the top.
+                Button(intent: CollapseItemsIntent(noteID: noteID)) {
+                    titleRow
                 }
-                if showsPin {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundStyle(Theme.muted)
-                }
+                .buttonStyle(.plain)
+            } else {
+                titleRow
             }
             if allDone {
                 Text("All done")
@@ -145,7 +143,18 @@ struct PinnedStackView: View {
                     textRow(text)
                 }
             }
-            if hidden > 0 {
+            if paging, let noteID, hidden > 0 || page.index > 0 {
+                // "+N more" expands, then turns the page; on the last page
+                // it comes back to the top.
+                Button(intent: ShowMoreItemsIntent(noteID: noteID)) {
+                    Text(hidden > 0 ? "+\(hidden) more" : "Back to top")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(Theme.muted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            } else if hidden > 0 {
                 Text("+\(hidden) more")
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(Theme.muted)
@@ -154,13 +163,39 @@ struct PinnedStackView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var titleRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title)
+                .font(.system(size: titleSize, weight: .semibold))
+                .foregroundStyle(Theme.fg)
+                .lineLimit(1)
+            Spacer(minLength: 0)
+            if isChecklist, total > 0 {
+                Text("\(done)/\(total)")
+                    .font(.system(size: 13, weight: .regular))
+                    .monospacedDigit()
+                    .foregroundStyle(Theme.muted)
+            }
+            if paging, !page.isAtTop {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Theme.muted)
+            } else if showsPin {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(Theme.muted)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
     private func itemRow(_ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "square")
                 .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(Theme.fg)
             Text(text)
-                .font(.system(size: 15, weight: .regular))
+                .font(.system(size: rowSize, weight: .regular))
                 .foregroundStyle(Theme.fg)
                 .lineLimit(1)
             Spacer(minLength: 0)
@@ -172,12 +207,12 @@ struct PinnedStackView: View {
     private func counterRow(_ label: String, value: Int) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(label)
-                .font(.system(size: 15, weight: .regular))
+                .font(.system(size: rowSize, weight: .regular))
                 .foregroundStyle(Theme.fg)
                 .lineLimit(1)
             Spacer(minLength: 8)
             Text("\(value)")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: rowSize, weight: .semibold))
                 .monospacedDigit()
                 .foregroundStyle(Theme.fg)
             Image(systemName: "plus")
@@ -190,7 +225,7 @@ struct PinnedStackView: View {
 
     private func textRow(_ text: String) -> some View {
         Text(text)
-            .font(.system(size: 15, weight: .regular))
+            .font(.system(size: rowSize, weight: .regular))
             .foregroundStyle(Theme.muted)
             .lineLimit(1)
     }
