@@ -26,19 +26,25 @@ enum Theme {
     /// Minimum tap target.
     static let tapTarget: CGFloat = 44
 
+    /// Text styles, not point sizes, so every screen follows the size set
+    /// in Settings > Display > Text Size. At the default size these are the
+    /// spec's numbers: 34, 17, 15, 13.
     enum Font {
-        /// Screen title: 34pt semibold, tracking -0.03em.
-        static let screenTitle = SwiftUI.Font.system(size: 34, weight: .semibold)
+        /// Screen title: large title semibold, tracking -0.03em.
+        static let screenTitle = SwiftUI.Font.system(.largeTitle, weight: .semibold)
         static let screenTitleTracking: CGFloat = -0.03 * 34
         /// Note title in a row.
-        static let rowTitle = SwiftUI.Font.system(size: 17, weight: .semibold)
+        static let rowTitle = SwiftUI.Font.system(.body, weight: .semibold)
         /// Row preview and time.
-        static let rowBody = SwiftUI.Font.system(size: 15, weight: .regular)
+        static let rowBody = SwiftUI.Font.system(.subheadline)
         /// Labels and meta.
-        static let label = SwiftUI.Font.system(size: 13, weight: .regular)
+        static let label = SwiftUI.Font.system(.footnote)
         /// Toolbar text buttons.
-        static let toolbar = SwiftUI.Font.system(size: 17, weight: .semibold)
-        /// Editor body size and line height, as the spec states them.
+        static let toolbar = SwiftUI.Font.system(.body, weight: .semibold)
+        /// Glyph buttons in a bar.
+        static let barGlyph = SwiftUI.Font.system(.title3)
+        /// Editor body size and line height at the default text size, as
+        /// the spec states them; the editor scales them with the body style.
         static let editorSize: CGFloat = 17
         static let editorLineHeight: CGFloat = 1.6
         /// The first line, drawn as a heading so it reads as the title.

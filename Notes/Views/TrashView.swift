@@ -3,8 +3,7 @@ import SwiftUI
 
 /// Deleted notes, newest first. A tap puts one back in the list; a swipe
 /// deletes it for good; Empty clears the lot, with the editor's two-tap
-/// confirmation and no system alert. Once the last note is gone the
-/// screen pops, so the list never shows an empty Trash.
+/// confirmation and no system alert. Empty, it says so.
 struct TrashView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -32,45 +31,52 @@ struct TrashView: View {
                 .padding(.horizontal, Theme.pagePadding)
                 .padding(.top, 6)
                 .padding(.bottom, 8)
-            List {
-                ForEach(notes) { note in
-                    NoteRow(note: note, isLast: note.id == notes.last?.id, date: note.deletedAt)
-                        .contentShape(Rectangle())
-                        .onTapGesture { restore(note) }
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Theme.bg)
-                        .listRowSeparator(.hidden)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                erase(note)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+            if notes.isEmpty {
+                Text("Nothing here.")
+                    .font(Theme.Font.rowBody)
+                    .foregroundStyle(Theme.muted)
+                    .padding(.horizontal, Theme.pagePadding)
+                    .padding(.top, 8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            } else {
+                List {
+                    ForEach(notes) { note in
+                        NoteRow(note: note, date: note.deletedAt)
+                            .contentShape(Rectangle())
+                            .onTapGesture { restore(note) }
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Theme.bg)
+                            .noteSeparator(isLast: note.id == notes.last?.id)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    erase(note)
+                                } label: {
+                                    Image(systemName: "trash")
+                                }
+                                .tint(Theme.field)
+                                .accessibilityLabel("Delete for good")
                             }
-                            .tint(Theme.field)
-                        }
-                        .contextMenu {
-                            Button {
-                                restore(note)
-                            } label: {
-                                Label("Put back", systemImage: "arrow.uturn.backward")
+                            .contextMenu {
+                                Button {
+                                    restore(note)
+                                } label: {
+                                    Label("Put back", systemImage: "arrow.uturn.backward")
+                                }
+                                Button(role: .destructive) {
+                                    erase(note)
+                                } label: {
+                                    Label("Delete for good", systemImage: "trash")
+                                }
                             }
-                            Button(role: .destructive) {
-                                erase(note)
-                            } label: {
-                                Label("Delete for good", systemImage: "trash")
-                            }
-                        }
+                    }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
         }
         .background(Theme.bg.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
-        .onChange(of: notes.isEmpty) { _, empty in
-            if empty { dismiss() }
-        }
         .onDisappear { emptyTimer?.cancel() }
     }
 
@@ -82,23 +88,25 @@ struct TrashView: View {
                 dismiss()
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .regular))
+                    .font(Theme.Font.barGlyph)
                     .foregroundStyle(Theme.fg)
                     .frame(width: Theme.tapTarget, height: Theme.tapTarget)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Back")
             Spacer()
-            Button {
-                if confirmingEmpty { emptyNow() } else { armEmpty() }
-            } label: {
-                Text(confirmingEmpty ? "Delete all" : "Empty")
-                    .font(Theme.Font.toolbar)
-                    .foregroundStyle(Theme.fg)
-                    .frame(height: Theme.tapTarget)
-                    .padding(.horizontal, 10)
+            if !notes.isEmpty {
+                Button {
+                    if confirmingEmpty { emptyNow() } else { armEmpty() }
+                } label: {
+                    Text(confirmingEmpty ? "Delete all" : "Empty")
+                        .font(Theme.Font.toolbar)
+                        .foregroundStyle(Theme.fg)
+                        .frame(height: Theme.tapTarget)
+                        .padding(.horizontal, 10)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, Theme.pagePadding - 10)
         .frame(height: Theme.tapTarget)

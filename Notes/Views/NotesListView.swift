@@ -9,8 +9,6 @@ struct NotesListView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(filter: #Predicate<Note> { $0.deletedAt == nil }, sort: \Note.updatedAt, order: .reverse)
     private var notes: [Note]
-    @Query(filter: #Predicate<Note> { $0.deletedAt != nil })
-    private var trashed: [Note]
 
     @State private var query = ""
     @State private var isSearching = false
@@ -42,11 +40,7 @@ struct NotesListView: View {
                 Theme.bg.ignoresSafeArea()
                 VStack(alignment: .leading, spacing: 0) {
                     if !isSearching {
-                        Text("Notes")
-                            .font(Theme.Font.screenTitle)
-                            .tracking(Theme.Font.screenTitleTracking)
-                            .foregroundStyle(Theme.fg)
-                            .padding(.horizontal, Theme.pagePadding)
+                        header
                             .padding(.top, 8)
                             .padding(.bottom, 12)
                     }
@@ -85,13 +79,39 @@ struct NotesListView: View {
         }
     }
 
+    // MARK: Header
+
+    /// The title, and the way into the Trash at the right, always there.
+    private var header: some View {
+        HStack(spacing: 0) {
+            Text("Notes")
+                .font(Theme.Font.screenTitle)
+                .tracking(Theme.Font.screenTitleTracking)
+                .foregroundStyle(Theme.fg)
+            Spacer(minLength: 8)
+            Button {
+                searchFocused = false
+                navigation.path.append(.trash)
+            } label: {
+                Image(systemName: "trash")
+                    .font(Theme.Font.barGlyph)
+                    .foregroundStyle(Theme.muted)
+                    .frame(width: Theme.tapTarget, height: Theme.tapTarget)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Trash")
+        }
+        .padding(.leading, Theme.pagePadding)
+        .padding(.trailing, Theme.pagePadding - 12)
+    }
+
     // MARK: Search
 
     private var searchBar: some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 17, weight: .regular))
+                    .font(.body)
                     .foregroundStyle(isSearching ? Theme.fg : Theme.muted)
                 TextField("", text: $query, prompt: Text("Search").foregroundStyle(Theme.faint))
                     .font(Theme.Font.rowBody)
@@ -108,7 +128,7 @@ struct NotesListView: View {
                         query = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 17))
+                            .font(.body)
                             .foregroundStyle(Theme.muted)
                             .frame(width: Theme.tapTarget, height: Theme.tapTarget)
                     }
@@ -125,7 +145,7 @@ struct NotesListView: View {
 
             if isSearching {
                 Button("Cancel") { cancelSearch() }
-                    .font(.system(size: 17, weight: .regular))
+                    .font(.body)
                     .foregroundStyle(Theme.fg)
                     .frame(height: Theme.tapTarget)
                     .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -145,18 +165,12 @@ struct NotesListView: View {
     private var content: some View {
         let rows = visible
         if notes.isEmpty {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("No notes yet. Tap the pen to write one.")
-                    .font(Theme.Font.rowBody)
-                    .foregroundStyle(Theme.muted)
-                    .padding(.horizontal, Theme.pagePadding)
-                    .padding(.top, 8)
-                if !trashed.isEmpty {
-                    trashRow
-                        .padding(.top, 8)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            Text("No notes yet. Tap the pen to write one.")
+                .font(Theme.Font.rowBody)
+                .foregroundStyle(Theme.muted)
+                .padding(.horizontal, Theme.pagePadding)
+                .padding(.top, 8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if !trimmedQuery.isEmpty, rows.isEmpty {
             Text("No matches.")
                 .font(Theme.Font.rowBody)
@@ -177,23 +191,23 @@ struct NotesListView: View {
                         .listRowSeparator(.hidden)
                 }
                 ForEach(rows) { note in
-                    NoteRow(note: note, highlight: trimmedQuery, isLast: note.id == rows.last?.id)
+                    NoteRow(note: note, highlight: trimmedQuery)
                         .contentShape(Rectangle())
                         .onTapGesture { open(note) }
                         .listRowInsets(EdgeInsets())
                         .listRowBackground(Theme.bg)
-                        .listRowSeparator(.hidden)
+                        .noteSeparator(isLast: note.id == rows.last?.id)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            // A white trash glyph on the field grey. Swipe
-                            // actions paint their label white whatever the
-                            // tint, so the block is grey, not the spec's
-                            // white; a full swipe still deletes at once.
+                            // A white trash glyph on the field grey, and no
+                            // word: swipe actions paint their label white
+                            // whatever the tint. A full swipe deletes at once.
                             Button(role: .destructive) {
                                 NoteStore.trash(note, in: context)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Image(systemName: "trash")
                             }
                             .tint(Theme.field)
+                            .accessibilityLabel("Delete")
                         }
                         .contextMenu {
                             Button {
@@ -208,12 +222,6 @@ struct NotesListView: View {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
-                }
-                if trimmedQuery.isEmpty, !trashed.isEmpty {
-                    trashRow
-                        .listRowInsets(EdgeInsets())
-                        .listRowBackground(Theme.bg)
-                        .listRowSeparator(.hidden)
                 }
                 // Room so the last row clears the compose button.
                 Color.clear
@@ -245,31 +253,6 @@ struct NotesListView: View {
         .accessibilityLabel("New note")
     }
 
-    /// "Trash · 3", the last row, only while there is something in it.
-    private var trashRow: some View {
-        Button {
-            searchFocused = false
-            navigation.path.append(.trash)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "trash")
-                    .font(.system(size: 15, weight: .regular))
-                Text("Trash · \(trashed.count)")
-                    .font(Theme.Font.rowBody)
-                    .monospacedDigit()
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-            }
-            .foregroundStyle(Theme.muted)
-            .padding(.horizontal, Theme.pagePadding)
-            .padding(.vertical, Theme.rowPadding)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Trash, \(trashed.count) notes")
-    }
-
     private func open(_ note: Note) {
         searchFocused = false
         navigation.open(note.id)
@@ -290,6 +273,19 @@ private struct MissingNoteView: View {
                 .foregroundStyle(Theme.muted)
         }
         .toolbarColorScheme(.dark, for: .navigationBar)
+    }
+}
+
+extension View {
+    /// The rule under a note row: the list's own separator, in the rule
+    /// grey, 20pt in from each edge, and none under the last row. Being
+    /// the list's, it stays put while the row slides for a swipe.
+    func noteSeparator(isLast: Bool) -> some View {
+        listRowSeparator(isLast ? .hidden : .visible, edges: .bottom)
+            .listRowSeparator(.hidden, edges: .top)
+            .listRowSeparatorTint(Theme.rule)
+            .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] + Theme.pagePadding }
+            .alignmentGuide(.listRowSeparatorTrailing) { $0[.trailing] - Theme.pagePadding }
     }
 }
 

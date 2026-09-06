@@ -114,17 +114,20 @@ before each upload; App Store Connect refuses a build number it has seen.
 
 Everything in the spec's acceptance list is implemented: autosave, the
 first-line title, search with white-on-black highlights, swipe to delete
-(into a Trash: the last row of the list while it has anything in it, where a
-tap puts a note back, a swipe deletes it for good, and anything left is gone
-after thirty days), checklists (button, tap to toggle, Return continues, Return on an empty item
-ends), list previews, single pin, the Live Activity (the spec's stretch
-goal), the widget in all three families, the deep link, CloudKit sync, and
-the app icon.
+(into a Trash, behind the trash glyph beside the title, where a tap puts a
+note back, a swipe deletes it for good, and anything left is gone after
+thirty days), checklists (button, tap the circle to toggle, Return
+continues, Return on an empty item ends), list previews, single pin, the
+Live Activity (the spec's stretch goal), the widget in all three families,
+the deep link, CloudKit sync, and the app icon. Two things past the spec:
+every screen follows the text size set in Settings, and the checklist
+markers, `□` and `■` in the text, are drawn as circles by the editor's own
+layout manager, so the note stays plain text.
 
 Two places iOS decides, not the spec: a swipe action paints its label white
-whatever the tint, so the swipe-to-delete block is dark grey with a white
-trash glyph rather than the spec's white with black text, and as wide as
-the system makes it; and the widget's text uses the Lock Screen's own
+whatever the tint and draws it in its own shape, so the swipe-to-delete is
+a dark grey circle with a white trash glyph rather than the spec's white
+block with black text; and the widget's text uses the Lock Screen's own
 rendering, so it is always white on the wallpaper.
 
 Not built, on purpose: folders, tags, colours, rich text, attachments,
