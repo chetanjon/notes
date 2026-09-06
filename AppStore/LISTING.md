@@ -39,7 +39,10 @@ CHECKLISTS INSIDE YOUR NOTES
 Turn any line into a checklist item with one tap. Tick items off in the note, and the list shows how far along you are: "2/5 done · milk, eggs".
 
 SEARCH EVERYTHING
-Search matches titles and bodies as you type, with every match highlighted.
+Search matches titles and bodies as you type, with every match highlighted. Notes show up in your iPhone's own search too.
+
+SIRI, NO SETUP
+"Add to Groceries in Matte", "New note in Matte", "Pin Groceries in Matte". Siri and the Shortcuts app do all three.
 
 A TRASH, NOT A WARNING
 Swipe to delete, no confirmation. The note waits in the Trash for 30 days, where one tap puts it back.
