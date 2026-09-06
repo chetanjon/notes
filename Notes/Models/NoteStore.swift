@@ -2,9 +2,9 @@ import Foundation
 import SwiftData
 
 /// The few operations that touch more than one note or reach outside the
-/// model context: creating, deleting, pinning. Views call these instead of
-/// editing the context directly so the pin invariant and the Lock Screen
-/// are kept in one place.
+/// model context: creating, trashing, deleting, pinning. Views call these
+/// instead of editing the context directly so the pin invariant and the
+/// Lock Screen are kept in one place.
 enum NoteStore {
     /// The one container. The app's views read it through the environment;
     /// the Lock Screen intent reaches it through here.
@@ -35,14 +35,50 @@ enum NoteStore {
         return note
     }
 
-    /// Deletes at once, no confirmation, as the spec says. `undo`, when given,
-    /// keeps the note for a few seconds so the list can offer to put it back.
-    static func delete(_ note: Note, in context: ModelContext, undo: Undo? = nil) {
+    /// Moves the note to the Trash: out of the list, unpinned, kept for
+    /// thirty days. No confirmation, as the spec says; the Trash is the way
+    /// back.
+    static func trash(_ note: Note, in context: ModelContext) {
         let wasPinned = note.isPinned
-        undo?.keep(note)
+        note.isPinned = false
+        note.deletedAt = .now
+        save(context)
+        if wasPinned { showOnLockScreen(nil) }
+    }
+
+    /// Back from the Trash, where it was in the list before.
+    static func restore(_ note: Note, in context: ModelContext) {
+        note.deletedAt = nil
+        save(context)
+    }
+
+    /// Gone for good: the Trash's own delete, a blank note on dismiss, and
+    /// what expiry does.
+    static func erase(_ note: Note, in context: ModelContext) {
+        let wasPinned = note.isPinned
         context.delete(note)
         save(context)
         if wasPinned { showOnLockScreen(nil) }
+    }
+
+    static func emptyTrash(in context: ModelContext) {
+        for note in trashed(in: context) { context.delete(note) }
+        save(context)
+    }
+
+    /// Deletes every note that has sat in the Trash past `Trash.retention`.
+    /// Run on each return to the foreground.
+    static func purgeTrash(in context: ModelContext) {
+        let expired = trashed(in: context).filter { note in
+            note.deletedAt.map { Trash.isExpired(deletedAt: $0) } ?? false
+        }
+        guard !expired.isEmpty else { return }
+        for note in expired { context.delete(note) }
+        save(context)
+    }
+
+    private static func trashed(in context: ModelContext) -> [Note] {
+        (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt != nil }))) ?? []
     }
 
     /// Records an edit. Called by the editor's autosave.

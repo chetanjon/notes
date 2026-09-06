@@ -7,7 +7,6 @@ struct EditorView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(Undo.self) private var undo
     let note: Note
 
     @State private var text: String
@@ -58,8 +57,8 @@ struct EditorView: View {
             saveTask?.cancel()
             saveTask = nil
             if NoteText.isBlank(text) {
-                // Only whitespace: discarded, and not worth an Undo.
-                NoteStore.delete(note, in: context)
+                // Only whitespace: discarded, not worth a place in the Trash.
+                NoteStore.erase(note, in: context)
             } else {
                 NoteStore.update(note, text: text, in: context)
             }
@@ -139,7 +138,8 @@ struct EditorView: View {
     }
 
     /// First tap: the icon becomes the word. A second tap within three
-    /// seconds deletes; otherwise it reverts. No system alert.
+    /// seconds moves the note to the Trash; otherwise it reverts. No
+    /// system alert.
     private func armDelete() {
         confirmingDelete = true
         deleteTimer?.cancel()
@@ -163,7 +163,7 @@ struct EditorView: View {
         saveTask?.cancel()
         saveTask = nil
         isDeleted = true
-        NoteStore.delete(note, in: context, undo: undo)
+        NoteStore.trash(note, in: context)
         dismiss()
     }
 }

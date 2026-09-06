@@ -3,7 +3,9 @@ import SwiftData
 
 /// A note is its text. The first line is the title; there is no separate
 /// field for it. `isPinned` is true on at most one note, enforced in
-/// `NoteStore.togglePin`, never by the schema.
+/// `NoteStore.togglePin`, never by the schema. A note with a `deletedAt` is
+/// in the Trash: out of the list, never pinned, gone for good thirty days
+/// later.
 ///
 /// Every property has a default and none is unique, because CloudKit
 /// requires the first and refuses the second.
@@ -14,6 +16,7 @@ final class Note {
     var createdAt: Date = Date.now
     var updatedAt: Date = Date.now
     var isPinned: Bool = false
+    var deletedAt: Date? = nil
 
     init(text: String = "") {
         id = UUID()
@@ -21,6 +24,7 @@ final class Note {
         createdAt = .now
         updatedAt = .now
         isPinned = false
+        deletedAt = nil
     }
 }
 
@@ -31,6 +35,7 @@ extension Note {
     var checklistSummary: NoteText.Summary { NoteText.checklistSummary(text) }
     var preview: String { NoteText.preview(text) }
     var isBlank: Bool { NoteText.isBlank(text) }
+    var isTrashed: Bool { deletedAt != nil }
 
     var pinned: PinStore.Pinned {
         let stack = NoteText.stack(text)

@@ -41,6 +41,9 @@ Turn any line into a checklist item with one tap. Tick items off in the note, an
 SEARCH EVERYTHING
 Search matches titles and bodies as you type, with every match highlighted.
 
+A TRASH, NOT A WARNING
+Swipe to delete, no confirmation. The note waits in the Trash for 30 days, where one tap puts it back.
+
 SYNCS THROUGH YOUR ICLOUD
 Your notes appear on all your iPhones, through your own iCloud. There is no account to create, no server, and no sign-in.
 

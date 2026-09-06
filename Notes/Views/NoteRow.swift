@@ -7,6 +7,8 @@ struct NoteRow: View {
     /// The search query to highlight, or empty.
     var highlight: String = ""
     var isLast = false
+    /// What the row's time shows; the last edit unless told otherwise.
+    var date: Date? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -24,7 +26,7 @@ struct NoteRow: View {
                 }
             }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(DateFormat.when(note.updatedAt))
+                Text(DateFormat.when(date ?? note.updatedAt))
                     .font(Theme.Font.rowBody)
                     .monospacedDigit()
                     .foregroundStyle(Theme.fg)
