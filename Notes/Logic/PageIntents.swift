@@ -3,9 +3,8 @@ import Foundation
 
 /// "+N more" on the Lock Screen card: expand, then turn the page.
 ///
-/// Like `ToggleChecklistItemIntent`, a `LiveActivityIntent` that runs in
-/// the app, which installs `handler` at launch; the extension only builds
-/// it for the button. Neither intent touches the store: they change the
+/// A `LiveActivityIntent` that runs in the app, which installs `handler`
+/// at launch; the extension only builds it for the button. Neither intent touches the store: they change the
 /// running activity's content only.
 struct ShowMoreItemsIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Show more of the pinned note"

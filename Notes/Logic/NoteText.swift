@@ -161,16 +161,6 @@ enum NoteText {
                      done: summary.done, total: summary.total)
     }
 
-    /// The text with the item on line `lineIndex` flipped between open and
-    /// done, or nil when that line is not an item. What a tap on the Lock
-    /// Screen does.
-    static func togglingItem(at lineIndex: Int, in text: String) -> String? {
-        var all = lines(text)
-        guard all.indices.contains(lineIndex), Checklist.isItem(all[lineIndex]) else { return nil }
-        all[lineIndex] = Checklist.toggle(all[lineIndex])
-        return all.joined(separator: "\n")
-    }
-
     /// Only whitespace and bare markers. Such a note is discarded on dismiss.
     static func isBlank(_ text: String) -> Bool {
         lines(text).allSatisfy {

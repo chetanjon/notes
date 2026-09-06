@@ -3,8 +3,8 @@ import Foundation
 
 /// A tap on a counter row on the Lock Screen: "Water 3" becomes "Water 4".
 ///
-/// Same shape as `ToggleChecklistItemIntent`: a `LiveActivityIntent` runs in
-/// the app, which installs `handler` at launch. The extension only builds it.
+/// A `LiveActivityIntent` runs in the app, which installs `handler` at
+/// launch. The extension only builds it.
 struct StepCounterIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Count one more"
     static var isDiscoverable: Bool = false

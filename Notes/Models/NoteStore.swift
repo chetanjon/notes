@@ -81,16 +81,6 @@ enum NoteStore {
         PinActivity.show(record)
     }
 
-    /// A tap on an item on the Lock Screen: flip that line, save, and the
-    /// Live Activity and widget follow through `update`.
-    @MainActor
-    static func toggleItem(noteID: UUID, line: Int) {
-        let context = container.mainContext
-        guard let note = note(withID: noteID, in: context),
-              let text = NoteText.togglingItem(at: line, in: note.text) else { return }
-        update(note, text: text, in: context)
-    }
-
     /// A tap on a counter on the Lock Screen: move the number on that line.
     @MainActor
     static func stepCounter(noteID: UUID, line: Int, delta: Int) {

@@ -7,11 +7,8 @@ struct NotesApp: App {
     @State private var undo = Undo()
 
     init() {
-        // A tap on a checklist item on the Lock Screen. The intent runs in
-        // this process, so this is where it learns how to reach the store.
-        ToggleChecklistItemIntent.handler = { noteID, line in
-            NoteStore.toggleItem(noteID: noteID, line: line)
-        }
+        // Taps on the Lock Screen card. The intents run in this process, so
+        // this is where they learn how to reach the store and the activity.
         StepCounterIntent.handler = { noteID, line, delta in
             NoteStore.stepCounter(noteID: noteID, line: line, delta: delta)
         }
