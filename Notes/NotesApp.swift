@@ -21,9 +21,14 @@ struct NotesApp: App {
                 .preferredColorScheme(.dark)
                 .tint(Theme.fg)
                 .onOpenURL { url in
-                    // notes://note/<uuid>, from the widget.
-                    guard let id = PinStore.noteID(from: url) else { return }
-                    navigation.open(id)
+                    // notes://note/<uuid> from a widget or the Lock Screen
+                    // card; notes://new from the Home Screen widget's pencil.
+                    if PinStore.isNewNote(url) {
+                        let note = NoteStore.create(in: NoteStore.container.mainContext)
+                        navigation.open(note.id)
+                    } else if let id = PinStore.noteID(from: url) {
+                        navigation.open(id)
+                    }
                 }
                 .onContinueUserActivity(CSSearchableItemActionType) { activity in
                     // A note tapped in the iPhone's search.
