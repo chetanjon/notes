@@ -64,7 +64,7 @@ Requires iOS 17 or later.
 
 ## Keywords (100 characters, comma separated, no spaces)
 
-notes,lock screen,widget,checklist,minimal,dark,black,matte,quick notes,notepad,todo,memo,icloud
+notes,lock screen,widget,checklist,minimal,dark,black,matte,quick notes,notepad,todo,siri,icloud
 
 ## URLs
 
