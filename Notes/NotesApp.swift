@@ -4,6 +4,7 @@ import SwiftUI
 @main
 struct NotesApp: App {
     @State private var navigation = Navigation()
+    @State private var undo = Undo()
 
     init() {
         // A tap on a checklist item on the Lock Screen. The intent runs in
@@ -17,6 +18,7 @@ struct NotesApp: App {
         WindowGroup {
             NotesListView()
                 .environment(navigation)
+                .environment(undo)
                 .preferredColorScheme(.dark)
                 .tint(Theme.fg)
                 .onOpenURL { url in

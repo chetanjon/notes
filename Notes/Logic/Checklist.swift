@@ -91,6 +91,22 @@ enum Checklist {
         return offset - range.location < markerLength
     }
 
+    /// The one range that differs between two texts and what replaces it,
+    /// in UTF-16 units: the longest common prefix and suffix are left alone.
+    /// The editor applies checklist edits this way so they can be undone.
+    static func difference(from old: String, to new: String) -> (range: NSRange, replacement: String) {
+        let a = Array(old.utf16)
+        let b = Array(new.utf16)
+        var prefix = 0
+        while prefix < a.count, prefix < b.count, a[prefix] == b[prefix] { prefix += 1 }
+        var suffix = 0
+        while suffix < a.count - prefix, suffix < b.count - prefix,
+              a[a.count - 1 - suffix] == b[b.count - 1 - suffix] { suffix += 1 }
+        let range = NSRange(location: prefix, length: a.count - prefix - suffix)
+        let replacement = String(decoding: b[prefix..<(b.count - suffix)], as: UTF16.self)
+        return (range, replacement)
+    }
+
     /// The Return key with `selection` about to be replaced by a line break.
     /// On an item with content, the list continues on a new line. On an
     /// empty item, the marker is removed and the list ends. On a plain line

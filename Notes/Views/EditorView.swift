@@ -6,6 +6,8 @@ import SwiftUI
 struct EditorView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(Undo.self) private var undo
     let note: Note
 
     @State private var text: String
@@ -14,6 +16,8 @@ struct EditorView: View {
     @State private var confirmingDelete = false
     @State private var deleteTimer: Task<Void, Never>?
     @State private var saveTask: Task<Void, Never>?
+    /// Set by the trash: the note is gone, so onDisappear must not touch it.
+    @State private var isDeleted = false
 
     /// Autosave waits this long after the last keystroke.
     private static let saveDelay: Duration = .milliseconds(350)
@@ -43,11 +47,18 @@ struct EditorView: View {
             // Another device edited this note while it was open.
             if synced != text, saveTask == nil { text = synced }
         }
+        .onChange(of: scenePhase) { _, phase in
+            // Leaving the foreground: save now, not in 350 ms. Killing the
+            // app then loses nothing.
+            if phase != .active { flush() }
+        }
         .onDisappear {
+            deleteTimer?.cancel()
+            guard !isDeleted else { return }
             saveTask?.cancel()
             saveTask = nil
-            deleteTimer?.cancel()
             if NoteText.isBlank(text) {
+                // Only whitespace: discarded, and not worth an Undo.
                 NoteStore.delete(note, in: context)
             } else {
                 NoteStore.update(note, text: text, in: context)
@@ -139,12 +150,20 @@ struct EditorView: View {
         }
     }
 
+    /// Save whatever is on screen right now.
+    private func flush() {
+        guard !isDeleted, !NoteText.isBlank(text) else { return }
+        saveTask?.cancel()
+        saveTask = nil
+        NoteStore.update(note, text: text, in: context)
+    }
+
     private func deleteNow() {
         deleteTimer?.cancel()
         saveTask?.cancel()
         saveTask = nil
-        // Blank it so onDisappear finds nothing to save and discards it.
-        text = ""
+        isDeleted = true
+        NoteStore.delete(note, in: context, undo: undo)
         dismiss()
     }
 }
