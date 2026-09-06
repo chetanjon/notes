@@ -4,7 +4,6 @@ import SwiftUI
 @main
 struct NotesApp: App {
     @State private var navigation = Navigation()
-    @State private var undo = Undo()
 
     init() {
         // Taps on the Lock Screen card. The intents run in this process, so
@@ -20,7 +19,6 @@ struct NotesApp: App {
         WindowGroup {
             NotesListView()
                 .environment(navigation)
-                .environment(undo)
                 .preferredColorScheme(.dark)
                 .tint(Theme.fg)
                 .onOpenURL { url in
@@ -33,13 +31,19 @@ struct NotesApp: App {
     }
 }
 
-/// Which note is open. The list owns the navigation path; the app sets it
-/// from a deep link; the widget's URL lands here.
+/// Where the list has gone: into a note, or into the Trash. The list owns
+/// the navigation path; the app sets it from a deep link; the widget's URL
+/// lands here.
 @Observable
 final class Navigation {
-    var path: [UUID] = []
+    enum Route: Hashable {
+        case note(UUID)
+        case trash
+    }
+
+    var path: [Route] = []
 
     func open(_ id: UUID) {
-        path = [id]
+        path = [.note(id)]
     }
 }

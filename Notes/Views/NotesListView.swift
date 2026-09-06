@@ -1,14 +1,16 @@
 import SwiftData
 import SwiftUI
-import UIKit
 
-/// The home screen: title, search, the notes, and the pen.
+/// The home screen: title, search, the notes, the way into the Trash, and
+/// the pen.
 struct NotesListView: View {
     @Environment(\.modelContext) private var context
     @Environment(Navigation.self) private var navigation
-    @Environment(Undo.self) private var undo
     @Environment(\.scenePhase) private var scenePhase
-    @Query(sort: \Note.updatedAt, order: .reverse) private var notes: [Note]
+    @Query(filter: #Predicate<Note> { $0.deletedAt == nil }, sort: \Note.updatedAt, order: .reverse)
+    private var notes: [Note]
+    @Query(filter: #Predicate<Note> { $0.deletedAt != nil })
+    private var trashed: [Note]
 
     @State private var query = ""
     @State private var isSearching = false
@@ -54,32 +56,29 @@ struct NotesListView: View {
                         .padding(.bottom, 12)
                     content
                 }
-                VStack(spacing: 12) {
-                    if undo.deleted != nil {
-                        undoBar
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                            .zIndex(1)
-                    }
-                    HStack {
-                        Spacer()
-                        composeButton
-                    }
-                }
-                .padding(.horizontal, Theme.pagePadding)
-                .padding(.bottom, 24)
-                .animation(.easeOut(duration: 0.2), value: undo.deleted != nil)
+                composeButton
+                    .padding(.horizontal, Theme.pagePadding)
+                    .padding(.bottom, 24)
             }
             .toolbar(.hidden, for: .navigationBar)
-            .navigationDestination(for: UUID.self) { id in
-                if let note = NoteStore.note(withID: id, in: context) {
-                    EditorView(note: note)
-                } else {
-                    MissingNoteView()
+            .navigationDestination(for: Navigation.Route.self) { route in
+                switch route {
+                case let .note(id):
+                    if let note = NoteStore.note(withID: id, in: context), !note.isTrashed {
+                        EditorView(note: note)
+                    } else {
+                        MissingNoteView()
+                    }
+                case .trash:
+                    TrashView()
                 }
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { NoteStore.syncLockScreen(in: context) }
+            if phase == .active {
+                NoteStore.purgeTrash(in: context)
+                NoteStore.syncLockScreen(in: context)
+            }
         }
         .onChange(of: pinnedSignature) { _, _ in
             NoteStore.syncLockScreen(in: context)
@@ -146,12 +145,18 @@ struct NotesListView: View {
     private var content: some View {
         let rows = visible
         if notes.isEmpty {
-            Text("No notes yet. Tap the pen to write one.")
-                .font(Theme.Font.rowBody)
-                .foregroundStyle(Theme.muted)
-                .padding(.horizontal, Theme.pagePadding)
-                .padding(.top, 8)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("No notes yet. Tap the pen to write one.")
+                    .font(Theme.Font.rowBody)
+                    .foregroundStyle(Theme.muted)
+                    .padding(.horizontal, Theme.pagePadding)
+                    .padding(.top, 8)
+                if !trashed.isEmpty {
+                    trashRow
+                        .padding(.top, 8)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if !trimmedQuery.isEmpty, rows.isEmpty {
             Text("No matches.")
                 .font(Theme.Font.rowBody)
@@ -179,18 +184,16 @@ struct NotesListView: View {
                         .listRowBackground(Theme.bg)
                         .listRowSeparator(.hidden)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            // A white trash glyph on the field grey. Swipe
+                            // actions paint their label white whatever the
+                            // tint, so the block is grey, not the spec's
+                            // white; a full swipe still deletes at once.
                             Button(role: .destructive) {
-                                NoteStore.delete(note, in: context, undo: undo)
+                                NoteStore.trash(note, in: context)
                             } label: {
-                                // A rendered image keeps its own colour, which
-                                // is the only way to get black text on the
-                                // white block: swipe actions paint any Text
-                                // label white over the tint.
-                                Image(uiImage: TextImage.render("Delete"))
-                                    .renderingMode(.original)
+                                Label("Delete", systemImage: "trash")
                             }
-                            .tint(Theme.fg)
-                            .accessibilityLabel("Delete")
+                            .tint(Theme.field)
                         }
                         .contextMenu {
                             Button {
@@ -200,11 +203,17 @@ struct NotesListView: View {
                                       systemImage: note.isPinned ? "pin.slash" : "pin")
                             }
                             Button(role: .destructive) {
-                                NoteStore.delete(note, in: context, undo: undo)
+                                NoteStore.trash(note, in: context)
                             } label: {
                                 Label("Delete", systemImage: "trash")
                             }
                         }
+                }
+                if trimmedQuery.isEmpty, !trashed.isEmpty {
+                    trashRow
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Theme.bg)
+                        .listRowSeparator(.hidden)
                 }
                 // Room so the last row clears the compose button.
                 Color.clear
@@ -236,33 +245,29 @@ struct NotesListView: View {
         .accessibilityLabel("New note")
     }
 
-    /// "Note deleted · Undo", for a few seconds after a delete. The bar is
-    /// the field grey so it reads against the list, and Undo is a white
-    /// pill with black text, the same weight as the pen: it lives five
-    /// seconds, so it has to be seen at a glance.
-    private var undoBar: some View {
-        HStack(spacing: 12) {
-            Text("Note deleted")
-                .font(Theme.Font.rowBody)
-                .foregroundStyle(Theme.fg)
-            Spacer()
-            Button {
-                undo.restore(in: context)
-            } label: {
-                Text("Undo")
-                    .font(Theme.Font.toolbar)
-                    .foregroundStyle(Theme.bg)
-                    .padding(.horizontal, 16)
-                    .frame(height: 36)
-                    .background(Theme.fg, in: Capsule())
+    /// "Trash · 3", the last row, only while there is something in it.
+    private var trashRow: some View {
+        Button {
+            searchFocused = false
+            navigation.path.append(.trash)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "trash")
+                    .font(.system(size: 15, weight: .regular))
+                Text("Trash · \(trashed.count)")
+                    .font(Theme.Font.rowBody)
+                    .monospacedDigit()
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
             }
-            .buttonStyle(PressedButtonStyle())
+            .foregroundStyle(Theme.muted)
+            .padding(.horizontal, Theme.pagePadding)
+            .padding(.vertical, Theme.rowPadding)
+            .contentShape(Rectangle())
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 8)
-        .frame(height: 52)
-        .background(Theme.field, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .accessibilityElement(children: .contain)
+        .buttonStyle(.plain)
+        .accessibilityLabel("Trash, \(trashed.count) notes")
     }
 
     private func open(_ note: Note) {
@@ -295,22 +300,5 @@ struct PressedButtonStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.7 : 1)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
-    }
-}
-
-/// Renders a word as an image so a swipe action can show it in black.
-enum TextImage {
-    static func render(_ string: String) -> UIImage {
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: UIFont.systemFont(ofSize: 17, weight: .semibold),
-            .foregroundColor: UIColor.black,
-        ]
-        let size = (string as NSString).size(withAttributes: attributes)
-        let bounds = CGSize(width: ceil(size.width), height: ceil(size.height))
-        let format = UIGraphicsImageRendererFormat.default()
-        format.opaque = false
-        return UIGraphicsImageRenderer(size: bounds, format: format).image { _ in
-            (string as NSString).draw(at: .zero, withAttributes: attributes)
-        }
     }
 }

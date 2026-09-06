@@ -13,9 +13,9 @@ The spec this was built from is `NOTES_APP_SPEC.md`.
 project.yml                 xcodegen spec: app, widget, tests
 Notes/                      the app
 ├── NotesApp.swift          @main, model container, deep link
-├── Models/                 Note (SwiftData) and NoteStore (create, delete, pin)
-├── Views/                  list, row, editor, UITextView wrapper
-├── Logic/                  Checklist, NoteText, DateFormat, PinStore, the Live Activity
+├── Models/                 Note (SwiftData) and NoteStore (create, trash, delete, pin)
+├── Views/                  list, row, editor, Trash, UITextView wrapper
+├── Logic/                  Checklist, NoteText, DateFormat, Trash, PinStore, the Live Activity
 ├── Theme/                  colours, fonts, spacing
 └── Assets.xcassets/        AppIcon (generated), launch background
 NotesWidget/                the Live Activity and the widget (one extension)
@@ -115,15 +115,19 @@ before each upload; App Store Connect refuses a build number it has seen.
 ## What is and is not built
 
 Everything in the spec's acceptance list is implemented: autosave, the
-first-line title, search with white-on-black highlights, swipe to delete,
-checklists (button, tap to toggle, Return continues, Return on an empty item
+first-line title, search with white-on-black highlights, swipe to delete
+(into a Trash: the last row of the list while it has anything in it, where a
+tap puts a note back, a swipe deletes it for good, and anything left is gone
+after thirty days), checklists (button, tap to toggle, Return continues, Return on an empty item
 ends), list previews, single pin, the Live Activity (the spec's stretch
 goal), the widget in all three families, the deep link, CloudKit sync, and
 the app icon.
 
-Two places iOS decides, not the spec: the swipe-to-delete block is as wide
-as the system makes it (the spec asks for 88pt), and the widget's text uses
-the Lock Screen's own rendering, so it is always white on the wallpaper.
+Two places iOS decides, not the spec: a swipe action paints its label white
+whatever the tint, so the swipe-to-delete block is dark grey with a white
+trash glyph rather than the spec's white with black text, and as wide as
+the system makes it; and the widget's text uses the Lock Screen's own
+rendering, so it is always white on the wallpaper.
 
 Not built, on purpose: folders, tags, colours, rich text, attachments,
 sharing, accounts, and light mode.
