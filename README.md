@@ -14,11 +14,11 @@ project.yml                 xcodegen spec: app, widget, tests
 Notes/                      the app
 ├── NotesApp.swift          @main, model container, deep link
 ├── Models/                 Note (SwiftData) and NoteStore (create, delete, pin)
-├── Views/                  list, row, editor, UITextView wrapper, widget hint
-├── Logic/                  pure string logic: Checklist, NoteText, DateFormat, PinStore
+├── Views/                  list, row, editor, UITextView wrapper
+├── Logic/                  Checklist, NoteText, DateFormat, PinStore, the Live Activity
 ├── Theme/                  colours, fonts, spacing
 └── Assets.xcassets/        AppIcon (generated), launch background
-NotesWidget/                the Lock Screen widget extension
+NotesWidget/                the Live Activity and the widget (one extension)
 NotesTests/                 XCTest, runs on the simulator
 AppStore/                   listing copy and the submission checklist
 docs/                       privacy policy and support pages (GitHub Pages)
@@ -65,17 +65,24 @@ and runs with local storage only. The code falls back to a local store
 when CloudKit is unavailable, so nothing else changes. Installs from a free
 account last seven days.
 
-## The Lock Screen widget
+## The Lock Screen pin
 
-iOS does not let an app add a widget for you. Once, on the phone: lock it,
-press and hold the Lock Screen, tap Customize, choose Lock Screen, tap the
-widget area under the clock, and add Notes. From then on the pinned note
-shows there. The app shows these steps once, the first time a note is pinned.
+Pin a note (long-press it in the list, or the pin in the editor) and it is
+on the Lock Screen at once, as a Live Activity: the card under the clock,
+and the Dynamic Island on phones that have one. Tapping it opens the note.
+Pinning another note replaces it; unpinning or deleting removes it.
 
-The widget never opens the database. When a note is pinned, unpinned, or
-edited while pinned, the app writes a small record (id, title, preview, date)
-to the App Group's `UserDefaults` and asks WidgetKit to reload. Tapping the
-widget opens the app on that note.
+iOS ends every Live Activity after eight hours, and a user can swipe one
+away. The app puts the pinned note back each time it comes to the
+foreground, so it is there whenever the app has been used that day. That is
+the honest limit of the mechanism: keeping it up indefinitely would need a
+push server, and this app has none.
+
+The widget is the permanent alternative. Anyone who adds it once (long-press
+the Lock Screen, Customize, Lock Screen, tap under the clock, add Notes)
+sees the pinned note there for as long as it is pinned. The app writes a
+small record (id, title, preview, date) to the App Group's `UserDefaults`
+and reloads WidgetKit whenever the pin changes; the widget only reads that.
 
 ## Ship
 
@@ -101,12 +108,13 @@ before each upload; App Store Connect refuses a build number it has seen.
 Everything in the spec's acceptance list is implemented: autosave, the
 first-line title, search with white-on-black highlights, swipe to delete,
 checklists (button, tap to toggle, Return continues, Return on an empty item
-ends), list previews, single pin, the widget in all three families, the
-deep link, CloudKit sync, the app icon, and the one-time widget hint.
+ends), list previews, single pin, the Live Activity (the spec's stretch
+goal), the widget in all three families, the deep link, CloudKit sync, and
+the app icon.
 
 Two places iOS decides, not the spec: the swipe-to-delete block is as wide
 as the system makes it (the spec asks for 88pt), and the widget's text uses
 the Lock Screen's own rendering, so it is always white on the wallpaper.
 
 Not built, on purpose: folders, tags, colours, rich text, attachments,
-sharing, accounts, light mode, and the Live Activity stretch goal.
+sharing, accounts, and light mode.

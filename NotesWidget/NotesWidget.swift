@@ -1,7 +1,95 @@
+import ActivityKit
 import SwiftUI
 import WidgetKit
 
-/// The pinned note on the Lock Screen (and, for free, the Home Screen).
+// MARK: - Live Activity: the pinned note, on the Lock Screen at once
+
+/// Drawn from the attributes the app passed when it started the activity.
+/// Never touches the store or the App Group.
+struct PinnedNoteLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: PinnedNoteAttributes.self) { context in
+            LockScreenPinView(state: context.state)
+                .widgetURL(context.attributes.url)
+                .activityBackgroundTint(Theme.bg)
+                .activitySystemActionForegroundColor(Theme.fg)
+        } dynamicIsland: { context in
+            DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(Theme.fg)
+                        .padding(.leading, 6)
+                        .padding(.top, 6)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(context.state.title)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Theme.fg)
+                            .lineLimit(1)
+                        if !context.state.preview.isEmpty {
+                            Text(context.state.preview)
+                                .font(.system(size: 15, weight: .regular))
+                                .foregroundStyle(Theme.muted)
+                                .lineLimit(2)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 6)
+                    .padding(.bottom, 4)
+                }
+            } compactLeading: {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(Theme.fg)
+            } compactTrailing: {
+                Text(context.state.title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.fg)
+                    .lineLimit(1)
+            } minimal: {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 12, weight: .regular))
+                    .foregroundStyle(Theme.fg)
+            }
+            .widgetURL(context.attributes.url)
+            .keylineTint(Theme.fg)
+        }
+    }
+}
+
+/// The card under the clock: title, first line, a small pin. Black, like
+/// the app; the tint is set on the configuration above.
+struct LockScreenPinView: View {
+    let state: PinnedNoteAttributes.ContentState
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(state.title)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Theme.fg)
+                    .lineLimit(1)
+                if !state.preview.isEmpty {
+                    Text(state.preview)
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(Theme.muted)
+                        .lineLimit(2)
+                }
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "pin.fill")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(Theme.muted)
+                .padding(.top, 3)
+        }
+        .padding(16)
+    }
+}
+
+// MARK: - Widget: the permanent option, for anyone who adds it
+
 /// Reads the record the app wrote to the App Group; never touches the store.
 struct PinnedEntry: TimelineEntry {
     let date: Date
@@ -102,7 +190,6 @@ struct NotesWidgetView: View {
     }
 }
 
-@main
 struct NotesWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "NotesPinned", provider: PinnedProvider()) { entry in
@@ -111,6 +198,16 @@ struct NotesWidget: Widget {
         .configurationDisplayName("Pinned note")
         .description("Shows the note you pinned.")
         .supportedFamilies([.accessoryRectangular, .accessoryInline, .systemSmall])
+    }
+}
+
+// MARK: - Bundle
+
+@main
+struct NotesWidgetBundle: WidgetBundle {
+    var body: some Widget {
+        NotesWidget()
+        PinnedNoteLiveActivity()
     }
 }
 

@@ -11,8 +11,6 @@ struct NotesListView: View {
 
     @State private var query = ""
     @State private var isSearching = false
-    @State private var showWidgetHint = false
-    @AppStorage("didShowWidgetHint") private var didShowWidgetHint = false
     @FocusState private var searchFocused: Bool
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
@@ -60,11 +58,8 @@ struct NotesListView: View {
                 }
             }
         }
-        .sheet(isPresented: $showWidgetHint) {
-            WidgetHintView()
-        }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { NoteStore.syncPinnedRecord(in: context) }
+            if phase == .active { NoteStore.syncLockScreen(in: context) }
         }
     }
 
@@ -227,10 +222,6 @@ struct NotesListView: View {
 
     private func togglePin(_ note: Note) {
         NoteStore.togglePin(note, in: context)
-        if note.isPinned, !didShowWidgetHint {
-            didShowWidgetHint = true
-            showWidgetHint = true
-        }
     }
 }
 

@@ -1,5 +1,6 @@
 # Notes: a dark, minimal notes app for iPhone. Native SwiftUI, SwiftData with
-# CloudKit sync, and a Lock Screen widget that shows the one pinned note.
+# CloudKit sync, and the one pinned note on the Lock Screen: at once as a Live
+# Activity, and for good as a widget for anyone who adds it.
 #
 # Generate the Xcode project with `xcodegen generate`; Notes.xcodeproj is
 # ignored by git and rebuilt from this file.
@@ -59,6 +60,9 @@ targets:
         # Nothing here encrypts beyond what iOS does; answering up front
         # skips the export-compliance question on every TestFlight upload.
         ITSAppUsesNonExemptEncryption: false
+        # Pinning a note starts a Live Activity, which is how it reaches the
+        # Lock Screen without the user adding anything.
+        NSSupportsLiveActivities: true
     entitlements:
       path: Notes/Notes.entitlements
       properties:
@@ -78,9 +82,10 @@ targets:
     platform: iOS
     sources:
       - path: NotesWidget
-      # The one file the widget shares with the app: the pinned-note record
-      # and the App Group defaults it lives in.
+      # Shared with the app: the pinned-note record and the App Group
+      # defaults it lives in, the Live Activity's attributes, and the theme.
       - path: Notes/Logic/PinStore.swift
+      - path: Notes/Logic/PinnedNoteAttributes.swift
       - path: Notes/Theme/Theme.swift
     info:
       path: NotesWidget/Info.plist

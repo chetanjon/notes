@@ -14,8 +14,6 @@ struct EditorView: View {
     @State private var confirmingDelete = false
     @State private var deleteTimer: Task<Void, Never>?
     @State private var saveTask: Task<Void, Never>?
-    @State private var showWidgetHint = false
-    @AppStorage("didShowWidgetHint") private var didShowWidgetHint = false
 
     /// Autosave waits this long after the last keystroke.
     private static let saveDelay: Duration = .milliseconds(350)
@@ -54,9 +52,6 @@ struct EditorView: View {
             } else {
                 NoteStore.update(note, text: text, in: context)
             }
-        }
-        .sheet(isPresented: $showWidgetHint) {
-            WidgetHintView()
         }
     }
 
@@ -125,15 +120,11 @@ struct EditorView: View {
     }
 
     private func togglePin() {
-        // Save first so the widget shows what is on screen, not what was.
+        // Save first so the Lock Screen shows what is on screen, not what was.
         saveTask?.cancel()
         saveTask = nil
         NoteStore.update(note, text: text, in: context)
         NoteStore.togglePin(note, in: context)
-        if note.isPinned, !didShowWidgetHint {
-            didShowWidgetHint = true
-            showWidgetHint = true
-        }
     }
 
     /// First tap: the icon becomes the word. A second tap within three
