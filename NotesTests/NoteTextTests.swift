@@ -34,6 +34,32 @@ final class NoteTextTests: XCTestCase {
         XCTAssertEqual(NoteText.widgetPreview("Title"), "")
     }
 
+    func testStackListsOpenItemsAndCountsTheRest() {
+        let text = "Groceries\n■ eggs\n□ milk\n□ rice\n□ bread\n□ tea\n□ salt"
+        let stack = NoteText.stack(text, limit: 4)
+        XCTAssertEqual(stack.lines, ["milk", "rice", "bread", "tea"])
+        XCTAssertEqual(stack.more, 1)
+        XCTAssertTrue(stack.isChecklist)
+        XCTAssertEqual(stack.done, 1)
+        XCTAssertEqual(stack.total, 6)
+    }
+
+    func testStackOfAPlainNoteIsItsBodyLines() {
+        let stack = NoteText.stack("Title\n\nfirst\n  second  \nthird", limit: 2)
+        XCTAssertEqual(stack.lines, ["first", "second"])
+        XCTAssertEqual(stack.more, 1)
+        XCTAssertFalse(stack.isChecklist)
+        XCTAssertEqual(stack.total, 0)
+    }
+
+    func testStackOfAFinishedChecklistIsEmpty() {
+        let stack = NoteText.stack("Groceries\n■ eggs\n■ milk")
+        XCTAssertEqual(stack.lines, [])
+        XCTAssertEqual(stack.more, 0)
+        XCTAssertEqual(stack.done, 2)
+        XCTAssertEqual(stack.total, 2)
+    }
+
     func testBlankNotes() {
         XCTAssertTrue(NoteText.isBlank(""))
         XCTAssertTrue(NoteText.isBlank(" \n\n  "))

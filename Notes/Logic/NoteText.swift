@@ -76,6 +76,35 @@ enum NoteText {
             .first(where: { !$0.isEmpty }) ?? ""
     }
 
+    /// What the Lock Screen stacks under the title, one line each.
+    struct Stack: Equatable {
+        /// Open items for a checklist, non-empty body lines otherwise.
+        var lines: [String]
+        /// How many further lines there were past `lines`.
+        var more: Int
+        var isChecklist: Bool
+        var done: Int
+        var total: Int
+    }
+
+    /// The first `limit` lines the Lock Screen shows: a checklist's open
+    /// items in order (done ones are done), or a plain note's body lines.
+    static func stack(_ text: String, limit: Int = 4) -> Stack {
+        let all: [String]
+        let checklist = isChecklist(text)
+        let summary = checklist ? checklistSummary(text) : Summary(done: 0, total: 0, open: [])
+        if checklist {
+            all = summary.open
+        } else {
+            all = bodyLines(text)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        }
+        let shown = Array(all.prefix(max(0, limit)))
+        return Stack(lines: shown, more: all.count - shown.count,
+                     isChecklist: checklist, done: summary.done, total: summary.total)
+    }
+
     /// Only whitespace and bare markers. Such a note is discarded on dismiss.
     static func isBlank(_ text: String) -> Bool {
         lines(text).allSatisfy {

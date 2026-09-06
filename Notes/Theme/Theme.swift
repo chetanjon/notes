@@ -41,6 +41,8 @@ enum Theme {
         /// Editor body size and line height, as the spec states them.
         static let editorSize: CGFloat = 17
         static let editorLineHeight: CGFloat = 1.6
+        /// The first line, drawn as a heading so it reads as the title.
+        static let editorTitleSize: CGFloat = 22
     }
 }
 

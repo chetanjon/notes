@@ -23,19 +23,11 @@ struct PinnedNoteLiveActivity: Widget {
                         .padding(.top, 6)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(context.state.title)
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(Theme.fg)
-                            .lineLimit(1)
-                        if !context.state.preview.isEmpty {
-                            Text(context.state.preview)
-                                .font(.system(size: 15, weight: .regular))
-                                .foregroundStyle(Theme.muted)
-                                .lineLimit(2)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    PinnedStackView(
+                        title: context.state.title, lines: context.state.lines,
+                        more: context.state.more, isChecklist: context.state.isChecklist,
+                        done: context.state.done, total: context.state.total,
+                        maxLines: 2, showsPin: false)
                     .padding(.horizontal, 6)
                     .padding(.bottom, 4)
                 }
@@ -59,32 +51,82 @@ struct PinnedNoteLiveActivity: Widget {
     }
 }
 
-/// The card under the clock: title, first line, a small pin. Black, like
-/// the app; the tint is set on the configuration above.
+/// The card under the clock. Black, like the app; the tint is set on the
+/// configuration above.
 struct LockScreenPinView: View {
     let state: PinnedNoteAttributes.ContentState
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(state.title)
+        PinnedStackView(
+            title: state.title, lines: state.lines, more: state.more,
+            isChecklist: state.isChecklist, done: state.done, total: state.total,
+            maxLines: 3, showsPin: true)
+        .padding(16)
+    }
+}
+
+/// Title on top, then the note's lines stacked one to a row: a checklist's
+/// open items with their boxes and a count at the right, or a plain note's
+/// first lines. Shared by the Live Activity and the rectangular widget,
+/// which differ only in how many lines fit.
+struct PinnedStackView: View {
+    let title: String
+    let lines: [String]
+    let more: Int
+    let isChecklist: Bool
+    let done: Int
+    let total: Int
+    var maxLines: Int
+    var showsPin: Bool
+
+    private var shown: [String] { Array(lines.prefix(maxLines)) }
+    private var hidden: Int { more + (lines.count - shown.count) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(title)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Theme.fg)
                     .lineLimit(1)
-                if !state.preview.isEmpty {
-                    Text(state.preview)
-                        .font(.system(size: 15, weight: .regular))
+                Spacer(minLength: 0)
+                if isChecklist, total > 0 {
+                    Text("\(done)/\(total)")
+                        .font(.system(size: 13, weight: .regular))
+                        .monospacedDigit()
                         .foregroundStyle(Theme.muted)
-                        .lineLimit(2)
+                }
+                if showsPin {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundStyle(Theme.muted)
                 }
             }
-            Spacer(minLength: 0)
-            Image(systemName: "pin.fill")
-                .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(Theme.muted)
-                .padding(.top, 3)
+            if isChecklist, total > 0, lines.isEmpty {
+                Text("All done")
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundStyle(Theme.muted)
+            }
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, line in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    if isChecklist {
+                        Image(systemName: "square")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(Theme.fg)
+                    }
+                    Text(line)
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundStyle(isChecklist ? Theme.fg : Theme.muted)
+                        .lineLimit(1)
+                }
+            }
+            if hidden > 0 {
+                Text("+\(hidden) more")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundStyle(Theme.muted)
+            }
         }
-        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -99,7 +141,8 @@ struct PinnedEntry: TimelineEntry {
 struct PinnedProvider: TimelineProvider {
     func placeholder(in context: Context) -> PinnedEntry {
         PinnedEntry(date: .now, pinned: PinStore.Pinned(
-            id: UUID(), title: "Groceries", preview: "1/4 · eggs, milk, rice", updatedAt: .now))
+            id: UUID(), title: "Groceries", preview: "1/4 · eggs, milk, rice", updatedAt: .now,
+            lines: ["eggs", "milk", "rice"], more: 0, isChecklist: true, done: 1, total: 4))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (PinnedEntry) -> Void) {
@@ -143,14 +186,10 @@ struct NotesWidgetView: View {
     private var rectangular: some View {
         VStack(alignment: .leading, spacing: 2) {
             if let pinned = entry.pinned {
-                Text(pinned.title)
-                    .font(.headline)
-                    .lineLimit(pinned.preview.isEmpty ? 2 : 1)
-                if !pinned.preview.isEmpty {
-                    Text(pinned.preview)
-                        .font(.subheadline)
-                        .lineLimit(1)
-                }
+                PinnedStackView(
+                    title: pinned.title, lines: pinned.lines, more: pinned.more,
+                    isChecklist: pinned.isChecklist, done: pinned.done, total: pinned.total,
+                    maxLines: 2, showsPin: false)
             } else {
                 Text("Nothing pinned")
                     .font(.headline)
@@ -166,16 +205,10 @@ struct NotesWidgetView: View {
     private var small: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let pinned = entry.pinned {
-                Text(pinned.title)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Theme.fg)
-                    .lineLimit(2)
-                if !pinned.preview.isEmpty {
-                    Text(pinned.preview)
-                        .font(.system(size: 15))
-                        .foregroundStyle(Theme.muted)
-                        .lineLimit(3)
-                }
+                PinnedStackView(
+                    title: pinned.title, lines: pinned.lines, more: pinned.more,
+                    isChecklist: pinned.isChecklist, done: pinned.done, total: pinned.total,
+                    maxLines: 3, showsPin: false)
             } else {
                 Text("Nothing pinned")
                     .font(.system(size: 17, weight: .semibold))
