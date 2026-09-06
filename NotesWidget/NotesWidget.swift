@@ -159,7 +159,7 @@ struct PinnedCardView: View {
     }
 }
 
-// MARK: - Widget: the permanent option, for anyone who adds it
+// MARK: - Pinned note widget: the permanent option, for anyone who adds it
 
 /// Reads the record the app wrote to the App Group; never touches the store.
 struct PinnedEntry: TimelineEntry {
@@ -183,6 +183,8 @@ struct PinnedProvider: TimelineProvider {
     }
 }
 
+/// The pinned card in the system's colours on the system's widget
+/// background: vibrant on the Lock Screen, translucent on the Home Screen.
 struct NotesWidgetView: View {
     @Environment(\.widgetFamily) private var family
     let entry: PinnedEntry
@@ -192,8 +194,6 @@ struct NotesWidgetView: View {
             switch family {
             case .accessoryInline:
                 inline
-            case .accessoryCircular:
-                circular
             case .accessoryRectangular:
                 rectangular
             default:
@@ -201,30 +201,7 @@ struct NotesWidgetView: View {
             }
         }
         .widgetURL(entry.pinned?.url)
-        .containerBackground(Theme.bg, for: .widget)
-    }
-
-    /// The round Lock Screen slot: a ring of the checklist's progress with
-    /// the count in it, or the pin for a plain note. The system draws it in
-    /// the Lock Screen's own tint, so no colours here.
-    private var circular: some View {
-        ZStack {
-            AccessoryWidgetBackground()
-            if let pinned = entry.pinned, pinned.isChecklist, pinned.total > 0 {
-                Gauge(value: Double(pinned.done), in: 0...Double(pinned.total)) {
-                    Image(systemName: "pin.fill")
-                } currentValueLabel: {
-                    Text("\(pinned.done)/\(pinned.total)")
-                        .font(.system(size: 13, weight: .semibold))
-                        .monospacedDigit()
-                }
-                .gaugeStyle(.accessoryCircular)
-            } else {
-                Image(systemName: entry.pinned == nil ? "pin" : "pin.fill")
-                    .font(.system(size: 22, weight: .regular))
-            }
-        }
-        .widgetAccentable()
+        .containerBackground(.fill.tertiary, for: .widget)
     }
 
     private var inline: some View {
@@ -243,14 +220,14 @@ struct NotesWidgetView: View {
                 PinnedCardView(
                     title: pinned.title, preview: pinned.preview, counters: pinned.counters,
                     isChecklist: pinned.isChecklist, done: pinned.done, total: pinned.total,
-                    showsPin: false, noteID: pinned.id)
+                    showsPin: false, noteID: pinned.id, adaptive: true)
             } else {
                 Text("Nothing pinned")
                     .font(.headline)
-                    .opacity(0.6)
+                    .foregroundStyle(.secondary)
                 Text("Long-press a note to pin")
                     .font(.caption)
-                    .opacity(0.6)
+                    .foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -262,14 +239,14 @@ struct NotesWidgetView: View {
                 PinnedCardView(
                     title: pinned.title, preview: pinned.preview, counters: pinned.counters,
                     isChecklist: pinned.isChecklist, done: pinned.done, total: pinned.total,
-                    showsPin: false, noteID: pinned.id)
+                    showsPin: false, noteID: pinned.id, adaptive: true)
             } else {
                 Text("Nothing pinned")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Theme.muted)
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
                 Text("Long-press a note to pin")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Theme.faint)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 0)
         }
@@ -284,11 +261,11 @@ struct NotesWidget: Widget {
         }
         .configurationDisplayName("Pinned note")
         .description("Shows the note you pinned.")
-        .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline, .systemSmall])
+        .supportedFamilies([.accessoryRectangular, .accessoryInline, .systemSmall])
     }
 }
 
-// MARK: - Home Screen widget: the latest notes, and a pencil
+// MARK: - Notes widget: the logo on the Lock Screen, the latest notes at home
 
 /// Reads the list the app wrote to the App Group; never touches the store.
 struct RecentEntry: TimelineEntry {
@@ -321,9 +298,10 @@ struct RecentProvider: TimelineProvider {
     }
 }
 
-/// Small: the pencil, one tap to a new note. Medium and large: the latest
-/// notes, each a link to itself, with the pencil at the side. Black, white,
-/// the app's greys; text styles, so it follows the phone's text size.
+/// Round, on the Lock Screen: the app's logo, and a tap opens the app.
+/// Medium and large, on the Home Screen: the latest notes, each a link to
+/// itself, with the pencil at the side. The system's colours on the
+/// system's widget background, so it looks like the phone's own widgets.
 struct RecentNotesView: View {
     @Environment(\.widgetFamily) private var family
     let entry: RecentEntry
@@ -333,39 +311,22 @@ struct RecentNotesView: View {
 
     var body: some View {
         Group {
-            switch family {
-            case .accessoryCircular:
+            if family == .accessoryCircular {
                 circular
-            case .systemSmall:
-                small
-            default:
+            } else {
                 list
             }
         }
-        .containerBackground(Theme.bg, for: .widget)
+        .containerBackground(.fill.tertiary, for: .widget)
     }
 
-    /// The round Lock Screen slot: the pencil. One tap, a new note.
     private var circular: some View {
         ZStack {
             AccessoryWidgetBackground()
-            Image(systemName: "pencil")
-                .font(.system(size: 24, weight: .regular))
+            LogoMark()
+                .padding(4)
         }
         .widgetAccentable()
-        .widgetURL(PinStore.newNoteURL)
-    }
-
-    private var small: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            pencil
-            Spacer(minLength: 0)
-            Text("New note")
-                .font(.headline)
-                .foregroundStyle(Theme.fg)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .widgetURL(PinStore.newNoteURL)
     }
 
     private var list: some View {
@@ -374,10 +335,10 @@ struct RecentNotesView: View {
                 if shown.isEmpty {
                     Text("No notes yet")
                         .font(.headline)
-                        .foregroundStyle(Theme.muted)
+                        .foregroundStyle(.secondary)
                     Text("Tap the pencil to write one.")
                         .font(.subheadline)
-                        .foregroundStyle(Theme.faint)
+                        .foregroundStyle(.tertiary)
                 } else {
                     ForEach(Array(shown.enumerated()), id: \.offset) { index, note in
                         if let url = note.url {
@@ -386,13 +347,13 @@ struct RecentNotesView: View {
                             row(note)
                         }
                         if index < shown.count - 1 {
-                            Theme.rule.frame(height: 1)
+                            Rectangle().fill(.quaternary).frame(height: 1)
                         }
                     }
                 }
                 Spacer(minLength: 0)
             }
-            Link(destination: PinStore.newNoteURL) { pencil }
+            Link(destination: PinStore.newNoteURL) { Pencil() }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -402,33 +363,24 @@ struct RecentNotesView: View {
             HStack(spacing: 6) {
                 Text(note.title)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.fg)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                 if note.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.caption2)
-                        .foregroundStyle(Theme.muted)
+                        .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
             }
             if !note.preview.isEmpty {
                 Text(note.preview)
                     .font(.footnote)
-                    .foregroundStyle(Theme.muted)
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-    }
-
-    /// The app's compose button, at widget size.
-    private var pencil: some View {
-        Image(systemName: "pencil")
-            .font(.system(size: 20, weight: .regular))
-            .foregroundStyle(Theme.bg)
-            .frame(width: 40, height: 40)
-            .background(Theme.fg, in: Circle())
     }
 }
 
@@ -438,8 +390,110 @@ struct RecentNotesWidget: Widget {
             RecentNotesView(entry: entry)
         }
         .configurationDisplayName("Notes")
-        .description("A pencil for a new note, and your latest notes.")
-        .supportedFamilies([.accessoryCircular, .systemSmall, .systemMedium, .systemLarge])
+        .description("Your latest notes. The round one opens the app.")
+        .supportedFamilies([.accessoryCircular, .systemMedium, .systemLarge])
+    }
+}
+
+// MARK: - New note widget: the pencil
+
+struct NewNoteEntry: TimelineEntry {
+    let date: Date
+}
+
+struct NewNoteProvider: TimelineProvider {
+    func placeholder(in context: Context) -> NewNoteEntry { NewNoteEntry(date: .now) }
+
+    func getSnapshot(in context: Context, completion: @escaping (NewNoteEntry) -> Void) {
+        completion(NewNoteEntry(date: .now))
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<NewNoteEntry>) -> Void) {
+        completion(Timeline(entries: [NewNoteEntry(date: .now)], policy: .never))
+    }
+}
+
+/// Round, on the Lock Screen, or small, on the Home Screen: the pencil.
+/// One tap opens the app on a fresh note.
+struct NewNoteView: View {
+    @Environment(\.widgetFamily) private var family
+
+    var body: some View {
+        Group {
+            if family == .accessoryCircular {
+                ZStack {
+                    AccessoryWidgetBackground()
+                    Image(systemName: "pencil")
+                        .font(.system(size: 24, weight: .regular))
+                }
+                .widgetAccentable()
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    Pencil()
+                    Spacer(minLength: 0)
+                    Text("New note")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+        }
+        .widgetURL(PinStore.newNoteURL)
+        .containerBackground(.fill.tertiary, for: .widget)
+    }
+}
+
+struct NewNoteWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "NotesNew", provider: NewNoteProvider()) { _ in
+            NewNoteView()
+        }
+        .configurationDisplayName("New note")
+        .description("One tap, a fresh note.")
+        .supportedFamilies([.accessoryCircular, .systemSmall])
+    }
+}
+
+// MARK: - Marks
+
+/// The app's compose button, at widget size, in the system's colours.
+struct Pencil: View {
+    var body: some View {
+        Image(systemName: "pencil")
+            .font(.system(size: 20, weight: .regular))
+            .foregroundStyle(.background)
+            .frame(width: 40, height: 40)
+            .background(.primary, in: Circle())
+    }
+}
+
+/// The app icon's three bars, drawn from the same numbers as
+/// scripts/make-icon.py: a tile inset 23% at the sides, bars placed as
+/// fractions of the tile and of the content width. Fills with the primary
+/// colour, which the Lock Screen renders white.
+struct LogoMark: View {
+    private static let inset = 0.23
+    private static let bars: [(y: Double, width: Double, height: Double, radius: Double)] = [
+        (0.33, 0.62, 0.070, 0.035),
+        (0.49, 1.00, 0.044, 0.022),
+        (0.62, 0.80, 0.044, 0.022),
+    ]
+
+    var body: some View {
+        GeometryReader { geometry in
+            let tile = min(geometry.size.width, geometry.size.height)
+            let content = (1 - 2 * Self.inset) * tile
+            let originX = (geometry.size.width - tile) / 2 + Self.inset * tile
+            let originY = (geometry.size.height - tile) / 2
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(Self.bars.enumerated()), id: \.offset) { _, bar in
+                    RoundedRectangle(cornerRadius: bar.radius * content, style: .continuous)
+                        .fill(.primary)
+                        .frame(width: bar.width * content, height: bar.height * tile)
+                        .offset(x: originX, y: originY + bar.y * tile)
+                }
+            }
+        }
     }
 }
 
@@ -449,6 +503,7 @@ struct RecentNotesWidget: Widget {
 struct NotesWidgetBundle: WidgetBundle {
     var body: some Widget {
         RecentNotesWidget()
+        NewNoteWidget()
         NotesWidget()
         PinnedNoteLiveActivity()
     }

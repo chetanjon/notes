@@ -89,21 +89,27 @@ push server, and this app has none.
 The widget is the permanent alternative. Anyone who adds it once (long-press
 the Lock Screen, Customize, Lock Screen, tap under the clock, add Notes)
 sees the pinned note there for as long as it is pinned: the rectangle is
-the card, the round one a ring of the checklist's progress with the count
-in it (the pin, for a plain note), and the inline slot one line. The app writes a
+the card and the inline slot one line. The app writes a
 small record (id, title, preview, counters, count) to the App Group's `UserDefaults`
 and reloads WidgetKit whenever the pin changes; the widget only reads that.
 
-## The Home Screen widget
+## The widgets
 
-A second widget, "Notes". Round, on the Lock Screen, and small, on the
-Home Screen, it is the pencil: one tap opens the app on a fresh note
-(`notes://new`). Medium and large, on the Home Screen,
-it lists the latest notes, three or seven, the pinned one first, each a
-link to itself, with the pencil at the side. The app writes the list
-(`RecentStore`, in the App Group) after every save and on each foreground,
-blank notes left out; the widget only reads it. Black, white, and the
-app's greys, at the phone's text size.
+Three widgets, all in the system's colours on the system's widget
+background, so they look like the phone's own: translucent on the Home
+Screen, vibrant on the Lock Screen.
+
+- **Notes.** Round, on the Lock Screen, it is the app's logo (`LogoMark`,
+  the icon's three bars drawn from the numbers in `scripts/make-icon.py`),
+  and a tap opens the app. Medium and large, on the Home Screen, it lists
+  the latest notes, three or seven, the pinned one first, each a link to
+  itself, with the pencil at the side. The app writes the list
+  (`RecentStore`, in the App Group) after every save and on each
+  foreground, blank notes left out; the widget only reads it.
+- **New note.** Round, on the Lock Screen, or small, on the Home Screen: the
+  pencil. One tap opens the app on a fresh note (`notes://new`).
+- **Pinned note.** The Lock Screen rectangle and inline line, and a small
+  Home Screen card, showing the pinned note; described above.
 
 ## Search and Siri
 
