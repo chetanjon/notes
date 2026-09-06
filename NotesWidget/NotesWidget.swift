@@ -192,6 +192,8 @@ struct NotesWidgetView: View {
             switch family {
             case .accessoryInline:
                 inline
+            case .accessoryCircular:
+                circular
             case .accessoryRectangular:
                 rectangular
             default:
@@ -200,6 +202,29 @@ struct NotesWidgetView: View {
         }
         .widgetURL(entry.pinned?.url)
         .containerBackground(Theme.bg, for: .widget)
+    }
+
+    /// The round Lock Screen slot: a ring of the checklist's progress with
+    /// the count in it, or the pin for a plain note. The system draws it in
+    /// the Lock Screen's own tint, so no colours here.
+    private var circular: some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            if let pinned = entry.pinned, pinned.isChecklist, pinned.total > 0 {
+                Gauge(value: Double(pinned.done), in: 0...Double(pinned.total)) {
+                    Image(systemName: "pin.fill")
+                } currentValueLabel: {
+                    Text("\(pinned.done)/\(pinned.total)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .monospacedDigit()
+                }
+                .gaugeStyle(.accessoryCircular)
+            } else {
+                Image(systemName: entry.pinned == nil ? "pin" : "pin.fill")
+                    .font(.system(size: 22, weight: .regular))
+            }
+        }
+        .widgetAccentable()
     }
 
     private var inline: some View {
@@ -259,7 +284,7 @@ struct NotesWidget: Widget {
         }
         .configurationDisplayName("Pinned note")
         .description("Shows the note you pinned.")
-        .supportedFamilies([.accessoryRectangular, .accessoryInline, .systemSmall])
+        .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline, .systemSmall])
     }
 }
 
@@ -308,13 +333,27 @@ struct RecentNotesView: View {
 
     var body: some View {
         Group {
-            if family == .systemSmall {
+            switch family {
+            case .accessoryCircular:
+                circular
+            case .systemSmall:
                 small
-            } else {
+            default:
                 list
             }
         }
         .containerBackground(Theme.bg, for: .widget)
+    }
+
+    /// The round Lock Screen slot: the pencil. One tap, a new note.
+    private var circular: some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            Image(systemName: "pencil")
+                .font(.system(size: 24, weight: .regular))
+        }
+        .widgetAccentable()
+        .widgetURL(PinStore.newNoteURL)
     }
 
     private var small: some View {
@@ -399,8 +438,8 @@ struct RecentNotesWidget: Widget {
             RecentNotesView(entry: entry)
         }
         .configurationDisplayName("Notes")
-        .description("Your latest notes, and a pencil for a new one.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .description("A pencil for a new note, and your latest notes.")
+        .supportedFamilies([.accessoryCircular, .systemSmall, .systemMedium, .systemLarge])
     }
 }
 
