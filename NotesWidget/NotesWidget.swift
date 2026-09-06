@@ -12,8 +12,6 @@ struct PinnedNoteLiveActivity: Widget {
         ActivityConfiguration(for: PinnedNoteAttributes.self) { context in
             LockScreenPinView(noteID: context.attributes.noteID, state: context.state)
                 .widgetURL(context.attributes.url)
-                .activityBackgroundTint(Theme.bg)
-                .activitySystemActionForegroundColor(Theme.fg)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -52,8 +50,8 @@ struct PinnedNoteLiveActivity: Widget {
     }
 }
 
-/// The card under the clock. Black, like the app; the tint is set on the
-/// configuration above.
+/// The card under the clock, on the system's own card material so it
+/// matches every other app's, with the system's text colours on it.
 struct LockScreenPinView: View {
     let noteID: UUID
     let state: PinnedNoteAttributes.ContentState
@@ -62,15 +60,16 @@ struct LockScreenPinView: View {
         PinnedCardView(
             title: state.title, preview: state.preview, counters: state.counters,
             isChecklist: state.isChecklist, done: state.done, total: state.total,
-            showsPin: true, noteID: noteID)
-        .padding(16)
+            showsPin: true, noteID: noteID, adaptive: true)
+        .padding(12)
     }
 }
 
 /// The pinned note as one card: the title, with a checklist's count at the
 /// right; a plain note's first line under it; then its counters, each with
 /// a +. A checklist's items stay in the note. Shared by the Live Activity
-/// and the widgets. Text styles, so it follows the phone's text size.
+/// and the widgets, in the system's colours or the app's. Text styles, so
+/// it follows the phone's text size.
 ///
 /// With a `noteID`, counter rows are buttons. The intent is a
 /// `LiveActivityIntent`, which iOS runs in the app process whichever
@@ -85,37 +84,44 @@ struct PinnedCardView: View {
     let total: Int
     var showsPin: Bool
     var noteID: UUID? = nil
+    /// On the Lock Screen card the system draws the background, so the
+    /// text takes the system's colours and reads on any wallpaper. Off,
+    /// the app's white and grey on black.
+    var adaptive = false
+
+    private var fg: AnyShapeStyle { adaptive ? AnyShapeStyle(.primary) : AnyShapeStyle(Theme.fg) }
+    private var muted: AnyShapeStyle { adaptive ? AnyShapeStyle(.secondary) : AnyShapeStyle(Theme.muted) }
 
     private var allDone: Bool { isChecklist && total > 0 && done == total }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: adaptive ? 2 : 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(title)
                     .font(.headline)
-                    .foregroundStyle(Theme.fg)
+                    .foregroundStyle(fg)
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 if isChecklist, total > 0 {
                     Text("\(done)/\(total)")
                         .font(.subheadline)
                         .monospacedDigit()
-                        .foregroundStyle(Theme.muted)
+                        .foregroundStyle(muted)
                 }
                 if showsPin {
                     Image(systemName: "pin.fill")
                         .font(.footnote)
-                        .foregroundStyle(Theme.muted)
+                        .foregroundStyle(muted)
                 }
             }
             if allDone {
                 Text("All done")
                     .font(.subheadline)
-                    .foregroundStyle(Theme.muted)
+                    .foregroundStyle(muted)
             } else if !isChecklist, !preview.isEmpty {
                 Text(preview)
                     .font(.subheadline)
-                    .foregroundStyle(Theme.muted)
+                    .foregroundStyle(muted)
                     .lineLimit(1)
             }
             ForEach(counters, id: \.line) { counter in
@@ -137,16 +143,16 @@ struct PinnedCardView: View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(counter.label)
                 .font(.subheadline)
-                .foregroundStyle(Theme.fg)
+                .foregroundStyle(fg)
                 .lineLimit(1)
             Spacer(minLength: 8)
             Text("\(counter.value)")
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .foregroundStyle(Theme.fg)
+                .foregroundStyle(fg)
             Image(systemName: "plus")
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(Theme.fg)
+                .foregroundStyle(fg)
                 .frame(width: 20)
         }
         .contentShape(Rectangle())

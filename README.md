@@ -159,8 +159,10 @@ is still a checklist.
 Two places iOS decides, not the spec: a swipe action paints its label white
 whatever the tint and draws it in its own shape, so the swipe-to-delete is
 a dark grey circle with a white trash glyph rather than the spec's white
-block with black text; and the widget's text uses the Lock Screen's own
-rendering, so it is always white on the wallpaper.
+block with black text; the widget's text uses the Lock Screen's own
+rendering, so it is always white on the wallpaper; and the Live Activity
+sits on the system's card material with the system's text colours, not
+the app's black, so it looks like every other card under the clock.
 
 Not built, on purpose: folders, tags, colours, rich text, attachments,
 sharing, accounts, and light mode.
