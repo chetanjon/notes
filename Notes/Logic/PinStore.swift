@@ -14,35 +14,35 @@ enum PinStore {
     static let key = "pinned"
     static let urlScheme = "notes"
 
+    /// The most rows a record carries; the Lock Screen pages through them.
+    static let maxRows = 30
+
     struct Pinned: Codable, Equatable {
         let id: UUID
         let title: String
         /// One line, for the inline widget and the Dynamic Island.
         let preview: String
         let updatedAt: Date
-        /// Up to four lines to stack under the title: a checklist's open
-        /// items, or a plain note's body lines.
-        var lines: [String] = []
-        /// For a checklist, the line number in the note of each entry in
-        /// `lines`, so a tap can say which item it ticks.
-        var lineNumbers: [Int] = []
-        /// How many further lines there were.
+        /// Up to `maxRows` rows to stack under the title, in note order.
+        var rows: [NoteText.Row] = []
+        /// How many further rows there were.
         var more: Int = 0
         var isChecklist: Bool = false
+        var hasCounters: Bool = false
         var done: Int = 0
         var total: Int = 0
 
         init(id: UUID, title: String, preview: String, updatedAt: Date,
-             lines: [String] = [], lineNumbers: [Int] = [], more: Int = 0,
-             isChecklist: Bool = false, done: Int = 0, total: Int = 0) {
+             rows: [NoteText.Row] = [], more: Int = 0, isChecklist: Bool = false,
+             hasCounters: Bool = false, done: Int = 0, total: Int = 0) {
             self.id = id
             self.title = title
             self.preview = preview
             self.updatedAt = updatedAt
-            self.lines = lines
-            self.lineNumbers = lineNumbers
+            self.rows = rows
             self.more = more
             self.isChecklist = isChecklist
+            self.hasCounters = hasCounters
             self.done = done
             self.total = total
         }

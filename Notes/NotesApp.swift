@@ -11,6 +11,9 @@ struct NotesApp: App {
         ToggleChecklistItemIntent.handler = { noteID, line in
             NoteStore.toggleItem(noteID: noteID, line: line)
         }
+        StepCounterIntent.handler = { noteID, line, delta in
+            NoteStore.stepCounter(noteID: noteID, line: line, delta: delta)
+        }
     }
 
     var body: some Scene {

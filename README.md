@@ -71,9 +71,13 @@ Pin a note (long-press it in the list, or the pin in the editor) and it is
 on the Lock Screen at once, as a Live Activity: the card under the clock,
 and the Dynamic Island on phones that have one. A checklist shows its open
 items one to a row, and tapping a row ticks it, right there on the Lock
-Screen, through a `LiveActivityIntent` that runs in the app. Tapping the
+Screen, through a `LiveActivityIntent` that runs in the app. A body line
+that ends in a number, like `Water 3` or `Pushups 20`, is a counter: it
+gets a + on the Lock Screen, and a tap makes it `Water 4` in the note. (A
+label with a digit in it, such as `Room 4`, is left alone.) Tapping the
 title opens the note. Pinning another note replaces it; unpinning or
-deleting removes it.
+deleting removes it. The widget draws the same rows and its taps do the
+same.
 
 iOS ends every Live Activity after eight hours, and a user can swipe one
 away. The app puts the pinned note back each time it comes to the
