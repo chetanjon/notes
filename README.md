@@ -88,14 +88,17 @@ push server, and this app has none.
 
 The widget is the permanent alternative. Anyone who adds it once (long-press
 the Lock Screen, Customize, Lock Screen, tap under the clock, add Notes)
-sees the pinned note there for as long as it is pinned. The app writes a
+sees the pinned note there for as long as it is pinned: the rectangle is
+the card, the round one a ring of the checklist's progress with the count
+in it (the pin, for a plain note), and the inline slot one line. The app writes a
 small record (id, title, preview, counters, count) to the App Group's `UserDefaults`
 and reloads WidgetKit whenever the pin changes; the widget only reads that.
 
 ## The Home Screen widget
 
-A second widget, "Notes", for the Home Screen. Small, it is the pencil:
-one tap opens the app on a fresh note (`notes://new`). Medium and large,
+A second widget, "Notes". Round, on the Lock Screen, and small, on the
+Home Screen, it is the pencil: one tap opens the app on a fresh note
+(`notes://new`). Medium and large, on the Home Screen,
 it lists the latest notes, three or seven, the pinned one first, each a
 link to itself, with the pencil at the side. The app writes the list
 (`RecentStore`, in the App Group) after every save and on each foreground,
