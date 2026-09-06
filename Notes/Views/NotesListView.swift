@@ -58,6 +58,7 @@ struct NotesListView: View {
                     if undo.deleted != nil {
                         undoBar
                             .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .zIndex(1)
                     }
                     HStack {
                         Spacer()
@@ -235,28 +236,32 @@ struct NotesListView: View {
         .accessibilityLabel("New note")
     }
 
-    /// "Deleted · Undo", for a few seconds after a delete. Black, ruled, no red.
+    /// "Note deleted · Undo", for a few seconds after a delete. The bar is
+    /// the field grey so it reads against the list, and Undo is a white
+    /// pill with black text, the same weight as the pen: it lives five
+    /// seconds, so it has to be seen at a glance.
     private var undoBar: some View {
         HStack(spacing: 12) {
-            Text("Deleted")
+            Text("Note deleted")
                 .font(Theme.Font.rowBody)
-                .foregroundStyle(Theme.muted)
+                .foregroundStyle(Theme.fg)
             Spacer()
             Button {
                 undo.restore(in: context)
             } label: {
                 Text("Undo")
                     .font(Theme.Font.toolbar)
-                    .foregroundStyle(Theme.fg)
-                    .frame(height: Theme.tapTarget)
-                    .padding(.leading, 12)
+                    .foregroundStyle(Theme.bg)
+                    .padding(.horizontal, 16)
+                    .frame(height: 36)
+                    .background(Theme.fg, in: Capsule())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PressedButtonStyle())
         }
-        .padding(.horizontal, 16)
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
         .frame(height: 52)
-        .background(Theme.bg, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Theme.rule, lineWidth: 1))
+        .background(Theme.field, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .accessibilityElement(children: .contain)
     }
 
