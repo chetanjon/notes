@@ -41,6 +41,9 @@ Turn any line into a checklist item with one tap. Tick items off in the note, an
 SEARCH EVERYTHING
 Search matches titles and bodies as you type, with every match highlighted.
 
+WRITING TOOLS, RIGHT IN THE NOTE
+On an iPhone with Apple Intelligence, proofread, rewrite, or summarize a note with Apple's Writing Tools, inline. Checklists come through intact.
+
 A TRASH, NOT A WARNING
 Swipe to delete, no confirmation. The note waits in the Trash for 30 days, where one tap puts it back.
 
