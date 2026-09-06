@@ -12,6 +12,9 @@ struct PinnedNoteAttributes: ActivityAttributes {
         var preview: String
         /// Stacked under the title: a checklist's open items, or body lines.
         var lines: [String]
+        /// The note line each entry of `lines` is, for a checklist, so the
+        /// tap that ticks it can name it.
+        var lineNumbers: [Int]
         var more: Int
         var isChecklist: Bool
         var done: Int
@@ -22,6 +25,7 @@ struct PinnedNoteAttributes: ActivityAttributes {
             title = pinned.title
             preview = pinned.preview
             lines = pinned.lines
+            lineNumbers = pinned.lineNumbers
             more = pinned.more
             isChecklist = pinned.isChecklist
             done = pinned.done

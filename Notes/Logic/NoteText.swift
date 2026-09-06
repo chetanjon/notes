@@ -80,6 +80,9 @@ enum NoteText {
     struct Stack: Equatable {
         /// Open items for a checklist, non-empty body lines otherwise.
         var lines: [String]
+        /// For a checklist, the index into `lines(text)` of each entry in
+        /// `lines`, so a tap on the Lock Screen can name the line it ticks.
+        var lineNumbers: [Int]
         /// How many further lines there were past `lines`.
         var more: Int
         var isChecklist: Bool
@@ -90,19 +93,37 @@ enum NoteText {
     /// The first `limit` lines the Lock Screen shows: a checklist's open
     /// items in order (done ones are done), or a plain note's body lines.
     static func stack(_ text: String, limit: Int = 4) -> Stack {
-        let all: [String]
         let checklist = isChecklist(text)
-        let summary = checklist ? checklistSummary(text) : Summary(done: 0, total: 0, open: [])
+        var all: [String] = []
+        var numbers: [Int] = []
         if checklist {
-            all = summary.open
+            for (index, line) in lines(text).enumerated().dropFirst() where Checklist.isItem(line) && !Checklist.isDone(line) {
+                let item = Checklist.content(line).trimmingCharacters(in: .whitespaces)
+                if !item.isEmpty {
+                    all.append(item)
+                    numbers.append(index)
+                }
+            }
         } else {
             all = bodyLines(text)
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .filter { !$0.isEmpty }
         }
-        let shown = Array(all.prefix(max(0, limit)))
-        return Stack(lines: shown, more: all.count - shown.count,
-                     isChecklist: checklist, done: summary.done, total: summary.total)
+        let summary = checklist ? checklistSummary(text) : Summary(done: 0, total: 0, open: [])
+        let count = min(all.count, max(0, limit))
+        return Stack(lines: Array(all.prefix(count)), lineNumbers: Array(numbers.prefix(count)),
+                     more: all.count - count, isChecklist: checklist,
+                     done: summary.done, total: summary.total)
+    }
+
+    /// The text with the item on line `lineIndex` flipped between open and
+    /// done, or nil when that line is not an item. What a tap on the Lock
+    /// Screen does.
+    static func togglingItem(at lineIndex: Int, in text: String) -> String? {
+        var all = lines(text)
+        guard all.indices.contains(lineIndex), Checklist.isItem(all[lineIndex]) else { return nil }
+        all[lineIndex] = Checklist.toggle(all[lineIndex])
+        return all.joined(separator: "\n")
     }
 
     /// Only whitespace and bare markers. Such a note is discarded on dismiss.

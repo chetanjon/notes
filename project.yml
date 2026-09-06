@@ -86,6 +86,7 @@ targets:
       # defaults it lives in, the Live Activity's attributes, and the theme.
       - path: Notes/Logic/PinStore.swift
       - path: Notes/Logic/PinnedNoteAttributes.swift
+      - path: Notes/Logic/ToggleChecklistItemIntent.swift
       - path: Notes/Theme/Theme.swift
     info:
       path: NotesWidget/Info.plist

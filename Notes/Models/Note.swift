@@ -36,7 +36,7 @@ extension Note {
         let stack = NoteText.stack(text)
         return PinStore.Pinned(
             id: id, title: title, preview: NoteText.widgetPreview(text), updatedAt: updatedAt,
-            lines: stack.lines, more: stack.more, isChecklist: stack.isChecklist,
-            done: stack.done, total: stack.total)
+            lines: stack.lines, lineNumbers: stack.lineNumbers, more: stack.more,
+            isChecklist: stack.isChecklist, done: stack.done, total: stack.total)
     }
 }

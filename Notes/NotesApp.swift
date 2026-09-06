@@ -3,8 +3,15 @@ import SwiftUI
 
 @main
 struct NotesApp: App {
-    private let container = NoteStore.makeContainer()
     @State private var navigation = Navigation()
+
+    init() {
+        // A tap on a checklist item on the Lock Screen. The intent runs in
+        // this process, so this is where it learns how to reach the store.
+        ToggleChecklistItemIntent.handler = { noteID, line in
+            NoteStore.toggleItem(noteID: noteID, line: line)
+        }
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -18,7 +25,7 @@ struct NotesApp: App {
                     navigation.open(id)
                 }
         }
-        .modelContainer(container)
+        .modelContainer(NoteStore.container)
     }
 }
 
