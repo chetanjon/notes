@@ -54,14 +54,6 @@ final class NoteTextTests: XCTestCase {
         XCTAssertEqual(stack.total, 0)
     }
 
-    func testTogglingAnItemByLineNumber() {
-        let text = "Groceries\n□ milk\n■ eggs\nplain"
-        XCTAssertEqual(NoteText.togglingItem(at: 1, in: text), "Groceries\n■ milk\n■ eggs\nplain")
-        XCTAssertEqual(NoteText.togglingItem(at: 2, in: text), "Groceries\n□ milk\n□ eggs\nplain")
-        XCTAssertNil(NoteText.togglingItem(at: 3, in: text))
-        XCTAssertNil(NoteText.togglingItem(at: 9, in: text))
-    }
-
     func testStackOfAFinishedChecklistIsEmpty() {
         let stack = NoteText.stack("Groceries\n■ eggs\n■ milk")
         XCTAssertEqual(stack.rows, [])

@@ -69,15 +69,15 @@ struct LockScreenPinView: View {
 }
 
 /// Title on top, then the note's rows one to a line: a checklist's open
-/// items with their boxes and a count at the right, counters with a +, or
-/// a plain note's first lines. Shared by the Live Activity and the widgets,
+/// items with the count at the right, counters with a +, or a plain
+/// note's first lines. Shared by the Live Activity and the widgets,
 /// which differ in how many rows fit.
 ///
-/// With a `noteID`, item and counter rows are buttons. Their intents are
+/// With a `noteID`, counter rows are buttons; checklist items are read
+/// only, since ticking belongs in the note. The intents are
 /// `LiveActivityIntent`s, which iOS runs in the app process whichever
 /// surface the button is on, so a tap reaches the store from the widget
-/// too. (Should a widget tap not reach the app on some iOS, the fallback
-/// is a store the extension can open; see the plan.)
+/// too.
 struct PinnedStackView: View {
     let title: String
     let rows: [PinnedRow]
@@ -119,17 +119,10 @@ struct PinnedStackView: View {
             }
             ForEach(Array(shown.enumerated()), id: \.offset) { _, row in
                 switch row {
-                case let .item(text, line):
-                    if let noteID {
-                        // The whole row is the button, so a thumb on the
-                        // Lock Screen has something to hit.
-                        Button(intent: ToggleChecklistItemIntent(noteID: noteID, line: line)) {
-                            itemRow(text)
-                        }
-                        .buttonStyle(.plain)
-                    } else {
-                        itemRow(text)
-                    }
+                case let .item(text, _):
+                    // Read-only: ticking is done in the note. The Lock Screen
+                    // shows the list; it does not edit it.
+                    itemRow(text)
                 case let .counter(label, value, line):
                     if let noteID {
                         Button(intent: StepCounterIntent(noteID: noteID, line: line)) {
@@ -190,17 +183,10 @@ struct PinnedStackView: View {
     }
 
     private func itemRow(_ text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: "square")
-                .font(.system(size: 13, weight: .regular))
-                .foregroundStyle(Theme.fg)
-            Text(text)
-                .font(.system(size: rowSize, weight: .regular))
-                .foregroundStyle(Theme.fg)
-                .lineLimit(1)
-            Spacer(minLength: 0)
-        }
-        .contentShape(Rectangle())
+        Text(text)
+            .font(.system(size: rowSize, weight: .regular))
+            .foregroundStyle(Theme.fg)
+            .lineLimit(1)
     }
 
     /// "Water  3  +": the number in monospaced digits, the plus at the edge.
