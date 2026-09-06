@@ -10,13 +10,12 @@ struct PinnedNoteAttributes: ActivityAttributes {
         var title: String
         /// One line, for the Dynamic Island's compact form.
         var preview: String
-        /// Stacked under the title: a checklist's open items, or body lines.
-        var lines: [String]
-        /// The note line each entry of `lines` is, for a checklist, so the
-        /// tap that ticks it can name it.
-        var lineNumbers: [Int]
+        /// Stacked under the title, in note order: open items, counters,
+        /// or a plain note's body lines.
+        var rows: [PinnedRow]
         var more: Int
         var isChecklist: Bool
+        var hasCounters: Bool
         var done: Int
         var total: Int
         var updatedAt: Date
@@ -24,13 +23,29 @@ struct PinnedNoteAttributes: ActivityAttributes {
         init(_ pinned: PinStore.Pinned) {
             title = pinned.title
             preview = pinned.preview
-            lines = pinned.lines
-            lineNumbers = pinned.lineNumbers
+            rows = pinned.rows
             more = pinned.more
             isChecklist = pinned.isChecklist
+            hasCounters = pinned.hasCounters
             done = pinned.done
             total = pinned.total
             updatedAt = pinned.updatedAt
+        }
+
+        /// Fields added after the first release decode as empty, so an
+        /// activity started by an older build still draws when the new
+        /// extension reads it; the app rewrites it on its next foreground.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            title = try c.decode(String.self, forKey: .title)
+            preview = try c.decodeIfPresent(String.self, forKey: .preview) ?? ""
+            rows = try c.decodeIfPresent([PinnedRow].self, forKey: .rows) ?? []
+            more = try c.decodeIfPresent(Int.self, forKey: .more) ?? 0
+            isChecklist = try c.decodeIfPresent(Bool.self, forKey: .isChecklist) ?? false
+            hasCounters = try c.decodeIfPresent(Bool.self, forKey: .hasCounters) ?? false
+            done = try c.decodeIfPresent(Int.self, forKey: .done) ?? 0
+            total = try c.decodeIfPresent(Int.self, forKey: .total) ?? 0
+            updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
         }
     }
 

@@ -25,12 +25,10 @@ struct PinnedNoteLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     PinnedStackView(
-                        title: context.state.title, lines: context.state.lines,
+                        title: context.state.title, rows: context.state.rows,
                         more: context.state.more, isChecklist: context.state.isChecklist,
                         done: context.state.done, total: context.state.total,
-                        maxLines: 2, showsPin: false,
-                        tappable: TappableItems(noteID: context.attributes.noteID,
-                                                lineNumbers: context.state.lineNumbers))
+                        maxLines: 2, showsPin: false, noteID: context.attributes.noteID)
                     .padding(.horizontal, 6)
                     .padding(.bottom, 4)
                 }
@@ -62,41 +60,39 @@ struct LockScreenPinView: View {
 
     var body: some View {
         PinnedStackView(
-            title: state.title, lines: state.lines, more: state.more,
+            title: state.title, rows: state.rows, more: state.more,
             isChecklist: state.isChecklist, done: state.done, total: state.total,
-            maxLines: 3, showsPin: true,
-            tappable: TappableItems(noteID: noteID, lineNumbers: state.lineNumbers))
+            maxLines: 3, showsPin: true, noteID: noteID)
         .padding(16)
     }
 }
 
-/// What a row needs to tick its item when tapped. The intent is a
-/// `LiveActivityIntent`, which iOS runs in the app process, where the
-/// store is, whichever surface the button is on: the Live Activity or the
-/// widget. (If a widget tap turns out not to reach the app on some iOS,
-/// the fallback is a shared store the extension can open; see the plan.)
-struct TappableItems {
-    let noteID: UUID
-    let lineNumbers: [Int]
-}
-
-/// Title on top, then the note's lines stacked one to a row: a checklist's
-/// open items with their boxes and a count at the right, or a plain note's
-/// first lines. Shared by the Live Activity and the widgets, which differ
-/// in how many lines fit and whether a tap can tick an item.
+/// Title on top, then the note's rows one to a line: a checklist's open
+/// items with their boxes and a count at the right, counters with a +, or
+/// a plain note's first lines. Shared by the Live Activity and the widgets,
+/// which differ in how many rows fit.
+///
+/// With a `noteID`, item and counter rows are buttons. Their intents are
+/// `LiveActivityIntent`s, which iOS runs in the app process whichever
+/// surface the button is on, so a tap reaches the store from the widget
+/// too. (Should a widget tap not reach the app on some iOS, the fallback
+/// is a store the extension can open; see the plan.)
 struct PinnedStackView: View {
     let title: String
-    let lines: [String]
+    let rows: [PinnedRow]
     let more: Int
     let isChecklist: Bool
     let done: Int
     let total: Int
     var maxLines: Int
     var showsPin: Bool
-    var tappable: TappableItems? = nil
+    var noteID: UUID? = nil
 
-    private var shown: [String] { Array(lines.prefix(maxLines)) }
-    private var hidden: Int { more + (lines.count - shown.count) }
+    private var shown: [PinnedRow] { Array(rows.prefix(maxLines)) }
+    private var hidden: Int { more + (rows.count - shown.count) }
+    private var allDone: Bool {
+        isChecklist && total > 0 && !rows.contains { if case .item = $0 { return true } else { return false } }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -118,22 +114,35 @@ struct PinnedStackView: View {
                         .foregroundStyle(Theme.muted)
                 }
             }
-            if isChecklist, total > 0, lines.isEmpty {
+            if allDone {
                 Text("All done")
                     .font(.system(size: 15, weight: .regular))
                     .foregroundStyle(Theme.muted)
             }
-            ForEach(Array(shown.enumerated()), id: \.offset) { index, line in
-                if isChecklist, let tappable, index < tappable.lineNumbers.count {
-                    // The whole row is the button, so a thumb on the Lock
-                    // Screen has something to hit.
-                    Button(intent: ToggleChecklistItemIntent(
-                        noteID: tappable.noteID, line: tappable.lineNumbers[index])) {
-                        row(line, box: true)
+            ForEach(Array(shown.enumerated()), id: \.offset) { _, row in
+                switch row {
+                case let .item(text, line):
+                    if let noteID {
+                        // The whole row is the button, so a thumb on the
+                        // Lock Screen has something to hit.
+                        Button(intent: ToggleChecklistItemIntent(noteID: noteID, line: line)) {
+                            itemRow(text)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        itemRow(text)
                     }
-                    .buttonStyle(.plain)
-                } else {
-                    row(line, box: false)
+                case let .counter(label, value, line):
+                    if let noteID {
+                        Button(intent: StepCounterIntent(noteID: noteID, line: line)) {
+                            counterRow(label, value: value)
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        counterRow(label, value: value)
+                    }
+                case let .text(text):
+                    textRow(text)
                 }
             }
             if hidden > 0 {
@@ -145,20 +154,45 @@ struct PinnedStackView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func row(_ line: String, box: Bool) -> some View {
+    private func itemRow(_ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            if box {
-                Image(systemName: "square")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(Theme.fg)
-            }
-            Text(line)
+            Image(systemName: "square")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(Theme.fg)
+            Text(text)
                 .font(.system(size: 15, weight: .regular))
-                .foregroundStyle(isChecklist ? Theme.fg : Theme.muted)
+                .foregroundStyle(Theme.fg)
                 .lineLimit(1)
             Spacer(minLength: 0)
         }
         .contentShape(Rectangle())
+    }
+
+    /// "Water  3  +": the number in monospaced digits, the plus at the edge.
+    private func counterRow(_ label: String, value: Int) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(Theme.fg)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Text("\(value)")
+                .font(.system(size: 15, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(Theme.fg)
+            Image(systemName: "plus")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.fg)
+                .frame(width: 20)
+        }
+        .contentShape(Rectangle())
+    }
+
+    private func textRow(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 15, weight: .regular))
+            .foregroundStyle(Theme.muted)
+            .lineLimit(1)
     }
 }
 
@@ -174,7 +208,8 @@ struct PinnedProvider: TimelineProvider {
     func placeholder(in context: Context) -> PinnedEntry {
         PinnedEntry(date: .now, pinned: PinStore.Pinned(
             id: UUID(), title: "Groceries", preview: "1/4 · eggs, milk, rice", updatedAt: .now,
-            lines: ["eggs", "milk", "rice"], lineNumbers: [1, 2, 3], more: 0, isChecklist: true, done: 1, total: 4))
+            rows: [.item(text: "eggs", line: 1), .item(text: "milk", line: 2), .item(text: "rice", line: 3)],
+            more: 0, isChecklist: true, done: 1, total: 4))
     }
 
     func getSnapshot(in context: Context, completion: @escaping (PinnedEntry) -> Void) {
@@ -219,10 +254,9 @@ struct NotesWidgetView: View {
         VStack(alignment: .leading, spacing: 2) {
             if let pinned = entry.pinned {
                 PinnedStackView(
-                    title: pinned.title, lines: pinned.lines, more: pinned.more,
+                    title: pinned.title, rows: pinned.rows, more: pinned.more,
                     isChecklist: pinned.isChecklist, done: pinned.done, total: pinned.total,
-                    maxLines: 2, showsPin: false,
-                    tappable: TappableItems(noteID: pinned.id, lineNumbers: pinned.lineNumbers))
+                    maxLines: 2, showsPin: false, noteID: pinned.id)
             } else {
                 Text("Nothing pinned")
                     .font(.headline)
@@ -239,10 +273,9 @@ struct NotesWidgetView: View {
         VStack(alignment: .leading, spacing: 4) {
             if let pinned = entry.pinned {
                 PinnedStackView(
-                    title: pinned.title, lines: pinned.lines, more: pinned.more,
+                    title: pinned.title, rows: pinned.rows, more: pinned.more,
                     isChecklist: pinned.isChecklist, done: pinned.done, total: pinned.total,
-                    maxLines: 3, showsPin: false,
-                    tappable: TappableItems(noteID: pinned.id, lineNumbers: pinned.lineNumbers))
+                    maxLines: 3, showsPin: false, noteID: pinned.id)
             } else {
                 Text("Nothing pinned")
                     .font(.system(size: 17, weight: .semibold))

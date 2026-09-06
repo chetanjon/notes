@@ -91,6 +91,15 @@ enum NoteStore {
         update(note, text: text, in: context)
     }
 
+    /// A tap on a counter on the Lock Screen: move the number on that line.
+    @MainActor
+    static func stepCounter(noteID: UUID, line: Int, delta: Int) {
+        let context = container.mainContext
+        guard let note = note(withID: noteID, in: context),
+              let text = NoteText.stepping(counterAt: line, by: delta, in: note.text) else { return }
+        update(note, text: text, in: context)
+    }
+
     static func note(withID id: UUID, in context: ModelContext) -> Note? {
         try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })).first
     }

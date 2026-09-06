@@ -76,43 +76,88 @@ enum NoteText {
             .first(where: { !$0.isEmpty }) ?? ""
     }
 
+    struct Counter: Equatable {
+        var label: String
+        var value: Int
+        var lineIndex: Int
+    }
+
+    /// A body line that ends in a number, with a label before it that has no
+    /// digit of its own: "Water 3", "Pushups 20". Never a checklist item.
+    /// The Lock Screen gives such a line a + that edits the number.
+    static func counters(_ text: String) -> [Counter] {
+        var found: [Counter] = []
+        for (index, line) in lines(text).enumerated().dropFirst() {
+            if let counter = counter(in: line, at: index) { found.append(counter) }
+        }
+        return found
+    }
+
+    private static func counter(in line: String, at index: Int) -> Counter? {
+        // The first line is the title, never a counter.
+        guard index > 0, !Checklist.isItem(line) else { return nil }
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard let space = trimmed.lastIndex(where: { $0 == " " || $0 == "\t" }) else { return nil }
+        let label = trimmed[..<space].trimmingCharacters(in: .whitespaces)
+        let digits = trimmed[trimmed.index(after: space)...]
+        guard !label.isEmpty, !label.contains(where: { $0.isNumber }),
+              !digits.isEmpty, digits.count <= 6, digits.allSatisfy({ $0.isASCII && $0.isNumber }),
+              let value = Int(digits) else { return nil }
+        return Counter(label: String(label), value: value, lineIndex: index)
+    }
+
+    /// The text with the counter on line `lineIndex` moved by `delta`, never
+    /// below zero, the spacing between label and number kept. Nil when that
+    /// line is not a counter.
+    static func stepping(counterAt lineIndex: Int, by delta: Int, in text: String) -> String? {
+        var all = lines(text)
+        guard all.indices.contains(lineIndex),
+              let counter = counter(in: all[lineIndex], at: lineIndex) else { return nil }
+        let line = all[lineIndex]
+        // Replace only the digits, so indentation and spacing stay.
+        let trailing = line.reversed().prefix(while: { $0 == " " || $0 == "\t" }).count
+        let core = line.dropLast(trailing)
+        guard let digitsStart = core.lastIndex(where: { !$0.isNumber }) else { return nil }
+        let head = String(core[...digitsStart])
+        all[lineIndex] = head + String(max(0, counter.value + delta)) + String(line.suffix(trailing))
+        return all.joined(separator: "\n")
+    }
+
     /// What the Lock Screen stacks under the title, one line each.
     struct Stack: Equatable {
-        /// Open items for a checklist, non-empty body lines otherwise.
-        var lines: [String]
-        /// For a checklist, the index into `lines(text)` of each entry in
-        /// `lines`, so a tap on the Lock Screen can name the line it ticks.
-        var lineNumbers: [Int]
-        /// How many further lines there were past `lines`.
+        var rows: [PinnedRow]
+        /// How many further rows there were past `rows`.
         var more: Int
         var isChecklist: Bool
+        var hasCounters: Bool
         var done: Int
         var total: Int
     }
 
-    /// The first `limit` lines the Lock Screen shows: a checklist's open
-    /// items in order (done ones are done), or a plain note's body lines.
-    static func stack(_ text: String, limit: Int = 4) -> Stack {
+    /// The rows the Lock Screen shows, in note order: a checklist's open
+    /// items (done ones are done), counters, and for a plain note its body
+    /// lines. An item line is never a counter.
+    static func stack(_ text: String, limit: Int = PinStore.maxRows) -> Stack {
         let checklist = isChecklist(text)
-        var all: [String] = []
-        var numbers: [Int] = []
-        if checklist {
-            for (index, line) in lines(text).enumerated().dropFirst() where Checklist.isItem(line) && !Checklist.isDone(line) {
+        var rows: [PinnedRow] = []
+        var hasCounters = false
+        for (index, line) in lines(text).enumerated().dropFirst() {
+            if Checklist.isItem(line) {
+                guard !Checklist.isDone(line) else { continue }
                 let item = Checklist.content(line).trimmingCharacters(in: .whitespaces)
-                if !item.isEmpty {
-                    all.append(item)
-                    numbers.append(index)
-                }
+                if !item.isEmpty { rows.append(.item(text: item, line: index)) }
+            } else if let counter = counter(in: line, at: index) {
+                hasCounters = true
+                rows.append(.counter(label: counter.label, value: counter.value, line: index))
+            } else if !checklist {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if !trimmed.isEmpty { rows.append(.text(trimmed)) }
             }
-        } else {
-            all = bodyLines(text)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty }
         }
         let summary = checklist ? checklistSummary(text) : Summary(done: 0, total: 0, open: [])
-        let count = min(all.count, max(0, limit))
-        return Stack(lines: Array(all.prefix(count)), lineNumbers: Array(numbers.prefix(count)),
-                     more: all.count - count, isChecklist: checklist,
+        let count = min(rows.count, max(0, limit))
+        return Stack(rows: Array(rows.prefix(count)), more: rows.count - count,
+                     isChecklist: checklist, hasCounters: hasCounters,
                      done: summary.done, total: summary.total)
     }
 
