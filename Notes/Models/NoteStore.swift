@@ -35,8 +35,11 @@ enum NoteStore {
         return note
     }
 
-    static func delete(_ note: Note, in context: ModelContext) {
+    /// Deletes at once, no confirmation, as the spec says. `undo`, when given,
+    /// keeps the note for a few seconds so the list can offer to put it back.
+    static func delete(_ note: Note, in context: ModelContext, undo: Undo? = nil) {
         let wasPinned = note.isPinned
+        undo?.keep(note)
         context.delete(note)
         save(context)
         if wasPinned { showOnLockScreen(nil) }
