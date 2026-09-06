@@ -80,6 +80,19 @@ final class ChecklistTests: XCTestCase {
         XCTAssertEqual(same.replacement, "")
     }
 
+    func testMarkerRangesAreWhatWritingToolsLeavesAlone() {
+        let text = "Title\n□ milk\nplain\n■ eggs"
+        let all = NSRange(location: 0, length: text.utf16.count)
+        XCTAssertEqual(Checklist.markerRanges(in: text, within: all),
+                       [NSRange(location: 6, length: 2), NSRange(location: 19, length: 2)])
+        // Only markers inside the range count; the text of an item does not.
+        XCTAssertEqual(Checklist.markerRanges(in: text, within: NSRange(location: 8, length: 11)), [])
+        XCTAssertEqual(Checklist.markerRanges(in: text, within: NSRange(location: 12, length: 8)),
+                       [NSRange(location: 19, length: 2)])
+        XCTAssertEqual(Checklist.markerRanges(in: "no items", within: NSRange(location: 0, length: 8)), [])
+        XCTAssertEqual(Checklist.markerRanges(in: text, within: NSRange(location: 40, length: 5)), [])
+    }
+
     func testAppendingItemGoesOnItsOwnLineAtTheEnd() {
         XCTAssertEqual(Checklist.appendingItem("milk", to: "Groceries\n□ eggs"), "Groceries\n□ eggs\n□ milk")
         XCTAssertEqual(Checklist.appendingItem(" milk ", to: "Groceries\n□ eggs\n\n□ "), "Groceries\n□ eggs\n□ milk")

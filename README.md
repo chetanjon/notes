@@ -1,7 +1,8 @@
 # Notes
 
-A dark, minimal notes app for iPhone. Black and white, dark mode only. Write,
-edit, delete, search, checklists, and one extra: pin a note to the Lock Screen.
+A dark, minimal notes app for iPhone, sold on the App Store as **Matte** (the
+Home Screen icon says Notes). Black and white, dark mode only. Write, edit,
+delete, search, checklists, and one extra: pin a note to the Lock Screen.
 Notes sync between your own devices through iCloud; there are no accounts and
 no server.
 
@@ -139,7 +140,11 @@ Live Activity (the spec's stretch goal), the widget in all three families,
 the deep link, CloudKit sync, and the app icon. Two things past the spec:
 every screen follows the text size set in Settings, and the checklist
 markers, `□` and `■` in the text, are drawn as circles by the editor's own
-layout manager, so the note stays plain text.
+layout fragments, so the note stays plain text. On an iPhone with Apple
+Intelligence, iOS's Writing Tools (Proofread, Rewrite, Summarize) work
+inline in the editor; the editor runs on TextKit 2 for that, and hands
+Writing Tools the marker ranges to leave alone, so a rewritten checklist
+is still a checklist.
 
 Two places iOS decides, not the spec: a swipe action paints its label white
 whatever the tint and draws it in its own shape, so the swipe-to-delete is

@@ -91,6 +91,27 @@ enum Checklist {
         return offset - range.location < markerLength
     }
 
+    /// The marker (with its space) of every item line that overlaps `range`,
+    /// in UTF-16 units. Writing Tools is told to leave these alone when it
+    /// rewrites a note, so a rewritten checklist is still a checklist.
+    static func markerRanges(in text: String, within range: NSRange) -> [NSRange] {
+        let ns = text as NSString
+        let end = min(NSMaxRange(range), ns.length)
+        var found: [NSRange] = []
+        var index = min(range.location, ns.length)
+        while index < end {
+            let line = lineRange(in: text, at: index)
+            if isItem(ns.substring(with: line)) {
+                let marker = NSRange(location: line.location, length: markerLength)
+                if NSIntersectionRange(marker, range).length > 0 { found.append(marker) }
+            }
+            let next = ns.lineRange(for: NSRange(location: line.location, length: 0))
+            if next.length == 0 { break }
+            index = NSMaxRange(next)
+        }
+        return found
+    }
+
     /// The text with `item` as a new open item on a line of its own at the
     /// end. Blank lines and an empty item at the end give way to it. What
     /// "add milk to Groceries" does from Siri.
