@@ -24,8 +24,10 @@ enum ListMaker {
     }
 
     #if canImport(FoundationModels)
+    // Not private: @Generable expands into an extension at file scope, which
+    // has to see the type.
     @available(iOS 26, *)
-    private enum Model {
+    enum Model {
         @Generable
         struct List {
             @Guide(description: "The tasks or things in the text, one item each, short, in the order written, in the writer's own words. No new tasks, no advice, no headings.")
