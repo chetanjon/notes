@@ -170,9 +170,9 @@ whatever the tint and draws it in its own shape, so the swipe-to-delete is
 a dark grey circle with a white trash glyph rather than the spec's white
 block with black text; the widget's text uses the Lock Screen's own
 rendering, so it is always white on the wallpaper; and the Live Activity
-is a faint white frost over the system's blur, like a notification card,
-with the system's text colours, because iOS's own default material for
-Live Activities is near-black.
+is a translucent black over the system's blur, dark with the wallpaper
+showing through like other apps' cards, with the system's text colours,
+because iOS's own default material for Live Activities is near-opaque.
 
 Not built, on purpose: folders, tags, colours, rich text, attachments,
 sharing, accounts, and light mode.
