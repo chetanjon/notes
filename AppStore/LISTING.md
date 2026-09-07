@@ -113,13 +113,18 @@ are no analytics, no crash reporting SDKs, no ads, no identifiers.
 Notes for the reviewer, paste as is:
 
 > Matte is a local-first notes app; its icon on the Home Screen is labelled
-> "Notes". No account is needed. To test the Lock
-> Screen feature: create a note, long-press it in the list, choose "Pin to
-> Lock Screen", and lock the device: the note shows as a Live Activity
-> under the clock. The Notes widget (long-press the Lock Screen → Customize
-> → Lock Screen → tap under the clock → Notes) shows the same note
-> permanently. iCloud sync uses the CloudKit private database and needs a
-> device signed into iCloud; it is optional and the app works without it.
+> "Notes". No account is needed. To test the Lock Screen feature: create a
+> note, long-press it in the list, choose "Pin to Lock Screen", and lock the
+> device: the note shows as a Live Activity under the clock. Three widgets
+> are listed under Notes in the widget gallery (long-press the Lock Screen →
+> Customize → Lock Screen → tap under the clock): Notes (the app's logo,
+> opens the app; on the Home Screen, the latest notes), New note (a pencil,
+> starts a note), and Pinned note (the pinned note, permanently). Siri: say
+> "Add milk to Groceries in Matte" after opening the app once, so Siri knows
+> the note titles. Deleted notes wait in the Trash, behind the trash glyph
+> beside the title, for 30 days. iCloud sync uses the CloudKit private
+> database and needs a device signed into iCloud; it is optional and the
+> app works without it.
 
 ## Screenshots
 
@@ -136,13 +141,17 @@ Take these five, in this order (the first two do most of the selling):
 1. **The list** with four or five notes, one pinned. Titles that read like
    real life: "Walking app v1 scope", "Groceries" (a checklist, showing
    "1/4 done · eggs, milk"), "Call amma re: Sunday", "Book title ideas".
-2. **The Lock Screen** with the widget showing the pinned note. Take this on
-   a real phone (Lock Screen widgets do not render in the simulator's Lock
-   Screen); a real-device screenshot of a 6.9-inch phone is the right size.
-3. **A checklist** open in the editor, two items ticked.
-4. **Search** with a query typed and matches highlighted.
-5. **A plain note** open in the editor, cursor at the end, keyboard up.
+2. **The Lock Screen** on a real phone: the pinned note's card under the
+   clock, and the round Notes and New note widgets beside the clock. (Lock
+   Screen widgets and Live Activities do not render in the simulator's Lock
+   Screen; a real-device screenshot of a 6.9-inch phone is the right size.)
+   Pick a wallpaper with some texture so the card's see-through look shows.
+3. **A checklist** open in the editor, two items ticked, the circles
+   showing.
+4. **The Home Screen** with the medium Notes widget over the wallpaper,
+   three notes listed and the pencil at the side.
+5. **Search** with a query typed and matches highlighted.
 
 Optional: a caption above each. Keep them short and in the app's voice:
 "Nothing in the way." / "One note, always in sight." / "Checklists, inline."
-/ "Find it fast." / "Just write."
+/ "Your notes, at home." / "Find it fast."

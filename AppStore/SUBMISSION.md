@@ -9,6 +9,10 @@ text the forms ask for.
 - A paid Apple Developer Program membership on team `WV59PZX4A3` (the
   `DEVELOPMENT_TEAM` in `project.yml`). The free tier cannot upload to App Store Connect.
 - Xcode 15 or newer, signed into that account (Xcode → Settings → Accounts).
+  For the upload in step 4 it has to be a **release** Xcode: App Store
+  Connect refuses builds made with a beta. As of September 2026 Xcode 27 is
+  still in beta, so steps 1 to 3 and 5 can be done now and step 4 waits for
+  the release, or for a Mac running the current release Xcode.
 - `xcodegen` (`brew install xcodegen`).
 - The privacy and support pages live. They are in `docs/`; turn on GitHub
   Pages once (repository Settings → Pages → Deploy from a branch → `main`,
@@ -41,7 +45,9 @@ store users.
 1. https://icloud.developer.apple.com → CloudKit Console → pick
    `iCloud.com.cj.notes`.
 2. Run the app once on a device from Xcode and create a note, so the
-   `CD_Note` record type exists in Development.
+   `CD_Note` record type exists in Development. Run the **current** build:
+   the record gained a `deletedAt` field with the Trash, and the deploy
+   copies whatever Development has at that moment.
 3. In the console: Schema → **Deploy Schema Changes** → Deploy to Production.
 
 Repeat this whenever the `Note` model gains a field.
