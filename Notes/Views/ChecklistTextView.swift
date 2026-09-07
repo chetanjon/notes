@@ -18,6 +18,8 @@ struct ChecklistTextView: UIViewRepresentable {
     enum Command: Equatable {
         /// The toolbar's checklist button.
         case toggleItem
+        /// "Make a list": the plain lines under the title become these items.
+        case makeList(items: [String])
     }
 
     @Binding var text: String
@@ -238,6 +240,9 @@ struct ChecklistTextView: UIViewRepresentable {
                 let cursor = view.selectedRange.location
                 apply(Checklist.toggleItem(in: view.text, at: cursor), to: view)
                 if !view.isFirstResponder { view.becomeFirstResponder() }
+            case let .makeList(items):
+                // One replacement, so a shake takes the whole list back.
+                apply(Checklist.replacingPlainBody(in: view.text, with: items), to: view)
             }
         }
 

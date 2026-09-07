@@ -163,7 +163,11 @@ layout fragments, so the note stays plain text. On an iPhone with Apple
 Intelligence, iOS's Writing Tools (Proofread, Rewrite, Summarize) work
 inline in the editor; the editor runs on TextKit 2 for that, and hands
 Writing Tools the marker ranges to leave alone, so a rewritten checklist
-is still a checklist.
+is still a checklist. The sparkle in the editor bar, Make a list, turns
+the plain lines under the title into items: with Apple's on-device model
+(`ListMaker`, the Foundation Models framework, on iOS 26 with Apple
+Intelligence) or, anywhere else, with `Checklist.split` on commas, "and",
+and line breaks. Either way the text stays on the phone.
 
 Two places iOS decides, not the spec: a swipe action paints its label white
 whatever the tint and draws it in its own shape, so the swipe-to-delete is

@@ -17,6 +17,8 @@ struct EditorView: View {
     @State private var saveTask: Task<Void, Never>?
     /// Set by the trash: the note is gone, so onDisappear must not touch it.
     @State private var isDeleted = false
+    /// "Make a list" is working; the sparkle is a spinner meanwhile.
+    @State private var makingList = false
 
     /// Autosave waits this long after the last keystroke.
     private static let saveDelay: Duration = .milliseconds(350)
@@ -71,6 +73,15 @@ struct EditorView: View {
         HStack(spacing: 0) {
             barButton("chevron.left", label: "Back") { dismiss() }
             Spacer()
+            if makingList {
+                ProgressView()
+                    .tint(Theme.fg)
+                    .frame(width: Theme.tapTarget, height: Theme.tapTarget)
+            } else {
+                barButton("sparkles", label: "Make a list") { makeList() }
+                    .disabled(!canMakeList)
+                    .opacity(canMakeList ? 1 : 0.35)
+            }
             barButton("checklist", label: "Checklist") { command = .toggleItem }
             barButton(note.isPinned ? "pin.fill" : "pin",
                       label: note.isPinned ? "Unpin" : "Pin to Lock Screen") { togglePin() }
@@ -118,6 +129,23 @@ struct EditorView: View {
     }
 
     // MARK: Actions
+
+    /// There is something under the title that is not an item yet.
+    private var canMakeList: Bool { !Checklist.plainBody(of: text).isEmpty }
+
+    /// The sparkle: the plain lines under the title become checklist items,
+    /// with Apple's on-device model where there is one and a plain split
+    /// elsewhere. Applied as one edit, so a shake takes it back.
+    private func makeList() {
+        let plain = Checklist.plainBody(of: text)
+        guard !plain.isEmpty, !makingList else { return }
+        makingList = true
+        Task { @MainActor in
+            let items = await ListMaker.items(from: plain)
+            makingList = false
+            if !items.isEmpty { command = .makeList(items: items) }
+        }
+    }
 
     private func scheduleSave(_ value: String) {
         saveTask?.cancel()

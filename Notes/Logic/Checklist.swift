@@ -125,6 +125,62 @@ enum Checklist {
         return lines.joined(separator: "\n")
     }
 
+    /// The body's plain lines, the ones that are not items and not blank,
+    /// joined with line breaks. What "Make a list" turns into items; the
+    /// first line is the title and stays.
+    static func plainBody(of text: String) -> String {
+        text.split(separator: "\n", omittingEmptySubsequences: false)
+            .dropFirst()
+            .map(String.init)
+            .filter { !isItem($0) && !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            .joined(separator: "\n")
+    }
+
+    /// Items from plain text without a model: one per line, and within a
+    /// line one per comma, semicolon, or " and "; bullets and numbering
+    /// stripped, blanks dropped. "Make a list" on a phone without Apple
+    /// Intelligence, and the fallback when the model has nothing to say.
+    static func split(_ text: String) -> [String] {
+        var items: [String] = []
+        for line in text.split(separator: "\n") {
+            let pieces = String(line)
+                .replacingOccurrences(of: " and ", with: ",")
+                .replacingOccurrences(of: ";", with: ",")
+                .split(separator: ",")
+            for piece in pieces {
+                let item = strippingBullet(piece.trimmingCharacters(in: .whitespaces))
+                if !item.isEmpty { items.append(item) }
+            }
+        }
+        return items
+    }
+
+    /// "- milk", "• milk", "1. milk", "2) milk" → "milk".
+    private static func strippingBullet(_ line: String) -> String {
+        var item = line
+        for bullet in ["- ", "• ", "* ", "– "] where item.hasPrefix(bullet) {
+            item = String(item.dropFirst(bullet.count))
+        }
+        let digits = item.prefix(while: { $0.isNumber })
+        if !digits.isEmpty, digits.count <= 2 {
+            let rest = item.dropFirst(digits.count)
+            if rest.hasPrefix(". ") || rest.hasPrefix(") ") { item = String(rest.dropFirst(2)) }
+        }
+        return item.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// The note with its plain body lines replaced by `items`, each an open
+    /// item on a line of its own, after the title and the items already
+    /// there (which keep their ticks). The cursor lands at the end.
+    static func replacingPlainBody(in text: String, with items: [String]) -> Edit {
+        let lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let title = lines.first ?? ""
+        let kept = lines.dropFirst().filter(isItem)
+        let made = items.map { open + $0.trimmingCharacters(in: .whitespaces) }
+        let result = ([title] + kept + made).joined(separator: "\n")
+        return Edit(text: result, cursor: (result as NSString).length)
+    }
+
     /// The one range that differs between two texts and what replaces it,
     /// in UTF-16 units: the longest common prefix and suffix are left alone.
     /// The editor applies checklist edits this way so they can be undone.
