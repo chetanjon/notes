@@ -14,6 +14,8 @@ struct NotesListView: View {
     @State private var query = ""
     @State private var isSearching = false
     @FocusState private var searchFocused: Bool
+    /// Holding the pencil: the dictation sheet.
+    @State private var showingDictate = false
 
     /// What the on-device model found for a question the letters did not
     /// answer; kept while the query is the one it was asked.
@@ -299,6 +301,7 @@ struct NotesListView: View {
         }
     }
 
+    /// A tap starts a note; holding it starts a dictation.
     private var composeButton: some View {
         Button {
             let note = NoteStore.create(in: context)
@@ -312,7 +315,19 @@ struct NotesListView: View {
                 .background(Theme.fg, in: Circle())
         }
         .buttonStyle(PressedButtonStyle())
+        .simultaneousGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+            searchFocused = false
+            showingDictate = true
+        })
         .accessibilityLabel("New note")
+        .accessibilityHint("Hold to dictate a note")
+        .sheet(isPresented: $showingDictate) {
+            DictateSheet { text in
+                let note = NoteStore.create(in: context)
+                NoteStore.update(note, text: text, in: context)
+                navigation.open(note.id)
+            }
+        }
     }
 
     private func open(_ note: Note) {

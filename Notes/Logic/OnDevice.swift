@@ -84,6 +84,21 @@ enum OnDevice {
         return nil
     }
 
+    /// A dictation as a note: a title, the words with spelling and
+    /// punctuation fixed and filler dropped, each spoken task or item on a
+    /// line of its own as a checklist item. Nil where there is no model or
+    /// it gave nothing.
+    static func cleaned(dictation: String) async -> String? {
+        #if canImport(FoundationModels)
+        if #available(iOS 26, *), isAvailable, dictation.count < limit,
+           let made = try? await Model.cleaned(dictation: dictation) {
+            let text = Dictation.compose(title: made.title, lines: made.lines)
+            if !NoteText.isBlank(text) { return text }
+        }
+        #endif
+        return nil
+    }
+
     #if canImport(FoundationModels)
     // Not private: @Generable expands into an extension at file scope, which
     // has to see the type.
@@ -153,6 +168,26 @@ enum OnDevice {
                 """)
             let response = try await session.respond(to: text, generating: DatedList.self)
             return response.content.items
+        }
+
+        @Generable
+        struct Spoken {
+            @Guide(description: "A title for the note: two to five words, in the speaker's language, no full stop.")
+            var title: String
+            @Guide(description: "The note's lines, in the speaker's own words with spelling and punctuation fixed and filler words dropped. When the speech is a list of tasks or things, each on its own line starting with '- '.")
+            var lines: [String]
+        }
+
+        static func cleaned(dictation: String) async throws -> Spoken {
+            let session = LanguageModelSession(instructions: """
+                The user dictated a note; you get the words as heard. Give it a title of two to \
+                five words and write the note as lines in the speaker's own words, with spelling \
+                and punctuation fixed and filler words ("um", "so", "like") dropped. Do not add \
+                anything that was not said. When the speech is a list of tasks or things to buy, \
+                put each on its own line starting with "- ".
+                """)
+            let response = try await session.respond(to: dictation, generating: Spoken.self)
+            return response.content
         }
 
         static func tidied(_ lines: [String]) async throws -> [String] {
