@@ -121,6 +121,25 @@ final class ChecklistTests: XCTestCase {
         XCTAssertEqual(edit.cursor, edit.text.utf16.count)
     }
 
+    func testAddingTitlePutsItOnANewFirstLine() {
+        let edit = Checklist.addingTitle(" Weekend plans ", to: "call mum\n□ tickets")
+        XCTAssertEqual(edit.text, "Weekend plans\ncall mum\n□ tickets")
+        XCTAssertEqual(edit.cursor, "Weekend plans".utf16.count)
+        XCTAssertEqual(Checklist.addingTitle("Title", to: "").text, "Title")
+    }
+
+    func testBareLinesDropTheMarkers() {
+        XCTAssertEqual(Checklist.bareLines(of: "Shop\n□ milk\n\n■ eggs\nnote"), ["Shop", "milk", "", "eggs", "note"])
+    }
+
+    func testRestoringMarkersPutsThemBackLineForLine() {
+        let original = "shop\n□ milk\n\n■ eggs\nnote"
+        let restored = Checklist.restoringMarkers(from: original, lines: ["Shop", "Milk", "", "Eggs", "Note."])
+        XCTAssertEqual(restored, "Shop\n□ Milk\n\n■ Eggs\nNote.")
+        // A different number of lines cannot be matched up: nothing changes.
+        XCTAssertNil(Checklist.restoringMarkers(from: original, lines: ["Shop", "Milk"]))
+    }
+
     func testReturnWithSelectionReplacesIt() {
         let edit = Checklist.handleReturn(in: "□ milk and eggs", selection: NSRange(location: 6, length: 9))
         XCTAssertEqual(edit, Checklist.Edit(text: "□ milk\n□ ", cursor: 9))
