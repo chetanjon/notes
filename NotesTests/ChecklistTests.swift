@@ -175,3 +175,12 @@ final class ChecklistTests: XCTestCase {
         XCTAssertEqual(edit, Checklist.Edit(text: "□ milk\n□ ", cursor: 9))
     }
 }
+
+extension ChecklistTests {
+    func testAddingTitleReplacesThePlaceholderFirstLine() {
+        let edit = Checklist.addingTitle("Walking app idea", to: "New note\nRecord voice notes")
+        XCTAssertEqual(edit.text, "Walking app idea\nRecord voice notes")
+        XCTAssertEqual(edit.cursor, "Walking app idea".utf16.count)
+        XCTAssertEqual(Checklist.addingTitle("T", to: "new note").text, "T")
+    }
+}

@@ -91,6 +91,9 @@ enum OnDevice {
                 if was.isEmpty != now.isEmpty { continue }
                 if ModelGuard.lengthClose(was, now) { result[fix.number - 1] = now }
             }
+            // Capitals are a rule, not a judgement: the first letter of each
+            // line and the pronoun "I", whatever the model did with them.
+            result = result.map(NoteText.capitalised)
             if result != lines.map({ $0.trimmingCharacters(in: .whitespaces) }) { return result }
         }
         #endif
@@ -213,8 +216,9 @@ enum OnDevice {
             let session = LanguageModelSession(instructions: """
                 You fix the lines of a note. Each line comes as its number, a bar, and the text. \
                 Fix spelling, capitalisation and punctuation in each line and change nothing \
-                else: not the words, not the meaning, not the order, not the length. Give back \
-                every line by number. An empty line stays empty.
+                else: not the words, not the meaning, not the order, not the length. Every \
+                line starts with a capital letter, and the pronoun "i" is always "I". Give \
+                back every line by number. An empty line stays empty.
 
                 Example:
                 1| call teh dentist tuesday

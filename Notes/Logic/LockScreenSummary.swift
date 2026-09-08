@@ -33,8 +33,8 @@ enum LockScreenSummary {
             let line = made.split(separator: "\n").first.map(String.init)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .trimmingCharacters(in: CharacterSet(charactersIn: ".")) ?? ""
-            // Over the word limit, the model ran on; the first line stays.
-            guard !line.isEmpty, ModelGuard.wordCount(line) <= wordLimit + 2 else { return nil }
+            // Well over the word limit, the model ran on; the first line stays.
+            guard !line.isEmpty, ModelGuard.wordCount(line) <= wordLimit + 6 else { return nil }
             cache.append((text, line))
             if cache.count > cacheSize { cache.removeFirst() }
             return line

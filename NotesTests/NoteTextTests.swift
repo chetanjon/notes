@@ -110,3 +110,15 @@ final class NoteTextTests: XCTestCase {
         XCTAssertEqual(NoteText.spoken("Ideas"), "Ideas has nothing under the title.")
     }
 }
+
+extension NoteTextTests {
+    func testCapitalisedStartsTheLineAndThePronoun() {
+        XCTAssertEqual(NoteText.capitalised("call the dentist"), "Call the dentist")
+        XCTAssertEqual(NoteText.capitalised("i received the parcel, i think it's fine"), "I received the parcel, I think it's fine")
+        XCTAssertEqual(NoteText.capitalised("□ milk and i"), "□ Milk and I")
+        // A brand spelt with a small first letter is capitalised too; a known cost.
+        XCTAssertEqual(NoteText.capitalised("iPhone is fine"), "IPhone is fine")
+        XCTAssertEqual(NoteText.capitalised(""), "")
+        XCTAssertEqual(NoteText.capitalised("  3 things"), "  3 things")
+    }
+}

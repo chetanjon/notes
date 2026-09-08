@@ -192,6 +192,23 @@ enum NoteText {
         return String(joined.prefix(limit)).trimmingCharacters(in: .whitespaces) + "…"
     }
 
+    /// The line with its first letter in capitals and the pronoun "i" as
+    /// "I": what Tidy up does on its own, whatever the model gave back.
+    static func capitalised(_ line: String) -> String {
+        var result = line
+        if let first = result.firstIndex(where: { $0.isLetter }),
+           result[..<first].allSatisfy({ $0.isWhitespace || $0.isPunctuation || $0 == "\u{25A1}" || $0 == "\u{25A0}" }) {
+            result.replaceSubrange(first...first, with: String(result[first]).uppercased())
+        }
+        // A lone "i" between spaces or at the ends: "i think" and "so i".
+        let pattern = try? NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}'’])i(?![\\p{L}\\p{N}'’])")
+        if let pattern {
+            let range = NSRange(result.startIndex..., in: result)
+            result = pattern.stringByReplacingMatches(in: result, range: range, withTemplate: "I")
+        }
+        return result
+    }
+
     /// Case-insensitive search over the whole text.
     static func matches(_ text: String, query: String) -> Bool {
         let q = query.trimmingCharacters(in: .whitespaces)
