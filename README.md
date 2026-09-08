@@ -184,14 +184,18 @@ is still a checklist. The sparkle in the editor bar is Make a list: the
 plain lines under the title become items, with Apple's on-device model
 (`ListMaker`, the Foundation Models framework, on iOS 26 with Apple
 Intelligence) or, anywhere else, with `Checklist.split` on commas, "and",
-and line breaks. On a phone with the model the sparkle is a menu with two
+and line breaks. On a phone with the model the sparkle is a menu with three
 more (`OnDevice`): Add a title, which reads the note and puts a few words
-on a new first line, and Tidy up, which fixes spelling, capitalisation and
+on a new first line; Tidy up, which fixes spelling, capitalisation and
 punctuation across the note line for line, the checklist markers taken off
 before the model sees the lines and put back after (`Checklist.bareLines`,
-`restoringMarkers`; a line count that does not match means no change).
-Each is one edit, so a shake takes it back. Either way the text stays on
-the phone.
+`restoringMarkers`; a line count that does not match means no change); and
+Sort the list, for a checklist of three items or more, which has the model
+group the items by kind (the same aisle, the same place) and gives back
+their order (`Checklist.items`, `reordering`; anything but a permutation of
+the items means no change, and so does a list that changed under the
+spinner). Ticks and plain lines stay where they are. Each is one edit, so a
+shake takes it back. Either way the text stays on the phone.
 
 Two places iOS decides, not the spec: a swipe action paints its label white
 whatever the tint and draws it in its own shape, so the swipe-to-delete is

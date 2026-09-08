@@ -154,6 +154,22 @@ final class ChecklistTests: XCTestCase {
         XCTAssertNil(Checklist.restoringMarkers(from: original, lines: ["Shop", "Milk"]))
     }
 
+    func testItemsAreTheItemTextsInOrder() {
+        XCTAssertEqual(Checklist.items(of: "Shop\n□ milk\nnote\n■ eggs \n□ bread"), ["milk", "eggs", "bread"])
+        XCTAssertEqual(Checklist.items(of: "Shop\nplain"), [])
+    }
+
+    func testReorderingMovesItemsAndKeepsTicksAndPlainLines() {
+        let text = "Shop\n□ milk\nnote\n■ eggs\n□ bread"
+        let edit = Checklist.reordering(items: [2, 0, 1], in: text)
+        XCTAssertEqual(edit?.text, "Shop\n□ bread\nnote\n□ milk\n■ eggs")
+        XCTAssertEqual(edit?.cursor, edit?.text.utf16.count)
+        // Anything but a permutation of the items is refused.
+        XCTAssertNil(Checklist.reordering(items: [0, 1], in: text))
+        XCTAssertNil(Checklist.reordering(items: [0, 0, 1], in: text))
+        XCTAssertNil(Checklist.reordering(items: [0, 1, 3], in: text))
+    }
+
     func testReturnWithSelectionReplacesIt() {
         let edit = Checklist.handleReturn(in: "□ milk and eggs", selection: NSRange(location: 6, length: 9))
         XCTAssertEqual(edit, Checklist.Edit(text: "□ milk\n□ ", cursor: 9))

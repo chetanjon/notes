@@ -235,6 +235,30 @@ enum Checklist {
         }.joined(separator: "\n")
     }
 
+    /// The items' text, in order, ticked or not: what "Sort the list" hands
+    /// the model.
+    static func items(of text: String) -> [String] {
+        text.split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+            .filter(isItem)
+            .map { content($0).trimmingCharacters(in: .whitespaces) }
+    }
+
+    /// The item lines in a new order, `order` being every item's index
+    /// exactly once, first for the top; each item keeps its tick, and the
+    /// plain lines keep their places. Nil when `order` is not a permutation
+    /// of the items, because then the list cannot be trusted. The cursor
+    /// lands at the end.
+    static func reordering(items order: [Int], in text: String) -> Edit? {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let slots = lines.indices.filter { isItem(lines[$0]) }
+        guard order.count == slots.count, Set(order) == Set(slots.indices) else { return nil }
+        let itemLines = slots.map { lines[$0] }
+        for (slot, index) in zip(slots, order) { lines[slot] = itemLines[index] }
+        let result = lines.joined(separator: "\n")
+        return Edit(text: result, cursor: (result as NSString).length)
+    }
+
     /// The one range that differs between two texts and what replaces it,
     /// in UTF-16 units: the longest common prefix and suffix are left alone.
     /// The editor applies checklist edits this way so they can be undone.
