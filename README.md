@@ -210,8 +210,16 @@ times in the note (`OnDevice.reminders`, told today's date so "tuesday"
 lands on one; `ReminderStamp` parses what it writes) and shows them on a
 sheet; one tap puts the chosen ones in the iPhone's Reminders app through
 EventKit (`Reminders.add`), which is the app's only permission prompt,
-asked at that tap and never before. The note is not changed. Either way
-the text stays on the phone.
+asked at that tap and never before. The note is not changed. Holding the
+pencil in the list dictates a note: iOS's speech recognition with
+on-device recognition required (`SpeechListener`; where the language has
+none, the app does not listen), the words shown as they are heard, and
+on Stop the model turns them into a note with a title, spelling and
+punctuation fixed, and a checklist where a list was spoken
+(`OnDevice.cleaned`, `Dictation.compose`); without a model the note is
+the words as spoken, first sentence as the title (`Dictation.plain`).
+The microphone and speech recognition are asked for at that first hold.
+Either way the text stays on the phone.
 
 Two places iOS decides, not the spec: a swipe action paints its label white
 whatever the tint and draws it in its own shape, so the swipe-to-delete is
