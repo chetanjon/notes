@@ -80,6 +80,64 @@ struct PinNoteIntent: AppIntent {
     }
 }
 
+/// "What's on Groceries in Matte": Siri reads the open items, or a plain
+/// note's first lines. Nothing changes.
+struct ReadNoteIntent: AppIntent {
+    static var title: LocalizedStringResource = "Read Note"
+    static var description = IntentDescription("Reads a note out: what is left on a checklist, or the first lines of a plain note.")
+    static var openAppWhenRun = false
+
+    @Parameter(title: "Note")
+    var note: NoteEntity
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Read \(\.$note)")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+        let context = NoteStore.container.mainContext
+        guard let target = NoteStore.note(withID: note.id, in: context), !target.isTrashed else {
+            throw NoteIntentError.gone
+        }
+        let spoken = NoteText.spoken(target.text)
+        return .result(value: spoken, dialog: "\(spoken)")
+    }
+}
+
+/// "Tick milk off Groceries in Matte": the first open item that matches
+/// the words is marked done.
+struct TickItemIntent: AppIntent {
+    static var title: LocalizedStringResource = "Tick Off"
+    static var description = IntentDescription("Marks an item on a checklist as done.")
+    static var openAppWhenRun = false
+
+    @Parameter(title: "Item")
+    var item: String
+
+    @Parameter(title: "Note")
+    var note: NoteEntity
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Tick \(\.$item) off \(\.$note)")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        let context = NoteStore.container.mainContext
+        guard let target = NoteStore.note(withID: note.id, in: context), !target.isTrashed else {
+            throw NoteIntentError.gone
+        }
+        guard let ticked = Checklist.ticking(item, in: target.text) else {
+            return .result(dialog: "There is no \(item) left on \(target.title).")
+        }
+        NoteStore.update(target, text: ticked.text, in: context)
+        let summary = NoteText.checklistSummary(ticked.text)
+        let left = summary.open.isEmpty ? "That was the last one." : "\(summary.open.count) left."
+        return .result(dialog: "Ticked off \(ticked.item). \(left)")
+    }
+}
+
 enum NoteIntentError: Error, CustomLocalizedStringResourceConvertible {
     case gone
 
@@ -119,5 +177,23 @@ struct NotesShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Pin Note",
             systemImageName: "pin")
+        AppShortcut(
+            intent: ReadNoteIntent(),
+            phrases: [
+                "What's on \(\.$note) in \(.applicationName)",
+                "Read \(\.$note) in \(.applicationName)",
+                "What's left on \(\.$note) in \(.applicationName)",
+            ],
+            shortTitle: "Read Note",
+            systemImageName: "text.bubble")
+        AppShortcut(
+            intent: TickItemIntent(),
+            phrases: [
+                "Tick something off \(\.$note) in \(.applicationName)",
+                "Tick off \(\.$note) in \(.applicationName)",
+                "Check something off \(\.$note) in \(.applicationName)",
+            ],
+            shortTitle: "Tick Off",
+            systemImageName: "checkmark.circle")
     }
 }

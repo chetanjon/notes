@@ -102,6 +102,20 @@ final class ChecklistTests: XCTestCase {
         XCTAssertEqual(Checklist.appendingItem("milk", to: ""), "\n□ milk")
     }
 
+    func testTickingFindsTheItemByItsWords() {
+        let text = "Groceries\n□ Milk\n□ brown bread\n■ eggs\n□ bread"
+        // Exact before contains: "bread" ticks the item that is "bread".
+        let exact = Checklist.ticking("Bread", in: text)
+        XCTAssertEqual(exact?.text, "Groceries\n□ Milk\n□ brown bread\n■ eggs\n■ bread")
+        XCTAssertEqual(exact?.item, "bread")
+        // Contains, either way round.
+        XCTAssertEqual(Checklist.ticking("brown", in: text)?.item, "brown bread")
+        XCTAssertEqual(Checklist.ticking("the milk please", in: text)?.item, "Milk")
+        // A done item is not ticked again; nothing else matches.
+        XCTAssertNil(Checklist.ticking("eggs", in: text))
+        XCTAssertNil(Checklist.ticking("  ", in: text))
+    }
+
     func testPlainBodyIsTheNonItemLines() {
         XCTAssertEqual(Checklist.plainBody(of: "Shop\nmilk, eggs\n□ bread\n\nand tea"), "milk, eggs\nand tea")
         XCTAssertEqual(Checklist.plainBody(of: "Shop\n□ bread"), "")

@@ -125,6 +125,32 @@ enum Checklist {
         return lines.joined(separator: "\n")
     }
 
+    /// "Tick milk off Groceries" from Siri: the first open item that is the
+    /// words, or failing that the first that contains them (or that they
+    /// contain), case and accents aside, marked done. The item's own text
+    /// comes back so Siri can say it. Nil when nothing on the list matches.
+    static func ticking(_ item: String, in text: String) -> (text: String, item: String)? {
+        let wanted = item.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !wanted.isEmpty else { return nil }
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        for exact in [true, false] {
+            for (index, line) in lines.enumerated() where line.hasPrefix(open) {
+                let content = self.content(line).trimmingCharacters(in: .whitespaces)
+                guard !content.isEmpty else { continue }
+                let hit = exact
+                    ? content.compare(wanted, options: options) == .orderedSame
+                    : content.range(of: wanted, options: options) != nil
+                        || wanted.range(of: content, options: options) != nil
+                if hit {
+                    lines[index] = done + line.dropFirst(markerLength)
+                    return (lines.joined(separator: "\n"), content)
+                }
+            }
+        }
+        return nil
+    }
+
     /// The body's plain lines, the ones that are not items and not blank,
     /// joined with line breaks. What "Make a list" turns into items; the
     /// first line is the title and stays.

@@ -125,12 +125,16 @@ Screen; tapping the result opens it. The index is rebuilt on each
 foreground, which also covers notes that iCloud brought in or took away.
 It lives on the phone; nothing leaves it.
 
-Three App Intents work from Siri and the Shortcuts app without setup:
+Five App Intents work from Siri and the Shortcuts app without setup:
 "New note in Matte", "Add to Groceries in Matte" (Siri asks what to add,
-and it lands as an open item at the end of the note), and "Pin Groceries
-in Matte" (which opens the app, since a Live Activity can only be started
-from the foreground). "In Notes" works too; `INAlternativeAppNames` in
-`project.yml` adds Matte because Apple's own Notes owns the plain word.
+and it lands as an open item at the end of the note), "Pin Groceries in
+Matte" (which opens the app, since a Live Activity can only be started
+from the foreground), "What's on Groceries in Matte" (Siri reads the open
+items, or a plain note's first lines: `NoteText.spoken`), and "Tick
+something off Groceries in Matte" (Siri asks which; the first open item
+that is or contains the words is marked done: `Checklist.ticking`). "In
+Notes" works too; `INAlternativeAppNames` in `project.yml` adds Matte
+because Apple's own Notes owns the plain word.
 Siri learns the note titles from `NoteQuery.suggestedEntities`, refreshed
 on each foreground.
 
