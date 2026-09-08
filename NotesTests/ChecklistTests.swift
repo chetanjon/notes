@@ -102,6 +102,25 @@ final class ChecklistTests: XCTestCase {
         XCTAssertEqual(Checklist.appendingItem("milk", to: ""), "\n□ milk")
     }
 
+    func testPlainBodyIsTheNonItemLines() {
+        XCTAssertEqual(Checklist.plainBody(of: "Shop\nmilk, eggs\n□ bread\n\nand tea"), "milk, eggs\nand tea")
+        XCTAssertEqual(Checklist.plainBody(of: "Shop\n□ bread"), "")
+        XCTAssertEqual(Checklist.plainBody(of: "Shop"), "")
+    }
+
+    func testSplitMakesOneItemPerTask() {
+        XCTAssertEqual(Checklist.split("milk eggs and call the dentist"), ["milk eggs", "call the dentist"])
+        XCTAssertEqual(Checklist.split("milk, eggs; bread\n- tea\n• sugar\n1. rice\n2) beans"),
+                       ["milk", "eggs", "bread", "tea", "sugar", "rice", "beans"])
+        XCTAssertEqual(Checklist.split("  \n, ,\n"), [])
+    }
+
+    func testReplacingPlainBodyKeepsTitleAndTickedItems() {
+        let edit = Checklist.replacingPlainBody(in: "Shop\n■ bread\nmilk and eggs", with: ["milk", " eggs"])
+        XCTAssertEqual(edit.text, "Shop\n■ bread\n□ milk\n□ eggs")
+        XCTAssertEqual(edit.cursor, edit.text.utf16.count)
+    }
+
     func testReturnWithSelectionReplacesIt() {
         let edit = Checklist.handleReturn(in: "□ milk and eggs", selection: NSRange(location: 6, length: 9))
         XCTAssertEqual(edit, Checklist.Edit(text: "□ milk\n□ ", cursor: 9))
