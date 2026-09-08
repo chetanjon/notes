@@ -98,6 +98,8 @@ struct EditorView: View {
                         .disabled(isBlank)
                     Button("Tidy up", systemImage: "wand.and.stars") { tidy() }
                         .disabled(isBlank)
+                    Button("Sort the list", systemImage: "arrow.up.arrow.down") { sortList() }
+                        .disabled(!canSortList)
                 } label: {
                     Image(systemName: "sparkles")
                         .font(Theme.Font.barGlyph)
@@ -201,6 +203,23 @@ struct EditorView: View {
             let tidied = await OnDevice.tidied(lines)
             working = false
             if let tidied { command = .tidy(lines: tidied) }
+        }
+    }
+
+    /// Three items or more: enough to group.
+    private var canSortList: Bool { Checklist.items(of: text).count >= 3 }
+
+    /// The model groups the items by kind and gives back their order; the
+    /// ticks and the plain lines stay where they are. One edit; a shake
+    /// takes it back.
+    private func sortList() {
+        guard canSortList, !working else { return }
+        working = true
+        let items = Checklist.items(of: text)
+        Task { @MainActor in
+            let order = await OnDevice.sorted(items)
+            working = false
+            if let order { command = .sortList(order: order, items: items) }
         }
     }
 

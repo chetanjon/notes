@@ -51,6 +51,22 @@ enum OnDevice {
         return nil
     }
 
+    /// The items grouped by kind, as a new order: each item's index exactly
+    /// once, first for the top. Nil when there is no model, when it gave
+    /// anything but a permutation, or when it changed nothing.
+    static func sorted(_ items: [String]) async -> [Int]? {
+        #if canImport(FoundationModels)
+        if #available(iOS 26, *), isAvailable, items.count >= 3,
+           items.joined(separator: "\n").count < limit,
+           let made = try? await Model.sorted(items) {
+            let order = made.map { $0 - 1 }
+            if order.count == items.count, Set(order) == Set(items.indices),
+               order != Array(items.indices) { return order }
+        }
+        #endif
+        return nil
+    }
+
     #if canImport(FoundationModels)
     // Not private: @Generable expands into an extension at file scope, which
     // has to see the type.
@@ -76,6 +92,24 @@ enum OnDevice {
                 """)
             let response = try await session.respond(to: text, generating: Title.self)
             return response.content.title
+        }
+
+        @Generable
+        struct Order {
+            @Guide(description: "Every item's number exactly once, in the new order: items of the same kind next to each other, such as things bought in the same aisle, done in the same place, or belonging together.")
+            var order: [Int]
+        }
+
+        static func sorted(_ items: [String]) async throws -> [Int] {
+            let listing = items.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
+            let session = LanguageModelSession(instructions: """
+                The user gives you a numbered checklist. Give back the numbers in a new order \
+                that puts items of the same kind next to each other: things from the same shop \
+                aisle, errands in the same place, tasks that belong together. Use every number \
+                exactly once and add none.
+                """)
+            let response = try await session.respond(to: listing, generating: Order.self)
+            return response.content.order
         }
 
         static func tidied(_ lines: [String]) async throws -> [String] {

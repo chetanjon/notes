@@ -24,6 +24,9 @@ struct ChecklistTextView: UIViewRepresentable {
         case addTitle(String)
         /// "Tidy up": the note's lines, marker-less, as the model fixed them.
         case tidy(lines: [String])
+        /// "Sort the list": the items' new order, and the items it was made
+        /// for, so a list that changed meanwhile is left alone.
+        case sortList(order: [Int], items: [String])
     }
 
     @Binding var text: String
@@ -256,6 +259,10 @@ struct ChecklistTextView: UIViewRepresentable {
                 if let text = Checklist.restoringMarkers(from: view.text, lines: lines) {
                     apply(Checklist.Edit(text: text, cursor: view.selectedRange.location), to: view)
                 }
+            case let .sortList(order, items):
+                guard Checklist.items(of: view.text) == items,
+                      let edit = Checklist.reordering(items: order, in: view.text) else { return }
+                apply(edit, to: view)
             }
         }
 
