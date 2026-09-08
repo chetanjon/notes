@@ -34,6 +34,14 @@ final class NoteTextTests: XCTestCase {
         XCTAssertEqual(NoteText.widgetPreview("Title"), "")
     }
 
+    func testWantsSummaryForLongPlainNotes() {
+        XCTAssertTrue(NoteText.wantsSummary("Title\nfirst\n\nsecond"))
+        XCTAssertTrue(NoteText.wantsSummary("Title\n" + String(repeating: "a", count: 61)))
+        XCTAssertFalse(NoteText.wantsSummary("Title\nshort"))
+        XCTAssertFalse(NoteText.wantsSummary("Title"))
+        XCTAssertFalse(NoteText.wantsSummary("Groceries\n□ milk\n□ eggs"))
+    }
+
     func testCountersMatchLabelThenNumber() {
         let text = "Day\nWater 3\nPushups  20\n□ Water 3\nRoom 4b\n3\nCall 555 1234\nSteps 1234567"
         XCTAssertEqual(NoteText.counters(text), [

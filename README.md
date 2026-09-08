@@ -72,7 +72,13 @@ Pin a note (long-press it in the list, or the pin in the editor) and it is
 on the Lock Screen at once, as a Live Activity: the card under the clock,
 and the Dynamic Island on phones that have one. The card is the title, and
 for a checklist the count at the right (`0/4`); the items themselves stay
-in the note. A plain note shows its first line under the title. A body line
+in the note. A plain note shows its first line under the title; a long
+one (two body lines or more, or one past sixty characters), on an iPhone
+with Apple Intelligence, gets instead a one-line summary of what it is
+about, from Apple's on-device model (`LockScreenSummary`, cached by text
+so a note is summarised once; the first line stands in until the model
+answers, and the answer is used only if that note is still pinned and
+unchanged). A body line
 that ends in a number, like `Water 3` or `Pushups 20`, is a counter: it
 gets a + on the card, and a tap makes it `Water 4` in the note. (A label
 with a digit in it, such as `Room 4`, is left alone; the card carries three

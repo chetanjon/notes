@@ -76,6 +76,17 @@ enum NoteText {
             .first(where: { !$0.isEmpty }) ?? ""
     }
 
+    /// A plain note whose first line would not do on the Lock Screen: two
+    /// body lines or more, or one long one. Such a note gets a one-line
+    /// summary on the card where there is a model to write it.
+    static func wantsSummary(_ text: String, longLine: Int = 60) -> Bool {
+        guard !isChecklist(text) else { return false }
+        let body = bodyLines(text)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return body.count >= 2 || (body.first?.count ?? 0) > longLine
+    }
+
     struct Counter: Equatable {
         var label: String
         var value: Int
