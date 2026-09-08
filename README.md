@@ -125,6 +125,16 @@ Screen; tapping the result opens it. The index is rebuilt on each
 foreground, which also covers notes that iCloud brought in or took away.
 It lives on the phone; nothing leaves it.
 
+Search in the app matches letters as they are typed, at once. When they
+match nothing, on an iPhone with Apple Intelligence (iOS 26), the question
+goes to Apple's on-device model a moment after typing stops
+(`NoteFinder`): it reads the notes (forty at most, the first 240
+characters of each) and answers, so "when is the dentist" finds "call the
+dentist tuesday". The answer is the line above the results, in place of
+the count, and the notes it came from are the rows. The model runs only
+on a miss; typing again cancels it; nothing leaves the phone. Elsewhere a
+miss says "No matches." as before.
+
 Five App Intents work from Siri and the Shortcuts app without setup:
 "New note in Matte", "Add to Groceries in Matte" (Siri asks what to add,
 and it lands as an open item at the end of the note), "Pin Groceries in

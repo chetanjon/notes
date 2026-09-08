@@ -15,7 +15,26 @@ struct NotesListView: View {
     @State private var isSearching = false
     @FocusState private var searchFocused: Bool
 
+    /// What the on-device model found for a question the letters did not
+    /// answer; kept while the query is the one it was asked.
+    struct Asked: Equatable {
+        var query: String
+        var found: NoteFinder.Found
+    }
+    @State private var asked: Asked?
+    @State private var asking = false
+    @State private var askTask: Task<Void, Never>?
+
+    /// The model is asked this long after the last keystroke with no match.
+    private static let askDelay: Duration = .milliseconds(700)
+
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
+
+    /// The notes the model picked for the current query, in its order.
+    private var askedRows: [Note]? {
+        guard let asked, asked.query == trimmedQuery else { return nil }
+        return asked.found.ids.compactMap { id in notes.first { $0.id == id } }
+    }
 
     /// Changes when a different note is pinned or the pinned note is edited,
     /// on this phone or, through iCloud, on another.
@@ -83,6 +102,37 @@ struct NotesListView: View {
         }
         .onChange(of: pinnedSignature) { _, _ in
             NoteStore.syncLockScreen(in: context)
+        }
+        .onChange(of: trimmedQuery) { _, _ in
+            scheduleAsk()
+        }
+    }
+
+    // MARK: Ask the note
+
+    /// When the letters match nothing, and the phone has the on-device
+    /// model, the question goes to it a moment after typing stops. A new
+    /// keystroke cancels the wait; a result is kept for its query only.
+    private func scheduleAsk() {
+        askTask?.cancel()
+        askTask = nil
+        let question = trimmedQuery
+        guard NoteFinder.isAvailable, !question.isEmpty, visible.isEmpty,
+              asked?.query != question else {
+            asking = false
+            return
+        }
+        asking = true
+        let cards = notes
+            .filter { !$0.isBlank }
+            .map { NoteFinder.Card(id: $0.id, text: $0.text) }
+        askTask = Task { @MainActor in
+            try? await Task.sleep(for: Self.askDelay)
+            guard !Task.isCancelled else { return }
+            let found = await NoteFinder.find(question, in: cards)
+            guard !Task.isCancelled else { return }
+            asked = Asked(query: question, found: found ?? NoteFinder.Found(answer: "", ids: []))
+            asking = false
         }
     }
 
@@ -170,7 +220,10 @@ struct NotesListView: View {
 
     @ViewBuilder
     private var content: some View {
-        let rows = visible
+        // The letters first; when they match nothing, what the model found.
+        let matched = visible
+        let answered = matched.isEmpty ? askedRows : nil
+        let rows = answered ?? matched
         if notes.isEmpty {
             Text("No notes yet. Tap the pen to write one.")
                 .font(Theme.Font.rowBody)
@@ -179,7 +232,7 @@ struct NotesListView: View {
                 .padding(.top, 8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if !trimmedQuery.isEmpty, rows.isEmpty {
-            Text("No matches.")
+            Text(asking ? "Asking…" : "No matches.")
                 .font(Theme.Font.rowBody)
                 .foregroundStyle(Theme.muted)
                 .padding(.horizontal, Theme.pagePadding)
@@ -188,7 +241,9 @@ struct NotesListView: View {
         } else {
             List {
                 if !trimmedQuery.isEmpty {
-                    Text(rows.count == 1 ? "1 note" : "\(rows.count) notes")
+                    // The count, or the model's one-line answer.
+                    let answer = answered == nil ? "" : (asked?.found.answer ?? "")
+                    Text(answer.isEmpty ? (rows.count == 1 ? "1 note" : "\(rows.count) notes") : answer)
                         .font(Theme.Font.label)
                         .foregroundStyle(Theme.muted)
                         .padding(.horizontal, Theme.pagePadding)
@@ -198,7 +253,7 @@ struct NotesListView: View {
                         .listRowSeparator(.hidden)
                 }
                 ForEach(rows) { note in
-                    NoteRow(note: note, highlight: trimmedQuery)
+                    NoteRow(note: note, highlight: answered == nil ? trimmedQuery : "")
                         .contentShape(Rectangle())
                         .onTapGesture { open(note) }
                         .listRowInsets(EdgeInsets())
