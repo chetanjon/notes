@@ -19,6 +19,10 @@ struct EditorView: View {
     @State private var isDeleted = false
     /// The sparkle is at work; it is a spinner meanwhile.
     @State private var working = false
+    /// What a sparkle action had to say when it changed nothing, in place
+    /// of the date line for a moment.
+    @State private var notice: String?
+    @State private var noticeTimer: Task<Void, Never>?
     /// What "Reminders" found, shown on a sheet.
     @State private var foundReminders: [Reminders.Found] = []
     @State private var showingReminders = false
@@ -40,12 +44,13 @@ struct EditorView: View {
             bar
             // When the note was last edited, in the muted grey, where the
             // list used to say it. It follows each autosave.
-            Text(DateFormat.stamp(note.updatedAt))
+            Text(notice ?? DateFormat.stamp(note.updatedAt))
                 .font(Theme.Font.label)
                 .foregroundStyle(Theme.muted)
                 .padding(.horizontal, Theme.pagePadding)
                 .padding(.top, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .animation(.easeOut(duration: 0.15), value: notice)
             ChecklistTextView(text: $text, isFocused: $isFocused, command: $command)
                 .padding(.horizontal, Theme.pagePadding - 5)
         }
@@ -55,6 +60,8 @@ struct EditorView: View {
         .onAppear {
             // The list is in order of use; this note goes to the top.
             NoteStore.markOpened(note, in: context)
+            // So the first sparkle tap answers as fast as the second.
+            OnDevice.prewarm()
         }
         .sheet(isPresented: $showingReminders) {
             RemindersSheet(found: foundReminders)
@@ -73,6 +80,7 @@ struct EditorView: View {
         }
         .onDisappear {
             deleteTimer?.cancel()
+            noticeTimer?.cancel()
             guard !isDeleted else { return }
             saveTask?.cancel()
             saveTask = nil
@@ -95,19 +103,26 @@ struct EditorView: View {
                 ProgressView()
                     .tint(Theme.fg)
                     .frame(width: Theme.tapTarget, height: Theme.tapTarget)
-            } else if OnDevice.isAvailable {
-                // With Apple's on-device model, the sparkle is a menu.
+            } else if OnDevice.isAvailable || OnDevice.status == .off || OnDevice.status == .downloading {
+                // With Apple's on-device model, the sparkle is a menu. When
+                // the model is off or still downloading, the menu says so
+                // instead of pretending there is only Make a list.
                 Menu {
+                    if OnDevice.status == .off {
+                        Text("Apple Intelligence is off in Settings")
+                    } else if OnDevice.status == .downloading {
+                        Text("Apple Intelligence is still downloading")
+                    }
                     Button("Make a list", systemImage: "checklist") { makeList() }
                         .disabled(!canMakeList)
                     Button("Add a title", systemImage: "textformat") { addTitle() }
-                        .disabled(isBlank)
+                        .disabled(isBlank || !OnDevice.isAvailable)
                     Button("Tidy up", systemImage: "wand.and.stars") { tidy() }
-                        .disabled(isBlank)
+                        .disabled(isBlank || !OnDevice.isAvailable)
                     Button("Sort the list", systemImage: "arrow.up.arrow.down") { sortList() }
-                        .disabled(!canSortList)
+                        .disabled(!canSortList || !OnDevice.isAvailable)
                     Button("Reminders", systemImage: "bell") { findReminders() }
-                        .disabled(isBlank)
+                        .disabled(isBlank || !OnDevice.isAvailable)
                 } label: {
                     Image(systemName: "sparkles")
                         .font(Theme.Font.barGlyph)
@@ -183,7 +198,7 @@ struct EditorView: View {
         Task { @MainActor in
             let items = await ListMaker.items(from: plain)
             working = false
-            if !items.isEmpty { command = .makeList(items: items) }
+            if items.isEmpty { show("No list in this note") } else { command = .makeList(items: items) }
         }
     }
 
@@ -196,7 +211,7 @@ struct EditorView: View {
         Task { @MainActor in
             let title = await OnDevice.title(for: snapshot)
             working = false
-            if let title { command = .addTitle(title) }
+            if let title { command = .addTitle(title) } else { show("Couldn't find a title for this") }
         }
     }
 
@@ -210,7 +225,7 @@ struct EditorView: View {
         Task { @MainActor in
             let tidied = await OnDevice.tidied(lines)
             working = false
-            if let tidied { command = .tidy(lines: tidied) }
+            if let tidied { command = .tidy(lines: tidied) } else { show("Nothing to fix") }
         }
     }
 
@@ -227,7 +242,7 @@ struct EditorView: View {
         Task { @MainActor in
             let order = await OnDevice.sorted(items)
             working = false
-            if let order { command = .sortList(order: order, items: items) }
+            if let order { command = .sortList(order: order, items: items) } else { show("Already in order") }
         }
     }
 
@@ -242,6 +257,17 @@ struct EditorView: View {
             working = false
             foundReminders = found ?? []
             showingReminders = true
+        }
+    }
+
+    /// A word from the sparkle in place of the date line, for a moment.
+    private func show(_ text: String) {
+        notice = text
+        noticeTimer?.cancel()
+        noticeTimer = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            notice = nil
         }
     }
 

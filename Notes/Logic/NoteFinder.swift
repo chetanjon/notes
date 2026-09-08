@@ -20,22 +20,38 @@ enum NoteFinder {
         var ids: [UUID]
     }
 
-    /// The model's context is small: this many notes at most, each cut to
-    /// `cardLimit` characters on one line.
-    static let maxCards = 40
+    /// The model's context is small: this many notes at most, the likeliest
+    /// first, each cut to `cardLimit` characters on one line.
+    static let maxCards = 15
     static let cardLimit = 240
+    static let answerLimit = 25
 
     static var isAvailable: Bool {
         #if canImport(FoundationModels)
-        if #available(iOS 26, *), case .available = SystemLanguageModel.default.availability { return true }
-        #endif
+        return OnDevice.isAvailable
+        #else
         return false
+        #endif
+    }
+
+    /// The cards most likely to answer the question first: those sharing
+    /// the most words with it, ties in the order given (the list's own,
+    /// most recent first). A card sharing nothing keeps its place after
+    /// those that share something.
+    static func rank(_ cards: [Card], for question: String) -> [Card] {
+        let asked = ModelGuard.words(question)
+        let scored = cards.enumerated().map { index, card in
+            (card: card, score: ModelGuard.words(card.text).intersection(asked).count, index: index)
+        }
+        return scored.sorted { a, b in
+            a.score != b.score ? a.score > b.score : a.index < b.index
+        }.map(\.card)
     }
 
     static func find(_ question: String, in cards: [Card]) async -> Found? {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, !cards.isEmpty,
-           let found = try? await Model.find(question, in: Array(cards.prefix(maxCards))) {
+           let found = try? await Model.find(question, in: Array(rank(cards, for: question).prefix(maxCards))) {
             return found
         }
         #endif
@@ -47,9 +63,9 @@ enum NoteFinder {
     enum Model {
         @Generable
         struct Picks {
-            @Guide(description: "The numbers of the notes that answer the question, best first. Empty when none does.")
+            @Guide(description: "The numbers of the notes that answer the question, best first. Empty when none does.", .maximumCount(5))
             var notes: [Int]
-            @Guide(description: "One short sentence that answers the question using only those notes. Empty when no note does.")
+            @Guide(description: "One short sentence answering the question in the notes' own words. Empty when no note answers it.")
             var answer: String
         }
 
@@ -58,18 +74,34 @@ enum NoteFinder {
                 .map { "\($0.offset + 1). \(NoteText.oneLine($0.element.text, limit: cardLimit))" }
                 .joined(separator: "\n")
             let session = LanguageModelSession(instructions: """
-                The user has a question and a numbered list of their notes. Pick the notes \
-                that answer the question, best first, and answer in one short sentence using \
-                only what the notes say. If no note answers it, pick none and leave the answer empty.
+                The user asks a question about their own notes, given as a numbered list. Pick \
+                the notes that answer it, best first, and answer in one short sentence using \
+                only what those notes say, in the language of the question. If no note answers \
+                it, pick none and leave the answer empty. Do not guess.
+
+                Example question: when is the dentist
+                Notes:
+                1. Groceries: milk, eggs, bread
+                2. This week: call the dentist tuesday, rent on the 1st
+                3. Book ideas: a novel about a lighthouse
+                Gives: notes 2; answer "Call the dentist Tuesday."
+
+                Example question: what was the wifi password
+                Notes:
+                1. Groceries: milk, eggs
+                2. Walking app idea: record voice while walking
+                Gives: no notes; answer empty
                 """)
             let response = try await session.respond(
-                to: "Question: \(question)\n\nNotes:\n\(listing)", generating: Picks.self)
+                to: "Question: \(question)\n\nNotes:\n\(listing)", generating: Picks.self,
+                options: OnDevice.Model.options)
             let ids = response.content.notes
                 .filter { $0 >= 1 && $0 <= cards.count }
                 .map { cards[$0 - 1].id }
             var seen = Set<UUID>()
             let unique = ids.filter { seen.insert($0).inserted }
-            let answer = response.content.answer.trimmingCharacters(in: .whitespacesAndNewlines)
+            var answer = response.content.answer.trimmingCharacters(in: .whitespacesAndNewlines)
+            if ModelGuard.wordCount(answer) > answerLimit { answer = "" }
             return Found(answer: unique.isEmpty ? "" : answer, ids: unique)
         }
     }

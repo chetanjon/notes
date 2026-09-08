@@ -223,6 +223,19 @@ the words as spoken, first sentence as the title (`Dictation.plain`).
 The microphone and speech recognition are asked for at that first hold.
 Either way the text stays on the phone.
 
+How the model is driven, the same for every task: an instruction with two
+worked examples, since this is a small model and examples do more than
+rules; greedy sampling, so the same note gives the same answer and the
+model keeps to what it was given; output shaped by `@Generable` and
+`@Guide` (a regex on a reminder's date, a cap on the notes a search may
+name); one prewarmed session per launch, so the first tap is not the slow
+one; and a check on what comes back (`ModelGuard`, tested) so only what
+the model got right is applied: an item or a title in words that are not
+in the note is dropped, a tidied line that changed length by more than
+forty percent keeps its original, a dictation that lost half its words is
+kept as spoken. When an action changes nothing, the date line under the
+bar says why for a moment.
+
 Two places iOS decides, not the spec: a swipe action paints its label white
 whatever the tint and draws it in its own shape, so the swipe-to-delete is
 a dark grey circle with a white trash glyph rather than the spec's white
