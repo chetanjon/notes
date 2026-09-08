@@ -17,8 +17,8 @@ struct EditorView: View {
     @State private var saveTask: Task<Void, Never>?
     /// Set by the trash: the note is gone, so onDisappear must not touch it.
     @State private var isDeleted = false
-    /// "Make a list" is working; the sparkle is a spinner meanwhile.
-    @State private var makingList = false
+    /// The sparkle is at work; it is a spinner meanwhile.
+    @State private var working = false
 
     /// Autosave waits this long after the last keystroke.
     private static let saveDelay: Duration = .milliseconds(350)
@@ -85,10 +85,27 @@ struct EditorView: View {
         HStack(spacing: 0) {
             barButton("chevron.left", label: "Back") { dismiss() }
             Spacer()
-            if makingList {
+            if working {
                 ProgressView()
                     .tint(Theme.fg)
                     .frame(width: Theme.tapTarget, height: Theme.tapTarget)
+            } else if OnDevice.isAvailable {
+                // With Apple's on-device model, the sparkle is a menu.
+                Menu {
+                    Button("Make a list", systemImage: "checklist") { makeList() }
+                        .disabled(!canMakeList)
+                    Button("Add a title", systemImage: "textformat") { addTitle() }
+                        .disabled(isBlank)
+                    Button("Tidy up", systemImage: "wand.and.stars") { tidy() }
+                        .disabled(isBlank)
+                } label: {
+                    Image(systemName: "sparkles")
+                        .font(Theme.Font.barGlyph)
+                        .foregroundStyle(Theme.fg)
+                        .frame(width: Theme.tapTarget, height: Theme.tapTarget)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Apple Intelligence")
             } else {
                 barButton("sparkles", label: "Make a list") { makeList() }
                     .disabled(!canMakeList)
@@ -144,18 +161,46 @@ struct EditorView: View {
 
     /// There is something under the title that is not an item yet.
     private var canMakeList: Bool { !Checklist.plainBody(of: text).isEmpty }
+    private var isBlank: Bool { NoteText.isBlank(text) }
 
     /// The sparkle: the plain lines under the title become checklist items,
     /// with Apple's on-device model where there is one and a plain split
     /// elsewhere. Applied as one edit, so a shake takes it back.
     private func makeList() {
         let plain = Checklist.plainBody(of: text)
-        guard !plain.isEmpty, !makingList else { return }
-        makingList = true
+        guard !plain.isEmpty, !working else { return }
+        working = true
         Task { @MainActor in
             let items = await ListMaker.items(from: plain)
-            makingList = false
+            working = false
             if !items.isEmpty { command = .makeList(items: items) }
+        }
+    }
+
+    /// The model reads the note and puts a title on a new first line, with
+    /// the cursor at its end. One edit; a shake takes it back.
+    private func addTitle() {
+        guard !isBlank, !working else { return }
+        working = true
+        let snapshot = text
+        Task { @MainActor in
+            let title = await OnDevice.title(for: snapshot)
+            working = false
+            if let title { command = .addTitle(title) }
+        }
+    }
+
+    /// The model fixes spelling, capitalisation and punctuation across the
+    /// note, line for line, with the checklist markers kept out of its
+    /// hands. One edit; a shake takes it back.
+    private func tidy() {
+        guard !isBlank, !working else { return }
+        working = true
+        let lines = Checklist.bareLines(of: text)
+        Task { @MainActor in
+            let tidied = await OnDevice.tidied(lines)
+            working = false
+            if let tidied { command = .tidy(lines: tidied) }
         }
     }
 

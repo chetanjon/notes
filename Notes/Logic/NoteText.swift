@@ -47,6 +47,36 @@ enum NoteText {
         return summary
     }
 
+    /// What Siri says for "What's on Groceries": the open items, or for a
+    /// plain note its first lines, or that there is nothing.
+    static func spoken(_ text: String) -> String {
+        let name = title(text)
+        if isChecklist(text) {
+            let s = checklistSummary(text)
+            if s.open.isEmpty { return "Everything on \(name) is done." }
+            let list = spokenList(s.open)
+            return s.open.count == 1
+                ? "One thing left on \(name): \(list)."
+                : "\(s.open.count) left on \(name): \(list)."
+        }
+        let body = bodyLines(text)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .prefix(5)
+        if body.isEmpty { return "\(name) has nothing under the title." }
+        return "\(name): " + body.joined(separator: ". ")
+    }
+
+    /// "milk", "milk and eggs", "milk, eggs, and bread".
+    static func spokenList(_ items: [String]) -> String {
+        switch items.count {
+        case 0: return ""
+        case 1: return items[0]
+        case 2: return "\(items[0]) and \(items[1])"
+        default: return items.dropLast().joined(separator: ", ") + ", and " + items[items.count - 1]
+        }
+    }
+
     /// The single line under a title in the list.
     ///
     /// Plain note: every line after the first, joined with spaces. Checklist:
@@ -74,6 +104,17 @@ enum NoteText {
         return bodyLines(text)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .first(where: { !$0.isEmpty }) ?? ""
+    }
+
+    /// A plain note whose first line would not do on the Lock Screen: two
+    /// body lines or more, or one long one. Such a note gets a one-line
+    /// summary on the card where there is a model to write it.
+    static func wantsSummary(_ text: String, longLine: Int = 60) -> Bool {
+        guard !isChecklist(text) else { return false }
+        let body = bodyLines(text)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return body.count >= 2 || (body.first?.count ?? 0) > longLine
     }
 
     struct Counter: Equatable {

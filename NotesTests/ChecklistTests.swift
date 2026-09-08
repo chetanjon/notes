@@ -102,6 +102,20 @@ final class ChecklistTests: XCTestCase {
         XCTAssertEqual(Checklist.appendingItem("milk", to: ""), "\n□ milk")
     }
 
+    func testTickingFindsTheItemByItsWords() {
+        let text = "Groceries\n□ Milk\n□ brown bread\n■ eggs\n□ bread"
+        // Exact before contains: "bread" ticks the item that is "bread".
+        let exact = Checklist.ticking("Bread", in: text)
+        XCTAssertEqual(exact?.text, "Groceries\n□ Milk\n□ brown bread\n■ eggs\n■ bread")
+        XCTAssertEqual(exact?.item, "bread")
+        // Contains, either way round.
+        XCTAssertEqual(Checklist.ticking("brown", in: text)?.item, "brown bread")
+        XCTAssertEqual(Checklist.ticking("the milk please", in: text)?.item, "Milk")
+        // A done item is not ticked again; nothing else matches.
+        XCTAssertNil(Checklist.ticking("eggs", in: text))
+        XCTAssertNil(Checklist.ticking("  ", in: text))
+    }
+
     func testPlainBodyIsTheNonItemLines() {
         XCTAssertEqual(Checklist.plainBody(of: "Shop\nmilk, eggs\n□ bread\n\nand tea"), "milk, eggs\nand tea")
         XCTAssertEqual(Checklist.plainBody(of: "Shop\n□ bread"), "")
@@ -119,6 +133,25 @@ final class ChecklistTests: XCTestCase {
         let edit = Checklist.replacingPlainBody(in: "Shop\n■ bread\nmilk and eggs", with: ["milk", " eggs"])
         XCTAssertEqual(edit.text, "Shop\n■ bread\n□ milk\n□ eggs")
         XCTAssertEqual(edit.cursor, edit.text.utf16.count)
+    }
+
+    func testAddingTitlePutsItOnANewFirstLine() {
+        let edit = Checklist.addingTitle(" Weekend plans ", to: "call mum\n□ tickets")
+        XCTAssertEqual(edit.text, "Weekend plans\ncall mum\n□ tickets")
+        XCTAssertEqual(edit.cursor, "Weekend plans".utf16.count)
+        XCTAssertEqual(Checklist.addingTitle("Title", to: "").text, "Title")
+    }
+
+    func testBareLinesDropTheMarkers() {
+        XCTAssertEqual(Checklist.bareLines(of: "Shop\n□ milk\n\n■ eggs\nnote"), ["Shop", "milk", "", "eggs", "note"])
+    }
+
+    func testRestoringMarkersPutsThemBackLineForLine() {
+        let original = "shop\n□ milk\n\n■ eggs\nnote"
+        let restored = Checklist.restoringMarkers(from: original, lines: ["Shop", "Milk", "", "Eggs", "Note."])
+        XCTAssertEqual(restored, "Shop\n□ Milk\n\n■ Eggs\nNote.")
+        // A different number of lines cannot be matched up: nothing changes.
+        XCTAssertNil(Checklist.restoringMarkers(from: original, lines: ["Shop", "Milk"]))
     }
 
     func testReturnWithSelectionReplacesIt() {

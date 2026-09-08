@@ -72,7 +72,13 @@ Pin a note (long-press it in the list, or the pin in the editor) and it is
 on the Lock Screen at once, as a Live Activity: the card under the clock,
 and the Dynamic Island on phones that have one. The card is the title, and
 for a checklist the count at the right (`0/4`); the items themselves stay
-in the note. A plain note shows its first line under the title. A body line
+in the note. A plain note shows its first line under the title; a long
+one (two body lines or more, or one past sixty characters), on an iPhone
+with Apple Intelligence, gets instead a one-line summary of what it is
+about, from Apple's on-device model (`LockScreenSummary`, cached by text
+so a note is summarised once; the first line stands in until the model
+answers, and the answer is used only if that note is still pinned and
+unchanged). A body line
 that ends in a number, like `Water 3` or `Pushups 20`, is a counter: it
 gets a + on the card, and a tap makes it `Water 4` in the note. (A label
 with a digit in it, such as `Room 4`, is left alone; the card carries three
@@ -129,12 +135,16 @@ the count, and the notes it came from are the rows. The model runs only
 on a miss; typing again cancels it; nothing leaves the phone. Elsewhere a
 miss says "No matches." as before.
 
-Three App Intents work from Siri and the Shortcuts app without setup:
+Five App Intents work from Siri and the Shortcuts app without setup:
 "New note in Matte", "Add to Groceries in Matte" (Siri asks what to add,
-and it lands as an open item at the end of the note), and "Pin Groceries
-in Matte" (which opens the app, since a Live Activity can only be started
-from the foreground). "In Notes" works too; `INAlternativeAppNames` in
-`project.yml` adds Matte because Apple's own Notes owns the plain word.
+and it lands as an open item at the end of the note), "Pin Groceries in
+Matte" (which opens the app, since a Live Activity can only be started
+from the foreground), "What's on Groceries in Matte" (Siri reads the open
+items, or a plain note's first lines: `NoteText.spoken`), and "Tick
+something off Groceries in Matte" (Siri asks which; the first open item
+that is or contains the words is marked done: `Checklist.ticking`). "In
+Notes" works too; `INAlternativeAppNames` in `project.yml` adds Matte
+because Apple's own Notes owns the plain word.
 Siri learns the note titles from `NoteQuery.suggestedEntities`, refreshed
 on each foreground.
 
@@ -180,11 +190,18 @@ the note went in. On an iPhone with Apple
 Intelligence, iOS's Writing Tools (Proofread, Rewrite, Summarize) work
 inline in the editor; the editor runs on TextKit 2 for that, and hands
 Writing Tools the marker ranges to leave alone, so a rewritten checklist
-is still a checklist. The sparkle in the editor bar, Make a list, turns
-the plain lines under the title into items: with Apple's on-device model
+is still a checklist. The sparkle in the editor bar is Make a list: the
+plain lines under the title become items, with Apple's on-device model
 (`ListMaker`, the Foundation Models framework, on iOS 26 with Apple
 Intelligence) or, anywhere else, with `Checklist.split` on commas, "and",
-and line breaks. Either way the text stays on the phone.
+and line breaks. On a phone with the model the sparkle is a menu with two
+more (`OnDevice`): Add a title, which reads the note and puts a few words
+on a new first line, and Tidy up, which fixes spelling, capitalisation and
+punctuation across the note line for line, the checklist markers taken off
+before the model sees the lines and put back after (`Checklist.bareLines`,
+`restoringMarkers`; a line count that does not match means no change).
+Each is one edit, so a shake takes it back. Either way the text stays on
+the phone.
 
 Two places iOS decides, not the spec: a swipe action paints its label white
 whatever the tint and draws it in its own shape, so the swipe-to-delete is

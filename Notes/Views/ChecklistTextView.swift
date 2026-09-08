@@ -20,6 +20,10 @@ struct ChecklistTextView: UIViewRepresentable {
         case toggleItem
         /// "Make a list": the plain lines under the title become these items.
         case makeList(items: [String])
+        /// "Add a title": this goes on a new first line.
+        case addTitle(String)
+        /// "Tidy up": the note's lines, marker-less, as the model fixed them.
+        case tidy(lines: [String])
     }
 
     @Binding var text: String
@@ -243,6 +247,15 @@ struct ChecklistTextView: UIViewRepresentable {
             case let .makeList(items):
                 // One replacement, so a shake takes the whole list back.
                 apply(Checklist.replacingPlainBody(in: view.text, with: items), to: view)
+            case let .addTitle(title):
+                apply(Checklist.addingTitle(title, to: view.text), to: view)
+            case let .tidy(lines):
+                // The markers go back on line for line; if the text changed
+                // under the spinner and the lines no longer match, nothing
+                // happens, which is the safe outcome.
+                if let text = Checklist.restoringMarkers(from: view.text, lines: lines) {
+                    apply(Checklist.Edit(text: text, cursor: view.selectedRange.location), to: view)
+                }
             }
         }
 
