@@ -181,6 +181,34 @@ enum Checklist {
         return Edit(text: result, cursor: (result as NSString).length)
     }
 
+    /// "Add a title": the title on a new first line above everything that
+    /// was there. The cursor lands at the end of the title, ready to change.
+    static func addingTitle(_ title: String, to text: String) -> Edit {
+        let line = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let result = text.isEmpty ? line : line + "\n" + text
+        return Edit(text: result, cursor: (line as NSString).length)
+    }
+
+    /// Every line with its marker taken off: what "Tidy up" hands the
+    /// model, so a checklist reads as sentences and the markers are never
+    /// in its hands.
+    static func bareLines(of text: String) -> [String] {
+        text.split(separator: "\n", omittingEmptySubsequences: false).map { content(String($0)) }
+    }
+
+    /// The model's lines with `original`'s markers put back, line for line;
+    /// nil when the counts differ, because then no line can be trusted to
+    /// be the one it replaces. Done items stay done.
+    static func restoringMarkers(from original: String, lines: [String]) -> String? {
+        let old = original.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard old.count == lines.count else { return nil }
+        return zip(old, lines).map { was, now -> String in
+            let line = now.trimmingCharacters(in: .whitespaces)
+            guard isItem(was) else { return line }
+            return String(was.prefix(markerLength)) + line
+        }.joined(separator: "\n")
+    }
+
     /// The one range that differs between two texts and what replaces it,
     /// in UTF-16 units: the longest common prefix and suffix are left alone.
     /// The editor applies checklist edits this way so they can be undone.
