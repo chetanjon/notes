@@ -45,7 +45,7 @@ SIRI, NO SETUP
 "Add milk to Groceries in Matte", "New note in Matte", "Pin Groceries in Matte". Siri and the Shortcuts app do all three. Your notes also show up when you search your iPhone from the Home Screen.
 
 PIN ONE NOTE TO YOUR LOCK SCREEN
-Long-press a note and pin it. It appears on your Lock Screen right away, no setup, so the thing you must not forget is the first thing you see when you pick up the phone. A checklist shows how many items are done. Write "Water 0" and it becomes a counter with a + on your Lock Screen. Tap the card and the note opens. Pin a different note and it takes its place. Add the Notes widget once and the pin stays put for good.
+Long-press a note and pin it. It appears on your Lock Screen right away, no setup, so the thing you must not forget is the first thing you see when you pick up the phone. A checklist shows how many items are done; a long note shows a one-line summary of what it is about, written on the phone by Apple's on-device model where there is one. Write "Water 0" and it becomes a counter with a + on your Lock Screen. Tap the card and the note opens. Pin a different note and it takes its place. Add the Notes widget once and the pin stays put for good.
 
 ON YOUR HOME SCREEN
 A widget with your latest notes and a pencil. Tap a note to open it, tap the pencil to start one.

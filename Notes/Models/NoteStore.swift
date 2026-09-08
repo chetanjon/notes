@@ -97,7 +97,10 @@ enum NoteStore {
         note.updatedAt = .now
         save(context)
         if !note.isTrashed { NoteIndex.index(note) }
-        if note.isPinned { showOnLockScreen(note.pinned) }
+        if note.isPinned {
+            showOnLockScreen(note.pinned)
+            summarizeOnLockScreen(note)
+        }
     }
 
     /// The editor showed the note: it moves to the top of the list.
@@ -114,6 +117,7 @@ enum NoteStore {
         note.isPinned = !wasPinned
         save(context)
         showOnLockScreen(note.isPinned ? note.pinned : nil)
+        if note.isPinned { summarizeOnLockScreen(note) }
     }
 
     /// On every return to the foreground. Another device may have pinned a
@@ -124,6 +128,26 @@ enum NoteStore {
         let pinned = try? context.fetch(
             FetchDescriptor<Note>(predicate: #Predicate { $0.isPinned })).first
         showOnLockScreen(pinned?.pinned)
+        if let pinned { summarizeOnLockScreen(pinned) }
+    }
+
+    /// A long plain note gets a one-line summary under its title on the
+    /// card, from the on-device model, once it has answered; the first line
+    /// stands in until then, and for good where there is no model. The
+    /// answer is used only if the note is still the pinned one, unchanged.
+    private static func summarizeOnLockScreen(_ note: Note) {
+        guard LockScreenSummary.isAvailable, NoteText.wantsSummary(note.text) else { return }
+        let id = note.id
+        let text = note.text
+        Task { @MainActor in
+            guard let line = await LockScreenSummary.line(for: text),
+                  note.isPinned, note.text == text,
+                  let current = PinStore.read(), current.id == id, current.preview != line else { return }
+            showOnLockScreen(PinStore.Pinned(
+                id: current.id, title: current.title, preview: line, updatedAt: current.updatedAt,
+                counters: current.counters, isChecklist: current.isChecklist,
+                done: current.done, total: current.total))
+        }
     }
 
     /// The Home Screen widget's list: the pinned note, then the rest in the
