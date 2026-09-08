@@ -19,6 +19,9 @@ struct EditorView: View {
     @State private var isDeleted = false
     /// The sparkle is at work; it is a spinner meanwhile.
     @State private var working = false
+    /// What "Reminders" found, shown on a sheet.
+    @State private var foundReminders: [Reminders.Found] = []
+    @State private var showingReminders = false
 
     /// Autosave waits this long after the last keystroke.
     private static let saveDelay: Duration = .milliseconds(350)
@@ -52,6 +55,9 @@ struct EditorView: View {
         .onAppear {
             // The list is in order of use; this note goes to the top.
             NoteStore.markOpened(note, in: context)
+        }
+        .sheet(isPresented: $showingReminders) {
+            RemindersSheet(found: foundReminders)
         }
         .onChange(of: text) { _, newValue in
             scheduleSave(newValue)
@@ -100,6 +106,8 @@ struct EditorView: View {
                         .disabled(isBlank)
                     Button("Sort the list", systemImage: "arrow.up.arrow.down") { sortList() }
                         .disabled(!canSortList)
+                    Button("Reminders", systemImage: "bell") { findReminders() }
+                        .disabled(isBlank)
                 } label: {
                     Image(systemName: "sparkles")
                         .font(Theme.Font.barGlyph)
@@ -220,6 +228,20 @@ struct EditorView: View {
             let order = await OnDevice.sorted(items)
             working = false
             if let order { command = .sortList(order: order, items: items) }
+        }
+    }
+
+    /// The model finds the dates and times in the note; a sheet shows them,
+    /// and one tap there puts them in the Reminders app.
+    private func findReminders() {
+        guard !isBlank, !working else { return }
+        working = true
+        let snapshot = text
+        Task { @MainActor in
+            let found = await OnDevice.reminders(in: snapshot)
+            working = false
+            foundReminders = found ?? []
+            showingReminders = true
         }
     }
 

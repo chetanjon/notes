@@ -67,6 +67,23 @@ enum OnDevice {
         return nil
     }
 
+    /// The things in the note that have a day or a time: each as a short
+    /// title and when it is due. Empty when the note has none; nil when
+    /// there is no model.
+    static func reminders(in text: String, now: Date = .now) async -> [Reminders.Found]? {
+        #if canImport(FoundationModels)
+        if #available(iOS 26, *), isAvailable, text.count < limit,
+           let made = try? await Model.reminders(in: text, today: ReminderStamp.today(now)) {
+            return made.compactMap { item in
+                let title = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !title.isEmpty, let due = ReminderStamp.parse(item.when) else { return nil }
+                return Reminders.Found(title: title, due: due)
+            }
+        }
+        #endif
+        return nil
+    }
+
     #if canImport(FoundationModels)
     // Not private: @Generable expands into an extension at file scope, which
     // has to see the type.
@@ -110,6 +127,32 @@ enum OnDevice {
                 """)
             let response = try await session.respond(to: listing, generating: Order.self)
             return response.content.order
+        }
+
+        @Generable
+        struct Dated {
+            @Guide(description: "A few words saying what is to be done, in the writer's own words.")
+            var title: String
+            @Guide(description: "When it is due, as YYYY-MM-DD, or YYYY-MM-DDTHH:MM in 24-hour time when the note gives a time. Empty when the note gives no day.")
+            var when: String
+        }
+
+        @Generable
+        struct DatedList {
+            @Guide(description: "Every thing in the note that has a day or a time. Empty when there is none.")
+            var items: [Dated]
+        }
+
+        static func reminders(in text: String, today: String) async throws -> [Dated] {
+            let session = LanguageModelSession(instructions: """
+                Today is \(today). The user gives you a note. Find every thing in it that has a \
+                day or a time ("dentist tuesday 3pm", "rent on the 1st", "call mum tomorrow") and \
+                give each as a short title and its date, YYYY-MM-DD, with THH:MM in 24-hour time \
+                when a time is given. A weekday means the next such day, today included. Leave \
+                out anything with no day.
+                """)
+            let response = try await session.respond(to: text, generating: DatedList.self)
+            return response.content.items
         }
 
         static func tidied(_ lines: [String]) async throws -> [String] {

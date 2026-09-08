@@ -67,6 +67,10 @@ targets:
         # Home Screen name) in a phrase; Apple's Notes owns the plain word.
         INAlternativeAppNames:
           - INAlternativeAppName: Matte
+        # "Reminders" in the sparkle menu: the dates the on-device model finds
+        # in a note go into the Reminders app. iOS asks the first time; the
+        # app never reads the reminders that are there.
+        NSRemindersFullAccessUsageDescription: To add the dates found in a note to your Reminders. Nothing is read.
     entitlements:
       path: Notes/Notes.entitlements
       properties:
