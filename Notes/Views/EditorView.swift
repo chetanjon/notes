@@ -35,12 +35,24 @@ struct EditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             bar
+            // When the note was last edited, in the muted grey, where the
+            // list used to say it. It follows each autosave.
+            Text(DateFormat.stamp(note.updatedAt))
+                .font(Theme.Font.label)
+                .foregroundStyle(Theme.muted)
+                .padding(.horizontal, Theme.pagePadding)
+                .padding(.top, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
             ChecklistTextView(text: $text, isFocused: $isFocused, command: $command)
                 .padding(.horizontal, Theme.pagePadding - 5)
         }
         .background(Theme.bg.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            // The list is in order of use; this note goes to the top.
+            NoteStore.markOpened(note, in: context)
+        }
         .onChange(of: text) { _, newValue in
             scheduleSave(newValue)
         }

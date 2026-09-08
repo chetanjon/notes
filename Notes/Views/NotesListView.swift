@@ -23,14 +23,15 @@ struct NotesListView: View {
         notes.first { $0.isPinned }.map { "\($0.id.uuidString)|\($0.updatedAt.timeIntervalSince1970)" }
     }
 
-    /// Pinned first, then newest edit first.
+    /// Pinned first, then the most recently opened or edited first: the
+    /// note the user was just in is at the top when they come back.
     private var visible: [Note] {
         let filtered = trimmedQuery.isEmpty
             ? Array(notes)
             : notes.filter { NoteText.matches($0.text, query: trimmedQuery) }
         return filtered.sorted { a, b in
             if a.isPinned != b.isPinned { return a.isPinned }
-            return a.updatedAt > b.updatedAt
+            return a.touchedAt > b.touchedAt
         }
     }
 
