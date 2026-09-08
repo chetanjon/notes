@@ -45,4 +45,32 @@ final class DateFormatTests: XCTestCase {
         let lastYear = calendar.date(byAdding: .year, value: -1, to: now)!
         XCTAssertEqual(when(lastYear), "Sep 5, 2025")
     }
+
+    // MARK: The editor's line
+
+    private func stamp(_ date: Date) -> String {
+        DateFormat.stamp(date, now: now, calendar: calendar, locale: locale)
+            .replacingOccurrences(of: "\u{202F}", with: " ")
+            .replacingOccurrences(of: "\u{00A0}", with: " ")
+    }
+
+    func testStampToday() {
+        let date = calendar.date(bySettingHour: 9, minute: 14, second: 0, of: now)!
+        XCTAssertEqual(stamp(date), "Today at 9:14 AM")
+    }
+
+    func testStampThisWeekSpellsTheDay() {
+        let thursday = calendar.date(byAdding: .day, value: -2, to: now)!
+        XCTAssertEqual(stamp(thursday), "Thursday at 2:30 PM")
+    }
+
+    func testStampThisYear() {
+        let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: now)!
+        XCTAssertEqual(stamp(sevenDaysAgo), "Aug 29 at 2:30 PM")
+    }
+
+    func testStampOlder() {
+        let lastYear = calendar.date(byAdding: .year, value: -1, to: now)!
+        XCTAssertEqual(stamp(lastYear), "Sep 5, 2025 at 2:30 PM")
+    }
 }

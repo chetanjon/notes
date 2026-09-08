@@ -1,13 +1,15 @@
 import SwiftUI
 
-/// One note in the list: title, then time and preview on a line. The rule
-/// underneath is the list's own separator, which stays put while the row
-/// slides. Search matches are marked white on black.
+/// One note in the list: title, then the preview. No time: the list is in
+/// order of use, and the editor says when a note was last edited. The Trash
+/// alone puts a date in front of the preview, the day the note went in.
+/// The rule underneath is the list's own separator, which stays put while
+/// the row slides. Search matches are marked white on black.
 struct NoteRow: View {
     let note: Note
     /// The search query to highlight, or empty.
     var highlight: String = ""
-    /// What the row's time shows; the last edit unless told otherwise.
+    /// A date to show before the preview, if any.
     var date: Date? = nil
 
     var body: some View {
@@ -26,12 +28,14 @@ struct NoteRow: View {
                 }
             }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(DateFormat.when(date ?? note.updatedAt))
-                    .font(Theme.Font.rowBody)
-                    .monospacedDigit()
-                    .foregroundStyle(Theme.fg)
-                    .lineLimit(1)
-                    .fixedSize()
+                if let date {
+                    Text(DateFormat.when(date))
+                        .font(Theme.Font.rowBody)
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.fg)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
                 Text(marked(note.preview, base: Theme.muted))
                     .font(Theme.Font.rowBody)
                     .foregroundStyle(Theme.muted)

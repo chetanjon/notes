@@ -159,7 +159,14 @@ Live Activity (the spec's stretch goal), the widget in all three families,
 the deep link, CloudKit sync, and the app icon. Two things past the spec:
 every screen follows the text size set in Settings, and the checklist
 markers, `□` and `■` in the text, are drawn as circles by the editor's own
-layout fragments, so the note stays plain text. On an iPhone with Apple
+layout fragments, so the note stays plain text. One thing changed from the
+spec: a list row is the title and the preview, with no time in front, and
+the list is in order of use (the last note opened or edited at the top,
+after the pinned one; `openedAt` on the note, set when the editor shows
+it), so a row needs no date to explain its place. The time moved into the
+editor, one muted line under the bar: `Today at 9:14 AM`, `Thursday at
+9:14 AM`, `Aug 28 at 9:14 AM`. The Trash keeps a date on its rows, the day
+the note went in. On an iPhone with Apple
 Intelligence, iOS's Writing Tools (Proofread, Rewrite, Summarize) work
 inline in the editor; the editor runs on TextKit 2 for that, and hands
 Writing Tools the marker ranges to leave alone, so a rewritten checklist

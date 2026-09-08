@@ -46,7 +46,8 @@ store users.
    `iCloud.com.cj.notes`.
 2. Run the app once on a device from Xcode and create a note, so the
    `CD_Note` record type exists in Development. Run the **current** build:
-   the record gained a `deletedAt` field with the Trash, and the deploy
+   the record gained `deletedAt` with the Trash and `openedAt` with the
+   list's order of use, and the deploy
    copies whatever Development has at that moment.
 3. In the console: Schema → **Deploy Schema Changes** → Deploy to Production.
 

@@ -100,6 +100,12 @@ enum NoteStore {
         if note.isPinned { showOnLockScreen(note.pinned) }
     }
 
+    /// The editor showed the note: it moves to the top of the list.
+    static func markOpened(_ note: Note, in context: ModelContext) {
+        note.openedAt = .now
+        save(context)
+    }
+
     /// Only one note is pinned at a time; pinning a new one unpins the old.
     static func togglePin(_ note: Note, in context: ModelContext) {
         let wasPinned = note.isPinned
@@ -120,15 +126,16 @@ enum NoteStore {
         showOnLockScreen(pinned?.pinned)
     }
 
-    /// The Home Screen widget's list: the pinned note, then the latest
-    /// edits, blank notes left out. Written after every save and on each
-    /// foreground, when iCloud may have changed things.
+    /// The Home Screen widget's list: the pinned note, then the rest in the
+    /// list's own order (last opened or edited), blank notes left out.
+    /// Written after every save and on each foreground, when iCloud may
+    /// have changed things.
     static func syncRecent(in context: ModelContext) {
         let notes = (try? context.fetch(FetchDescriptor<Note>(
             predicate: #Predicate { $0.deletedAt == nil }))) ?? []
         let recent = RecentStore.order(notes.filter { !$0.isBlank }.map {
             RecentStore.Summary(id: $0.id, title: $0.title, preview: $0.preview,
-                                updatedAt: $0.updatedAt, isPinned: $0.isPinned)
+                                updatedAt: $0.touchedAt, isPinned: $0.isPinned)
         })
         if RecentStore.read() != recent { RecentStore.write(recent) }
     }
