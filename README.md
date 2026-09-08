@@ -70,7 +70,9 @@ account last seven days.
 
 Pin a note (long-press it in the list, or the pin in the editor) and it is
 on the Lock Screen at once, as a Live Activity: the card under the clock,
-and the Dynamic Island on phones that have one. The card is the title, and
+and the Dynamic Island on phones that have one (compact, it is the pin
+alone, with a checklist's count beside it; the card is a long-press away,
+so the island stays as small as other apps'). The card is the title, and
 for a checklist the count at the right (`0/4`); the items themselves stay
 in the note. A plain note shows its first line under the title; a long
 one (two body lines or more, or one past sixty characters), on an iPhone

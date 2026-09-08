@@ -40,10 +40,15 @@ struct PinnedNoteLiveActivity: Widget {
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(Theme.fg)
             } compactTrailing: {
-                Text(context.state.title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.fg)
-                    .lineLimit(1)
+                // Nothing, so the island stays as small as other apps': the
+                // title is a long-press away and on the Lock Screen card. A
+                // checklist shows its count, which is short.
+                if context.state.isChecklist {
+                    Text("\(context.state.done)/\(context.state.total)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(Theme.fg)
+                }
             } minimal: {
                 Image(systemName: "pin.fill")
                     .font(.system(size: 12, weight: .regular))
