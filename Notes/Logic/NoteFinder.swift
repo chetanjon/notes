@@ -21,8 +21,9 @@ enum NoteFinder {
     }
 
     /// The model's context is small: this many notes at most, each cut to
-    /// `NoteText.cardLimit` characters.
+    /// `cardLimit` characters on one line.
     static let maxCards = 40
+    static let cardLimit = 240
 
     static var isAvailable: Bool {
         #if canImport(FoundationModels)
@@ -54,7 +55,7 @@ enum NoteFinder {
 
         static func find(_ question: String, in cards: [Card]) async throws -> Found {
             let listing = cards.enumerated()
-                .map { "\($0.offset + 1). \(NoteText.card($0.element.text))" }
+                .map { "\($0.offset + 1). \(NoteText.oneLine($0.element.text, limit: cardLimit))" }
                 .joined(separator: "\n")
             let session = LanguageModelSession(instructions: """
                 The user has a question and a numbered list of their notes. Pick the notes \

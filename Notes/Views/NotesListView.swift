@@ -125,7 +125,7 @@ struct NotesListView: View {
         asking = true
         let cards = notes
             .filter { !$0.isBlank }
-            .map { NoteFinder.Card(id: $0.id, title: $0.title, body: $0.bodyLines.joined(separator: "\n")) }
+            .map { NoteFinder.Card(id: $0.id, text: $0.text) }
         askTask = Task { @MainActor in
             try? await Task.sleep(for: Self.askDelay)
             guard !Task.isCancelled else { return }
