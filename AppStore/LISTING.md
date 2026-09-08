@@ -42,7 +42,7 @@ APPLE INTELLIGENCE, WHERE IT HELPS
 On an iPhone with Apple Intelligence, the smart parts are built in and run on the phone. Select text and use Writing Tools to proofread, rewrite, or summarize, right in the note; a checklist comes through intact. Tap Make a list and a paragraph or a dictated jumble ("milk eggs and call the dentist tuesday") becomes checklist items, one per task, in your own words, using Apple's on-device model. Nothing you write leaves the phone for it. On other iPhones, Make a list still works, splitting on commas and line breaks.
 
 SIRI, NO SETUP
-"Add milk to Groceries in Matte", "New note in Matte", "Pin Groceries in Matte". Siri and the Shortcuts app do all three. Your notes also show up when you search your iPhone from the Home Screen.
+"Add milk to Groceries in Matte". "What's on Groceries in Matte", and Siri reads what is left. "Tick milk off Groceries in Matte". "New note in Matte". "Pin Groceries in Matte". Siri and the Shortcuts app do all five, hands free. Your notes also show up when you search your iPhone from the Home Screen.
 
 PIN ONE NOTE TO YOUR LOCK SCREEN
 Long-press a note and pin it. It appears on your Lock Screen right away, no setup, so the thing you must not forget is the first thing you see when you pick up the phone. A checklist shows how many items are done. Write "Water 0" and it becomes a counter with a + on your Lock Screen. Tap the card and the note opens. Pin a different note and it takes its place. Add the Notes widget once and the pin stays put for good.
@@ -125,8 +125,9 @@ Notes for the reviewer, paste as is:
 > Customize → Lock Screen → tap under the clock): Notes (the app's logo,
 > opens the app; on the Home Screen, the latest notes), New note (a pencil,
 > starts a note), and Pinned note (the pinned note, permanently). Siri: say
-> "Add milk to Groceries in Matte" after opening the app once, so Siri knows
-> the note titles. Apple Intelligence: Writing Tools work inline in the
+> "Add milk to Groceries in Matte", "What's on Groceries in Matte", or
+> "Tick something off Groceries in Matte" after opening the app once, so
+> Siri knows the note titles. Apple Intelligence: Writing Tools work inline in the
 > editor, and the sparkle button in the editor bar ("Make a list") turns the
 > note's plain lines into checklist items with the on-device model on an
 > iPhone with Apple Intelligence, or by splitting on commas and line breaks

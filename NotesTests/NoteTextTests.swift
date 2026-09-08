@@ -84,4 +84,14 @@ final class NoteTextTests: XCTestCase {
         XCTAssertFalse(NoteText.matches(text, query: "running"))
         XCTAssertTrue(NoteText.matches(text, query: "   "))
     }
+
+    func testSpokenFormReadsOpenItemsOrFirstLines() {
+        XCTAssertEqual(NoteText.spoken("Groceries\n□ milk\n■ eggs\n□ bread\n□ tea"),
+                       "3 left on Groceries: milk, bread, and tea.")
+        XCTAssertEqual(NoteText.spoken("Groceries\n□ milk\n□ eggs"), "2 left on Groceries: milk and eggs.")
+        XCTAssertEqual(NoteText.spoken("Groceries\n□ milk\n■ eggs"), "One thing left on Groceries: milk.")
+        XCTAssertEqual(NoteText.spoken("Groceries\n■ milk"), "Everything on Groceries is done.")
+        XCTAssertEqual(NoteText.spoken("Ideas\nA walking app\n\n  Voice notes  "), "Ideas: A walking app. Voice notes")
+        XCTAssertEqual(NoteText.spoken("Ideas"), "Ideas has nothing under the title.")
+    }
 }
