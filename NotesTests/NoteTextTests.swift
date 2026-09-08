@@ -77,6 +77,13 @@ final class NoteTextTests: XCTestCase {
         XCTAssertFalse(NoteText.isBlank("\n□ milk"))
     }
 
+    func testOneLineCollapsesAndCuts() {
+        XCTAssertEqual(NoteText.oneLine("Groceries\n□ milk\n\n■  eggs \nand   bread", limit: 100),
+                       "Groceries milk eggs and bread")
+        XCTAssertEqual(NoteText.oneLine("Title\nabcdefghij", limit: 8), "Title ab…")
+        XCTAssertEqual(NoteText.oneLine("", limit: 8), "")
+    }
+
     func testSearchIsCaseInsensitiveOverTitleAndBody() {
         let text = "Walking app\nVoice notes on walks"
         XCTAssertTrue(NoteText.matches(text, query: "WALK"))

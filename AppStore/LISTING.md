@@ -54,7 +54,7 @@ CHECKLISTS INSIDE YOUR NOTES
 Turn any line into a checklist item with one tap. Tick items off in the note, and the list shows how far along you are: "2/5 done · milk, eggs".
 
 SEARCH EVERYTHING
-Search matches titles and bodies as you type, with every match highlighted.
+Search matches titles and bodies as you type, with every match highlighted. On an iPhone with Apple Intelligence, a search that matches nothing becomes a question: "when is the dentist" finds the note that says "call the dentist tuesday", answered on the phone by Apple's on-device model.
 
 A TRASH, NOT A WARNING
 Swipe to delete, no confirmation. The note waits in the Trash for 30 days, where one tap puts it back.

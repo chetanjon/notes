@@ -138,6 +138,19 @@ enum NoteText {
         }
     }
 
+    /// The text as one line, markers off, whitespace collapsed, cut at
+    /// `limit` characters with an ellipsis. What the on-device model reads
+    /// of a note when asked a question.
+    static func oneLine(_ text: String, limit: Int) -> String {
+        let words = lines(text)
+            .map(Checklist.content)
+            .joined(separator: " ")
+            .split(whereSeparator: { $0.isWhitespace })
+        let joined = words.joined(separator: " ")
+        guard joined.count > limit else { return joined }
+        return String(joined.prefix(limit)).trimmingCharacters(in: .whitespaces) + "…"
+    }
+
     /// Case-insensitive search over the whole text.
     static func matches(_ text: String, query: String) -> Bool {
         let q = query.trimmingCharacters(in: .whitespaces)
