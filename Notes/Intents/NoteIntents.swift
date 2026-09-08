@@ -181,6 +181,8 @@ struct NotesShortcuts: AppShortcutsProvider {
             intent: ReadNoteIntent(),
             phrases: [
                 "What's on \(\.$note) in \(.applicationName)",
+                "What is on \(\.$note) in \(.applicationName)",
+                "What's on my \(\.$note) list in \(.applicationName)",
                 "Read \(\.$note) in \(.applicationName)",
                 "What's left on \(\.$note) in \(.applicationName)",
             ],

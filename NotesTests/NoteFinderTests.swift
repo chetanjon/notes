@@ -16,3 +16,11 @@ final class NoteFinderTests: XCTestCase {
         XCTAssertEqual(NoteFinder.rank([a, b], for: "nothing here").map(\.id), [a.id, b.id])
     }
 }
+
+extension NoteFinderTests {
+    func testOverlapCountsTheQuestionsWordsInTheCard() {
+        let card = NoteFinder.Card(id: UUID(), text: "Shop\nmilk eggs call the dentist tuesday")
+        XCTAssertEqual(NoteFinder.overlap(card, with: "when is the dentist"), 1)
+        XCTAssertEqual(NoteFinder.overlap(card, with: "wifi password"), 0)
+    }
+}

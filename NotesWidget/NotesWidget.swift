@@ -70,7 +70,7 @@ struct LockScreenPinView: View {
         PinnedCardView(
             title: state.title, preview: state.preview, counters: state.counters,
             isChecklist: state.isChecklist, done: state.done, total: state.total,
-            showsPin: true, noteID: noteID, adaptive: true)
+            showsPin: false, noteID: noteID, adaptive: true)
         .padding(12)
     }
 }

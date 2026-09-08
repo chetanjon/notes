@@ -39,20 +39,31 @@ enum NoteFinder {
     /// most recent first). A card sharing nothing keeps its place after
     /// those that share something.
     static func rank(_ cards: [Card], for question: String) -> [Card] {
-        let asked = ModelGuard.words(question)
         let scored = cards.enumerated().map { index, card in
-            (card: card, score: ModelGuard.words(card.text).intersection(asked).count, index: index)
+            (card: card, score: overlap(card, with: question), index: index)
         }
         return scored.sorted { a, b in
             a.score != b.score ? a.score > b.score : a.index < b.index
         }.map(\.card)
     }
 
+    /// How many of the question's words the card has. A card with none
+    /// cannot be the answer, whatever the model says: "wifi password" is
+    /// not answered by a shopping list.
+    static func overlap(_ card: Card, with question: String) -> Int {
+        ModelGuard.words(card.text).intersection(ModelGuard.words(question)).count
+    }
+
     static func find(_ question: String, in cards: [Card]) async -> Found? {
         #if canImport(FoundationModels)
-        if #available(iOS 26, *), isAvailable, !cards.isEmpty,
-           let found = try? await Model.find(question, in: Array(rank(cards, for: question).prefix(maxCards))) {
-            return found
+        if #available(iOS 26, *), isAvailable, !cards.isEmpty {
+            let likely = rank(cards, for: question).prefix(maxCards).filter { overlap($0, with: question) > 0 }
+            // Nothing shares a word with the question: nothing answers it,
+            // and the model is not asked.
+            guard !likely.isEmpty else { return Found(answer: "", ids: []) }
+            if let found = try? await Model.find(question, in: Array(likely)) {
+                return found
+            }
         }
         #endif
         return nil

@@ -211,6 +211,15 @@ enum Checklist {
     /// was there. The cursor lands at the end of the title, ready to change.
     static func addingTitle(_ title: String, to text: String) -> Edit {
         let line = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        // A first line that is only the app's own "New note" is a placeholder,
+        // not a title: it is replaced, not pushed down.
+        if let first = lines.first,
+           first.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(NoteText.untitled) == .orderedSame {
+            lines[0] = line
+            let result = lines.joined(separator: "\n")
+            return Edit(text: result, cursor: (line as NSString).length)
+        }
         let result = text.isEmpty ? line : line + "\n" + text
         return Edit(text: result, cursor: (line as NSString).length)
     }
