@@ -35,3 +35,17 @@ final class ReminderStampTests: XCTestCase {
                        "Tuesday, 2026-09-08")
     }
 }
+
+extension ReminderStampTests {
+    func testWeekListsSevenDaysFromToday() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let tuesday = calendar.date(from: DateComponents(year: 2026, month: 9, day: 8, hour: 12))!
+        let week = ReminderStamp.week(from: tuesday, calendar: calendar, locale: Locale(identifier: "en_US"))
+        let lines = week.split(separator: "\n").map(String.init)
+        XCTAssertEqual(lines.count, 7)
+        XCTAssertEqual(lines[0], "Tuesday 2026-09-08 (today)")
+        XCTAssertEqual(lines[1], "Wednesday 2026-09-09 (tomorrow)")
+        XCTAssertEqual(lines[6], "Monday 2026-09-14")
+    }
+}

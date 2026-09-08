@@ -35,3 +35,21 @@ enum ReminderStamp {
         return formatter.string(from: now)
     }
 }
+
+extension ReminderStamp {
+    /// The coming week for the model: `Tuesday 2026-09-08 (today)`,
+    /// `Wednesday 2026-09-09 (tomorrow)`, then five more, one per line, so
+    /// a weekday in a note is a lookup and not arithmetic.
+    static func week(from now: Date = .now, calendar: Calendar = .current, locale: Locale = .current) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.locale = locale
+        formatter.dateFormat = "EEEE yyyy-MM-dd"
+        return (0..<7).compactMap { offset -> String? in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: now) else { return nil }
+            let note = offset == 0 ? " (today)" : offset == 1 ? " (tomorrow)" : ""
+            return formatter.string(from: day) + note
+        }.joined(separator: "\n")
+    }
+}

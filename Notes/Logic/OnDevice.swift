@@ -4,24 +4,57 @@ import FoundationModels
 #endif
 
 /// Apple's on-device model, on an iPhone with Apple Intelligence (iOS 26),
-/// behind the sparkle menu: "Add a title" and "Tidy up". Where there is no
-/// model, `isAvailable` is false, the sparkle is only "Make a list", and
-/// nothing here runs. The text never leaves the phone. App only.
+/// behind the sparkle menu and the pencil. Where there is no model,
+/// `isAvailable` is false, the sparkle is only "Make a list", and nothing
+/// here runs. The text never leaves the phone. App only.
+///
+/// How the model is driven, the same way for every task: an instruction
+/// with two worked examples (this is a small model; examples do more than
+/// rules), greedy sampling so the same note gives the same answer, output
+/// shaped by `@Generable` and `@Guide`, one prewarmed session per launch so
+/// the first tap is not the slow one, and a check on what comes back
+/// (`ModelGuard`) so only what the model got right is applied.
 enum OnDevice {
     /// The model's context is small; past this the sparkle does nothing.
     static let limit = 6000
 
-    static var isAvailable: Bool {
+    enum Status: Equatable {
+        case ready
+        /// Apple Intelligence is turned off in Settings.
+        case off
+        /// The model is still downloading.
+        case downloading
+        /// No model on this phone.
+        case none
+    }
+
+    static var status: Status {
         #if canImport(FoundationModels)
-        if #available(iOS 26, *), case .available = SystemLanguageModel.default.availability {
-            return true
+        if #available(iOS 26, *) {
+            switch SystemLanguageModel.default.availability {
+            case .available: return .ready
+            case .unavailable(.appleIntelligenceNotEnabled): return .off
+            case .unavailable(.modelNotReady): return .downloading
+            default: return .none
+            }
         }
         #endif
-        return false
+        return .none
+    }
+
+    static var isAvailable: Bool { status == .ready }
+
+    /// Loads the model once per launch, so the first tap answers as fast as
+    /// the second. Cheap to call again.
+    static func prewarm() {
+        #if canImport(FoundationModels)
+        if #available(iOS 26, *), isAvailable { Model.prewarm() }
+        #endif
     }
 
     /// A title for the note: a few words in the writer's language, on one
-    /// line, with no full stop. Nil when the model has nothing to give.
+    /// line, with no full stop. Nil when the model has nothing to give, or
+    /// gave the first line back, or ran on.
     static func title(for text: String) async -> String? {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, text.count < limit,
@@ -29,23 +62,36 @@ enum OnDevice {
             let title = made
                 .split(separator: "\n").first.map(String.init)?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'“”‘’."))
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'“”‘’.:"))
                 .trimmingCharacters(in: .whitespaces) ?? ""
-            if !title.isEmpty { return title }
+            let first = NoteText.title(text)
+            if !title.isEmpty, ModelGuard.wordCount(title) <= 8,
+               title.compare(first, options: [.caseInsensitive, .diacriticInsensitive]) != .orderedSame {
+                return title
+            }
         }
         #endif
         return nil
     }
 
     /// The lines with spelling, capitalisation and punctuation fixed, one
-    /// out for each one in, or nil: when there is no model, when it gave a
-    /// different number of lines, or when it changed nothing.
+    /// out for each one in. A line the model did not give back, gave twice,
+    /// or rewrote (its length changed by more than 40%) keeps its original;
+    /// so a mostly right answer still applies. Nil when there is no model
+    /// or nothing changed.
     static func tidied(_ lines: [String]) async -> [String]? {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, lines.joined(separator: "\n").count < limit,
-           let made = try? await Model.tidied(lines), made.count == lines.count {
-            let trimmed = made.map { $0.trimmingCharacters(in: .whitespaces) }
-            if trimmed != lines.map({ $0.trimmingCharacters(in: .whitespaces) }) { return trimmed }
+           let made = try? await Model.tidied(lines) {
+            var result = lines.map { $0.trimmingCharacters(in: .whitespaces) }
+            var seen = Set<Int>()
+            for fix in made where fix.number >= 1 && fix.number <= lines.count && seen.insert(fix.number).inserted {
+                let was = lines[fix.number - 1].trimmingCharacters(in: .whitespaces)
+                let now = fix.text.trimmingCharacters(in: .whitespaces)
+                if was.isEmpty != now.isEmpty { continue }
+                if ModelGuard.lengthClose(was, now) { result[fix.number - 1] = now }
+            }
+            if result != lines.map({ $0.trimmingCharacters(in: .whitespaces) }) { return result }
         }
         #endif
         return nil
@@ -69,14 +115,15 @@ enum OnDevice {
 
     /// The things in the note that have a day or a time: each as a short
     /// title and when it is due. Empty when the note has none; nil when
-    /// there is no model.
+    /// there is no model. A title made of words not in the note is dropped.
     static func reminders(in text: String, now: Date = .now) async -> [Reminders.Found]? {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, text.count < limit,
-           let made = try? await Model.reminders(in: text, today: ReminderStamp.today(now)) {
+           let made = try? await Model.reminders(in: text, week: ReminderStamp.week(from: now)) {
             return made.compactMap { item in
                 let title = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !title.isEmpty, let due = ReminderStamp.parse(item.when) else { return nil }
+                guard !title.isEmpty, ModelGuard.sharesWords(title, with: text),
+                      let due = ReminderStamp.parse(item.when) else { return nil }
                 return Reminders.Found(title: title, due: due)
             }
         }
@@ -86,12 +133,14 @@ enum OnDevice {
 
     /// A dictation as a note: a title, the words with spelling and
     /// punctuation fixed and filler dropped, each spoken task or item on a
-    /// line of its own as a checklist item. Nil where there is no model or
-    /// it gave nothing.
+    /// line of its own as a checklist item. Nil where there is no model, it
+    /// gave nothing, or it kept less than half of what was said.
     static func cleaned(dictation: String) async -> String? {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, dictation.count < limit,
            let made = try? await Model.cleaned(dictation: dictation) {
+            let body = made.lines.joined(separator: "\n")
+            guard ModelGuard.kept(of: dictation, in: made.title + "\n" + body) >= 0.5 else { return nil }
             let text = Dictation.compose(title: made.title, lines: made.lines)
             if !NoteText.isBlank(text) { return text }
         }
@@ -104,51 +153,132 @@ enum OnDevice {
     // has to see the type.
     @available(iOS 26, *)
     enum Model {
-        @Generable
-        struct Title {
-            @Guide(description: "A title for the note: two to five words, in the writer's language, no full stop, not a copy of the first line.")
-            var title: String
+        /// Greedy: the same note gives the same answer, and the model keeps
+        /// to what it was given rather than inventing.
+        static let options = GenerationOptions(sampling: .greedy)
+
+        private static var warmed = false
+
+        static func prewarm() {
+            guard !warmed else { return }
+            warmed = true
+            LanguageModelSession().prewarm()
         }
 
+        // MARK: Title
+
         @Generable
-        struct Tidy {
-            @Guide(description: "The same lines, in the same order, one for one, with spelling, capitalisation and punctuation fixed and nothing else changed. An empty line stays empty.")
-            var lines: [String]
+        struct Title {
+            @Guide(description: "Two to five words in the language of the note, no full stop, not the first line copied.")
+            var title: String
         }
 
         static func title(for text: String) async throws -> String {
             let session = LanguageModelSession(instructions: """
-                The user gives you a note. Reply with a title for it: two to five words, in the \
-                language the note is written in, no full stop at the end. Say what the note is \
-                about; do not copy its first line.
+                You give a note a title: two to five words, in the language the note is written \
+                in, no full stop at the end. Say what the note is about. Never copy the first line.
+
+                Example note:
+                milk eggs bread
+                call the dentist tuesday
+                Title: Errands this week
+
+                Example note:
+                The walk app should record voice notes while walking and turn them into text \
+                at home. Keep the screen off. One button.
+                Title: Walking app idea
                 """)
-            let response = try await session.respond(to: text, generating: Title.self)
+            let response = try await session.respond(to: text, generating: Title.self, options: options)
             return response.content.title
         }
 
+        // MARK: Tidy
+
+        @Generable
+        struct Fixed {
+            @Guide(description: "The line's number, as given.")
+            var number: Int
+            @Guide(description: "That line with spelling, capitalisation and punctuation fixed and nothing else changed. Empty when the line was empty.")
+            var text: String
+        }
+
+        @Generable
+        struct Fixes {
+            @Guide(description: "One entry for every numbered line, in order.")
+            var lines: [Fixed]
+        }
+
+        static func tidied(_ lines: [String]) async throws -> [Fixed] {
+            let numbered = lines.enumerated().map { "\($0.offset + 1)| \($0.element)" }.joined(separator: "\n")
+            let session = LanguageModelSession(instructions: """
+                You fix the lines of a note. Each line comes as its number, a bar, and the text. \
+                Fix spelling, capitalisation and punctuation in each line and change nothing \
+                else: not the words, not the meaning, not the order, not the length. Give back \
+                every line by number. An empty line stays empty.
+
+                Example:
+                1| call teh dentist tuesday
+                2|
+                3| i recieved the parcel , its fine
+                Gives:
+                1: Call the dentist Tuesday
+                2:
+                3: I received the parcel, it's fine
+
+                Example:
+                1| Groceries
+                2| milk eggs bread
+                Gives:
+                1: Groceries
+                2: Milk, eggs, bread
+                """)
+            let response = try await session.respond(to: numbered, generating: Fixes.self, options: options)
+            return response.content.lines
+        }
+
+        // MARK: Sort
+
         @Generable
         struct Order {
-            @Guide(description: "Every item's number exactly once, in the new order: items of the same kind next to each other, such as things bought in the same aisle, done in the same place, or belonging together.")
+            @Guide(description: "Every item's number exactly once, in the new order: items of the same kind next to each other.")
             var order: [Int]
         }
 
         static func sorted(_ items: [String]) async throws -> [Int] {
             let listing = items.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
             let session = LanguageModelSession(instructions: """
-                The user gives you a numbered checklist. Give back the numbers in a new order \
-                that puts items of the same kind next to each other: things from the same shop \
-                aisle, errands in the same place, tasks that belong together. Use every number \
-                exactly once and add none.
+                You reorder a numbered checklist so items of the same kind sit next to each \
+                other: things from the same shop aisle, errands in the same place, tasks that \
+                belong together. Give back the numbers in the new order, every number exactly \
+                once, none added.
+
+                Example:
+                1. milk
+                2. batteries
+                3. cheese
+                4. light bulb
+                5. yoghurt
+                Gives: 1, 3, 5, 2, 4
+
+                Example:
+                1. book flights
+                2. call mum
+                3. pack charger
+                4. text dad
+                Gives: 1, 3, 2, 4
                 """)
-            let response = try await session.respond(to: listing, generating: Order.self)
+            let response = try await session.respond(to: listing, generating: Order.self, options: options)
             return response.content.order
         }
 
+        // MARK: Reminders
+
         @Generable
         struct Dated {
-            @Guide(description: "A few words saying what is to be done, in the writer's own words.")
+            @Guide(description: "A few words saying what is to be done, in the note's own words.")
             var title: String
-            @Guide(description: "When it is due, as YYYY-MM-DD, or YYYY-MM-DDTHH:MM in 24-hour time when the note gives a time. Empty when the note gives no day.")
+            @Guide(description: "When it is due: YYYY-MM-DD, or YYYY-MM-DDTHH:MM in 24-hour time when the note gives a time. Empty when the note gives no day.",
+                   .pattern(/^(\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?)?$/))
             var when: String
         }
 
@@ -158,47 +288,69 @@ enum OnDevice {
             var items: [Dated]
         }
 
-        static func reminders(in text: String, today: String) async throws -> [Dated] {
+        static func reminders(in text: String, week: String) async throws -> [Dated] {
             let session = LanguageModelSession(instructions: """
-                Today is \(today). The user gives you a note. Find every thing in it that has a \
-                day or a time ("dentist tuesday 3pm", "rent on the 1st", "call mum tomorrow") and \
-                give each as a short title and its date, YYYY-MM-DD, with THH:MM in 24-hour time \
-                when a time is given. A weekday means the next such day, today included. Leave \
-                out anything with no day.
+                You find the things in a note that have a day or a time, and give each as a \
+                short title in the note's own words and its date. Use this calendar for the \
+                coming week; a weekday in the note means the day listed here:
+                \(week)
+                Dates are YYYY-MM-DD, with THH:MM in 24-hour time when the note gives a time \
+                (3pm is T15:00, 9 is T09:00). "Tomorrow" and "tonight" are on the calendar \
+                above. Leave out anything with no day.
+
+                Example note (with the calendar's Tuesday being 2026-09-08):
+                dentist tuesday 3pm
+                buy milk
+                rent due on the 1st
+                Gives:
+                - Dentist, 2026-09-08T15:00
+                - Rent due, 2026-10-01
+
+                Example note (with the calendar's tomorrow being 2026-09-09):
+                call mum tomorrow morning
+                gym
+                Gives:
+                - Call mum, 2026-09-09T09:00
                 """)
-            let response = try await session.respond(to: text, generating: DatedList.self)
+            let response = try await session.respond(to: text, generating: DatedList.self, options: options)
             return response.content.items
         }
 
+        // MARK: Dictation
+
         @Generable
         struct Spoken {
-            @Guide(description: "A title for the note: two to five words, in the speaker's language, no full stop.")
+            @Guide(description: "Two to five words in the speaker's language, no full stop.")
             var title: String
-            @Guide(description: "The note's lines, in the speaker's own words with spelling and punctuation fixed and filler words dropped. When the speech is a list of tasks or things, each on its own line starting with '- '.")
+            @Guide(description: "The note's lines in the speaker's own words, spelling and punctuation fixed, filler words dropped. A list of tasks or things: each on its own line starting with '- '.")
             var lines: [String]
         }
 
         static func cleaned(dictation: String) async throws -> Spoken {
             let session = LanguageModelSession(instructions: """
-                The user dictated a note; you get the words as heard. Give it a title of two to \
-                five words and write the note as lines in the speaker's own words, with spelling \
-                and punctuation fixed and filler words ("um", "so", "like") dropped. Do not add \
-                anything that was not said. When the speech is a list of tasks or things to buy, \
+                You turn a dictated note, as heard, into a written note: a title of two to \
+                five words, then the note as lines in the speaker's own words with spelling \
+                and punctuation fixed and filler ("um", "so", "like", "you know") dropped. Add \
+                nothing that was not said. When the speech is a list of tasks or things to buy, \
                 put each on its own line starting with "- ".
-                """)
-            let response = try await session.respond(to: dictation, generating: Spoken.self)
-            return response.content
-        }
 
-        static func tidied(_ lines: [String]) async throws -> [String] {
-            let session = LanguageModelSession(instructions: """
-                The user gives you the lines of a note. Fix spelling, capitalisation and \
-                punctuation in each line and change nothing else: not the words, not the \
-                meaning, not the order. Give back exactly one line for each line you were \
-                given, in the same order. An empty line stays empty.
+                Example heard: um so for the shop I need milk eggs and uh bread and also call \
+                the dentist tuesday
+                Title: Shop and dentist
+                Lines:
+                - Milk
+                - Eggs
+                - Bread
+                - Call the dentist Tuesday
+
+                Example heard: idea for the walking app like it should just record voice while \
+                you walk and then you know make it text later
+                Title: Walking app idea
+                Lines:
+                Record voice while you walk, then make it text later.
                 """)
-            let response = try await session.respond(to: lines.joined(separator: "\n"), generating: Tidy.self)
-            return response.content.lines
+            let response = try await session.respond(to: dictation, generating: Spoken.self, options: options)
+            return response.content
         }
     }
     #endif

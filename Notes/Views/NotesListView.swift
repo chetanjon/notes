@@ -93,6 +93,7 @@ struct NotesListView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
+                OnDevice.prewarm()
                 NoteStore.purgeTrash(in: context)
                 NoteStore.syncLockScreen(in: context)
                 NoteStore.syncRecent(in: context)
@@ -234,7 +235,7 @@ struct NotesListView: View {
                 .padding(.top, 8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         } else if !trimmedQuery.isEmpty, rows.isEmpty {
-            Text(asking ? "Asking…" : "No matches.")
+            Text(asking ? "Asking…" : asked?.query == trimmedQuery ? "Nothing in your notes answers that." : "No matches.")
                 .font(Theme.Font.rowBody)
                 .foregroundStyle(Theme.muted)
                 .padding(.horizontal, Theme.pagePadding)
