@@ -195,7 +195,13 @@ group the items by kind (the same aisle, the same place) and gives back
 their order (`Checklist.items`, `reordering`; anything but a permutation of
 the items means no change, and so does a list that changed under the
 spinner). Ticks and plain lines stay where they are. Each is one edit, so a
-shake takes it back. Either way the text stays on the phone.
+shake takes it back. A fifth, Reminders, has the model find the dates and
+times in the note (`OnDevice.reminders`, told today's date so "tuesday"
+lands on one; `ReminderStamp` parses what it writes) and shows them on a
+sheet; one tap puts the chosen ones in the iPhone's Reminders app through
+EventKit (`Reminders.add`), which is the app's only permission prompt,
+asked at that tap and never before. The note is not changed. Either way
+the text stays on the phone.
 
 Two places iOS decides, not the spec: a swipe action paints its label white
 whatever the tint and draws it in its own shape, so the swipe-to-delete is
