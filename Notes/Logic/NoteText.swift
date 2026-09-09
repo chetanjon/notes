@@ -194,6 +194,24 @@ enum NoteText {
 
     /// The line with its first letter in capitals and the pronoun "i" as
     /// "I": what Tidy up does on its own, whatever the model gave back.
+    /// `text` at the end of `older`, after one blank line: what "Move this
+    /// there" does when a note turns out to belong in an older one. A first
+    /// line that is only the placeholder title is left behind; blank ends
+    /// are trimmed; an empty `text` changes nothing.
+    static func appending(_ text: String, to older: String) -> String {
+        var lines = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        if let first = lines.first,
+           first.trimmingCharacters(in: .whitespaces).caseInsensitiveCompare(untitled) == .orderedSame {
+            lines.removeFirst()
+        }
+        while lines.first?.trimmingCharacters(in: .whitespaces).isEmpty == true { lines.removeFirst() }
+        while lines.last?.trimmingCharacters(in: .whitespaces).isEmpty == true { lines.removeLast() }
+        guard !lines.isEmpty else { return older }
+        let base = older.trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = lines.joined(separator: "\n")
+        return base.isEmpty ? body : base + "\n\n" + body
+    }
+
     static func capitalised(_ line: String) -> String {
         var result = line
         if let first = result.firstIndex(where: { $0.isLetter }),

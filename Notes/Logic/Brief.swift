@@ -21,17 +21,33 @@ struct Brief: Equatable {
         return parts.map { $0.hasSuffix(".") ? $0 : $0 + "." }.joined(separator: " ")
     }
 
-    /// Only items in the note's own words, trimmed, empties gone; nil when
-    /// nothing survives.
+    /// Two parts that say the same thing share this much of their words.
+    static let sameThing = 0.8
+
+    /// Only items in the note's own words, trimmed, empties gone, and
+    /// nothing said twice: an open item that is the next step, or a
+    /// decided item that is also open or next, goes. Nil when nothing
+    /// survives.
     static func kept(decided: [String], open: [String], next: String, from text: String) -> Brief? {
         func keep(_ items: [String]) -> [String] {
             items.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: ".")) }
                 .filter { !$0.isEmpty && ModelGuard.sharesWords($0, with: text) }
         }
         let step = next.trimmingCharacters(in: .whitespacesAndNewlines)
-        let brief = Brief(decided: keep(decided), open: keep(open),
-                          next: ModelGuard.sharesWords(step, with: text) ? step : "")
+        let nextStep = ModelGuard.sharesWords(step, with: text) ? step : ""
+        let openItems = keep(open).filter { !same($0, nextStep) }
+        let decidedItems = keep(decided).filter { item in
+            !same(item, nextStep) && !openItems.contains { same(item, $0) }
+        }
+        let brief = Brief(decided: decidedItems, open: openItems, next: nextStep)
         return brief.isEmpty ? nil : brief
+    }
+
+    /// Whether two parts say the same thing: most of one's words are in
+    /// the other's. Empty parts say nothing.
+    static func same(_ a: String, _ b: String) -> Bool {
+        guard !ModelGuard.words(a).isEmpty, !ModelGuard.words(b).isEmpty else { return false }
+        return ModelGuard.kept(of: a, in: b) >= sameThing || ModelGuard.kept(of: b, in: a) >= sameThing
     }
 
     /// A note worth a brief: plain, with three body lines or more.

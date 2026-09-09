@@ -270,8 +270,13 @@ three shared words at least, five candidates at most, so most pauses cost
 nothing) and the model is asked whether one of them says something that
 bears on what is being written (`OnDevice.recall`; what it said must be
 in that note's words). If so, a line under the bar: "You wrote about this
-in Standing desk: 'standing hurt my knee for a week'", a tap opening that
-note; each older note comes up once per sitting.
+in Standing desk: 'standing hurt my knee for a week'"; a tap asks whether
+to open that note or move what was written here into it
+(`NoteStore.move`, `NoteText.appending`: after a blank line, the
+placeholder title left behind, this note to the Trash); each older note
+comes up once per sitting. The brief never says a thing twice: an open
+item that is the next step, or a decided item that is also open, goes
+(`Brief.same`).
 
 Two places iOS decides, not the spec: a swipe action paints its label white
 whatever the tint and draws it in its own shape, so the swipe-to-delete is

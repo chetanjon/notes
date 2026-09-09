@@ -109,6 +109,16 @@ enum NoteStore {
         }
     }
 
+    /// "Move this there": what was written in `note` goes to the end of
+    /// `older`, and `note` goes to the Trash, so the move is undoable
+    /// there. `text` is the editor's current text, which may be ahead of
+    /// the last save.
+    static func move(text: String, from note: Note, into older: Note, in context: ModelContext) {
+        update(older, text: NoteText.appending(text, to: older.text), in: context)
+        older.openedAt = .now
+        trash(note, in: context)
+    }
+
     /// The editor showed the note: it moves to the top of the list.
     /// Returns when it was last opened before this, nil for never.
     @discardableResult

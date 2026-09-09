@@ -31,6 +31,8 @@ struct EditorView: View {
     /// is being written; a tap opens it.
     @State private var recall: RecallHint?
     @State private var recallTask: Task<Void, Never>?
+    /// The recall line was tapped: open the older note, or move this there.
+    @State private var recallChoice: RecallHint?
     /// Notes already brought up in this sitting, so one comes up once.
     @State private var recalled: Set<UUID> = []
 
@@ -77,10 +79,10 @@ struct EditorView: View {
                 .animation(.easeOut(duration: 0.15), value: notice)
                 .animation(.easeOut(duration: 0.15), value: brief)
             if let recall {
-                // An older note that bears on this one. Tap to open it; the
-                // note here saves on the way out, as always.
+                // An older note that bears on this one. A tap asks: open it,
+                // or move what was written here into it.
                 Button {
-                    navigation.open(recall.id)
+                    recallChoice = recall
                 } label: {
                     Text("You wrote about this in \(recall.title): “\(recall.said)”")
                         .font(Theme.Font.label)
@@ -100,6 +102,12 @@ struct EditorView: View {
         .background(Theme.bg.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
+        .confirmationDialog(recallChoice?.title ?? "", isPresented: Binding(
+            get: { recallChoice != nil }, set: { if !$0 { recallChoice = nil } }
+        ), titleVisibility: .visible, presenting: recallChoice) { hint in
+            Button("Open it") { openRecalled(hint) }
+            Button("Move this there") { moveToRecalled(hint) }
+        }
         .onAppear {
             // The list is in order of use; this note goes to the top.
             let lastOpened = NoteStore.markOpened(note, in: context)
@@ -405,6 +413,23 @@ struct EditorView: View {
         saveTask?.cancel()
         saveTask = nil
         NoteStore.update(note, text: text, in: context)
+    }
+
+    private func openRecalled(_ hint: RecallHint) {
+        withAnimation(.easeOut(duration: 0.15)) { recall = nil }
+        navigation.open(hint.id)
+    }
+
+    /// What was written here goes to the end of the older note, this note
+    /// goes to the Trash, and the older note opens in its place.
+    private func moveToRecalled(_ hint: RecallHint) {
+        guard let older = NoteStore.note(withID: hint.id, in: context) else { return }
+        recallTask?.cancel()
+        saveTask?.cancel()
+        saveTask = nil
+        isDeleted = true
+        NoteStore.move(text: text, from: note, into: older, in: context)
+        navigation.open(older.id)
     }
 
     private func deleteNow() {
