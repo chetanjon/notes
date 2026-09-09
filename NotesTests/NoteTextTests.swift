@@ -134,3 +134,13 @@ extension NoteTextTests {
         XCTAssertEqual(NoteText.tidied(""), "")
     }
 }
+
+extension NoteTextTests {
+    func testAppendingJoinsAfterABlankLineAndDropsThePlaceholder() {
+        XCTAssertEqual(NoteText.appending("New note\nStanding more might help my back", to: "Standing desk\nknee hurt for a week\n"),
+                       "Standing desk\nknee hurt for a week\n\nStanding more might help my back")
+        XCTAssertEqual(NoteText.appending("Thoughts\n\nmore\n", to: "Desk"), "Desk\n\nThoughts\n\nmore")
+        XCTAssertEqual(NoteText.appending("New note\n", to: "Desk"), "Desk")
+        XCTAssertEqual(NoteText.appending("Words", to: ""), "Words")
+    }
+}

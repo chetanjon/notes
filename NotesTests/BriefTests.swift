@@ -45,3 +45,17 @@ extension BriefTests {
         XCTAssertEqual(Recall.quote(from: long, near: "knee")?.hasSuffix("word14…"), true)
     }
 }
+
+extension BriefTests {
+    func testKeptSaysNothingTwice() {
+        let text = "Japan trip\nOctober, two weeks. Budget $3000.\nHotels: one near the station, one by the park. Not decided.\nNeed to compare prices this weekend."
+        let brief = Brief.kept(
+            decided: ["October, two weeks, budget $3000", "Hotels"],
+            open: ["Hotels", "compare prices this weekend"],
+            next: "compare prices this weekend", from: text)
+        XCTAssertEqual(brief, Brief(decided: ["October, two weeks, budget $3000"], open: ["Hotels"], next: "compare prices this weekend"))
+        XCTAssertTrue(Brief.same("compare prices this weekend", "Compare prices this weekend."))
+        XCTAssertFalse(Brief.same("Hotels", "compare prices this weekend"))
+        XCTAssertFalse(Brief.same("", "compare prices"))
+    }
+}
