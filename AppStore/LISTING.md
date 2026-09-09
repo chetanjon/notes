@@ -162,8 +162,8 @@ Take these five, in this order (the first two do most of the selling):
    clock, and the round Recent notes and New note widgets beside the clock. (Lock
    Screen widgets and Live Activities do not render in the simulator's Lock
    Screen; a real-device screenshot of a 6.9-inch phone is the right size.)
-   Any wallpaper does: the card is solid black and reads the same over all
-   of them.
+   Pick a wallpaper with some texture: the card takes the system's frosted
+   material, so a plain background hides what it looks like.
 3. **A checklist** open in the editor, two items ticked, the circles
    showing.
 4. **The Home Screen** with the medium Recent notes widget, four notes
