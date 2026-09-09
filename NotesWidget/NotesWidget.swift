@@ -12,9 +12,13 @@ struct PinnedNoteLiveActivity: Widget {
         ActivityConfiguration(for: PinnedNoteAttributes.self) { context in
             LockScreenPinView(noteID: context.attributes.noteID, state: context.state)
                 .widgetURL(context.attributes.url)
-                // Solid black, the app's own ground, so the card reads the
-                // same on every wallpaper: white text on black, never fog.
-                .activityBackgroundTint(.black)
+                // No tint of our own: iOS draws its own material for a Live
+                // Activity, the frosted card every other app gets, which
+                // follows the wallpaper and the user's Lock Screen settings.
+                // A tint of our own paints over it, and solid black reads as
+                // a slab next to the system's cards.
+                .activityBackgroundTint(nil)
+                .activitySystemActionForegroundColor(.primary)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
