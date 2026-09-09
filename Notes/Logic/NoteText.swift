@@ -209,6 +209,26 @@ enum NoteText {
         return result
     }
 
+    /// The line as a careful typist would leave it, without a model: the
+    /// first letter and the pronoun "I" capitalised, no space before a
+    /// comma or a full stop, one space after a comma, doubled spaces
+    /// collapsed, the ends trimmed. What "Tidy up" does on every line,
+    /// after the model where there is one and instead of it where not.
+    static func tidied(_ line: String) -> String {
+        var result = line.trimmingCharacters(in: .whitespaces)
+        let rules: [(String, String)] = [
+            ("[ \\t]{2,}", " "),
+            ("\\s+([,.!?;:])", "$1"),
+            (",(?=[^\\s\\d])", ", "),
+        ]
+        for (pattern, template) in rules {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            result = regex.stringByReplacingMatches(
+                in: result, range: NSRange(result.startIndex..., in: result), withTemplate: template)
+        }
+        return capitalised(result)
+    }
+
     /// Case-insensitive search over the whole text.
     static func matches(_ text: String, query: String) -> Bool {
         let q = query.trimmingCharacters(in: .whitespaces)

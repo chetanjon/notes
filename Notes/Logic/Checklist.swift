@@ -284,6 +284,35 @@ enum Checklist {
         return (range, replacement)
     }
 
+    /// Backspace, or a deletion of `range` (an empty replacement). A marker
+    /// is two characters and goes as one: a deletion that touches any part
+    /// of a marker takes the whole marker, so a backspace right after the
+    /// circle turns the item into a plain line in one press instead of
+    /// leaving a bare glyph. A cut that ends at the start of an item joins
+    /// it to the line above, and its marker goes with the join. Nil when no
+    /// marker is involved, and the text view does what it always does.
+    static func handleDeletion(in text: String, range: NSRange) -> Edit? {
+        let ns = text as NSString
+        guard range.length > 0, range.location >= 0, NSMaxRange(range) <= ns.length else { return nil }
+        var grown = range
+        for marker in markerRanges(in: text, within: range) { grown = NSUnionRange(grown, marker) }
+        let end = NSMaxRange(range)
+        if end < ns.length {
+            let next = lineRange(in: text, at: end)
+            if next.location == end, isItem(ns.substring(with: next)) {
+                grown = NSUnionRange(grown, NSRange(location: next.location, length: markerLength))
+            }
+        }
+        guard grown != range else { return nil }
+        return Edit(text: ns.replacingCharacters(in: grown, with: ""), cursor: grown.location)
+    }
+
+    /// Which lines are items, in order: what "Tidy up" needs to know so an
+    /// item keeps its fragment form, no full stop on "Milk".
+    static func itemFlags(of text: String) -> [Bool] {
+        text.split(separator: "\n", omittingEmptySubsequences: false).map(isItem)
+    }
+
     /// The Return key with `selection` about to be replaced by a line break.
     /// On an item with content, the list continues on a new line. On an
     /// empty item, the marker is removed and the list ends. On a plain line

@@ -184,3 +184,43 @@ extension ChecklistTests {
         XCTAssertEqual(Checklist.addingTitle("T", to: "new note").text, "T")
     }
 }
+
+extension ChecklistTests {
+    func testBackspaceAfterTheMarkerTakesTheWholeMarker() {
+        // The caret right after "□ ": backspace deletes the space, and the
+        // marker goes with it, so the item is a plain line in one press.
+        let edit = Checklist.handleDeletion(in: "Shop\n□ milk", range: NSRange(location: 6, length: 1))
+        XCTAssertEqual(edit, Checklist.Edit(text: "Shop\nmilk", cursor: 5))
+        // A selection that covers only the circle: the same.
+        XCTAssertEqual(Checklist.handleDeletion(in: "□ milk", range: NSRange(location: 0, length: 1)),
+                       Checklist.Edit(text: "milk", cursor: 0))
+    }
+
+    func testDeletingTheBreakBeforeAnItemDropsItsMarker() {
+        // Backspace at the very start of an item joins it to the line above,
+        // and the marker does not come along.
+        let edit = Checklist.handleDeletion(in: "a\n□ b", range: NSRange(location: 1, length: 1))
+        XCTAssertEqual(edit, Checklist.Edit(text: "ab", cursor: 1))
+    }
+
+    func testCutAcrossItemsLeavesNoBareMarker() {
+        // From inside the first item's text through half of the second's
+        // marker: the rest of the marker goes too.
+        let text = "□ milk\n□ eggs"
+        let edit = Checklist.handleDeletion(in: text, range: NSRange(location: 4, length: 4))
+        XCTAssertEqual(edit, Checklist.Edit(text: "□ mieggs", cursor: 4))
+        // A cut that already takes the whole marker needs no help.
+        XCTAssertNil(Checklist.handleDeletion(in: text, range: NSRange(location: 4, length: 5)))
+    }
+
+    func testPlainDeletionsAreLeftToTheTextView() {
+        XCTAssertNil(Checklist.handleDeletion(in: "Shop\n□ milk", range: NSRange(location: 10, length: 1)))
+        XCTAssertNil(Checklist.handleDeletion(in: "Shop\nmilk", range: NSRange(location: 4, length: 1)))
+        XCTAssertNil(Checklist.handleDeletion(in: "□ milk", range: NSRange(location: 3, length: 0)))
+        XCTAssertNil(Checklist.handleDeletion(in: "□ milk", range: NSRange(location: 5, length: 9)))
+    }
+
+    func testItemFlags() {
+        XCTAssertEqual(Checklist.itemFlags(of: "Shop\n□ milk\n\n■ eggs"), [false, true, false, true])
+    }
+}

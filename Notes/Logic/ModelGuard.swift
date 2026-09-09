@@ -43,6 +43,30 @@ enum ModelGuard {
         return Double(abs(na - nb)) / longer <= tolerance
     }
 
+    /// Whether a tidied line is the same line, cleaned: still empty or still
+    /// not, at least `keeping` of its content words kept, grown by no more
+    /// than half (plus one word), and none of its neighbours' words pulled
+    /// in. Fails, and the original stays, when the model rewrote the line
+    /// or ran two lines together.
+    static func tidyKeeps(_ was: String, _ now: String, others: [String], keeping: Double = 0.6) -> Bool {
+        let before = was.trimmingCharacters(in: .whitespaces)
+        let after = now.trimmingCharacters(in: .whitespaces)
+        if before.isEmpty || after.isEmpty { return before.isEmpty == after.isEmpty }
+        guard kept(of: before, in: after) >= keeping else { return false }
+        guard Double(wordCount(after)) <= Double(wordCount(before)) * 1.5 + 1 else { return false }
+        return !absorbs(after, own: before, from: others)
+    }
+
+    /// Whether `candidate` took words from another line: two or more of a
+    /// neighbour's content words that its own original did not have.
+    static func absorbs(_ candidate: String, own: String, from others: [String]) -> Bool {
+        let mine = words(own)
+        let has = words(candidate)
+        return others.contains { other in
+            words(other).subtracting(mine).intersection(has).count >= 2
+        }
+    }
+
     static func wordCount(_ text: String) -> Int {
         text.split(whereSeparator: { $0.isWhitespace }).count
     }

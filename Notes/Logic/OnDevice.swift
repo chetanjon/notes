@@ -74,30 +74,35 @@ enum OnDevice {
         return nil
     }
 
-    /// The lines with spelling, capitalisation and punctuation fixed, one
-    /// out for each one in. A line the model did not give back, gave twice,
-    /// or rewrote (its length changed by more than 40%) keeps its original;
-    /// so a mostly right answer still applies. Nil when there is no model
-    /// or nothing changed.
-    static func tidied(_ lines: [String]) async -> [String]? {
+    /// The lines tidied, one out for each one in: the model makes each read
+    /// cleanly where there is one, and every line then gets the careful
+    /// typist's pass (`NoteText.tidied`), model or not. A line the model
+    /// did not give back, gave twice, rewrote, or ran together with another
+    /// keeps its original (`ModelGuard.tidyKeeps`), so a mostly right
+    /// answer still applies and lines are never merged. An item keeps its
+    /// fragment form: no full stop on "Milk". Nil when nothing changed.
+    static func tidied(_ lines: [String], items: [Bool] = []) async -> [String]? {
+        let original = lines.map { $0.trimmingCharacters(in: .whitespaces) }
+        var result = original
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, lines.joined(separator: "\n").count < limit,
            let made = try? await Model.tidied(lines) {
-            var result = lines.map { $0.trimmingCharacters(in: .whitespaces) }
             var seen = Set<Int>()
             for fix in made where fix.number >= 1 && fix.number <= lines.count && seen.insert(fix.number).inserted {
-                let was = lines[fix.number - 1].trimmingCharacters(in: .whitespaces)
-                let now = fix.text.trimmingCharacters(in: .whitespaces)
-                if was.isEmpty != now.isEmpty { continue }
-                if ModelGuard.lengthClose(was, now) { result[fix.number - 1] = now }
+                let index = fix.number - 1
+                let others = original.indices.filter { $0 != index }.map { original[$0] }
+                if ModelGuard.tidyKeeps(original[index], fix.text, others: others) {
+                    result[index] = fix.text.trimmingCharacters(in: .whitespaces)
+                }
             }
-            // Capitals are a rule, not a judgement: the first letter of each
-            // line and the pronoun "I", whatever the model did with them.
-            result = result.map(NoteText.capitalised)
-            if result != lines.map({ $0.trimmingCharacters(in: .whitespaces) }) { return result }
         }
         #endif
-        return nil
+        result = result.enumerated().map { index, line in
+            var tidy = NoteText.tidied(line)
+            if index < items.count, items[index], tidy.hasSuffix("."), !tidy.hasSuffix("..") { tidy.removeLast() }
+            return tidy
+        }
+        return result != original ? result : nil
     }
 
     /// The items grouped by kind, as a new order: each item's index exactly
@@ -122,7 +127,8 @@ enum OnDevice {
     static func reminders(in text: String, now: Date = .now) async -> [Reminders.Found]? {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, text.count < limit,
-           let made = try? await Model.reminders(in: text, week: ReminderStamp.week(from: now)) {
+           let made = try? await Model.reminders(in: DateSpotter.segments(of: text).joined(separator: "\n"),
+                                                 week: ReminderStamp.week(from: now)) {
             return made.compactMap { item in
                 let title = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !title.isEmpty, ModelGuard.sharesWords(title, with: text),
@@ -156,8 +162,9 @@ enum OnDevice {
     }
 
     /// "You've thought about this before": which of the candidate notes
-    /// bears on what is being written, and what it said, in that note's
-    /// own words. Nil when none does, or there is no model.
+    /// bears on what is being written, and the line of it that says so
+    /// (`Recall.quote`, so the hint is always a line the note contains).
+    /// Nil when none does, or there is no model.
     static func recall(writing: String, candidates: [NoteFinder.Card]) async -> (id: UUID, said: String)? {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, !candidates.isEmpty, writing.count < limit,
@@ -166,8 +173,9 @@ enum OnDevice {
             let card = candidates[made.note - 1]
             let said = made.said.trimmingCharacters(in: .whitespacesAndNewlines)
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\"“”"))
-            if !said.isEmpty, ModelGuard.wordCount(said) <= 20, ModelGuard.sharesWords(said, with: card.text) {
-                return (card.id, said)
+            if !said.isEmpty, ModelGuard.wordCount(said) <= 20, ModelGuard.sharesWords(said, with: card.text),
+               let quote = Recall.quote(from: card.text, near: said) {
+                return (card.id, quote)
             }
         }
         #endif
@@ -254,27 +262,34 @@ enum OnDevice {
         static func tidied(_ lines: [String]) async throws -> [Fixed] {
             let numbered = lines.enumerated().map { "\($0.offset + 1)| \($0.element)" }.joined(separator: "\n")
             let session = LanguageModelSession(instructions: """
-                You fix the lines of a note. Each line comes as its number, a bar, and the text. \
-                Fix spelling, capitalisation and punctuation in each line and change nothing \
-                else: not the words, not the meaning, not the order, not the length. Every \
-                line starts with a capital letter, and the pronoun "i" is always "I". Give \
-                back every line by number. An empty line stays empty.
+                You tidy the lines of a note so each reads cleanly. Each line comes as its \
+                number, a bar, and the text. Fix spelling, capitals, spacing and punctuation: \
+                commas where a reader needs a breath, apostrophes ("its fine" is "it's fine"), \
+                and a full stop on a sentence. Drop filler like "um" and "basically". Keep the \
+                writer's own words, order and meaning; add nothing. A short list line such as \
+                "milk eggs bread" stays a fragment with no full stop. Give back one line for \
+                every line, by number: never join two lines, never split one, and an empty \
+                line stays empty.
 
                 Example:
-                1| call teh dentist tuesday
-                2|
-                3| i recieved the parcel , its fine
+                1| This week
+                2| call teh dentist tuesday its at 3 i think
+                3|
+                4| i recieved the parcel , its fine
                 Gives:
-                1: Call the dentist Tuesday
-                2:
-                3: I received the parcel, it's fine
+                1: This week
+                2: Call the dentist Tuesday, it's at 3, I think.
+                3:
+                4: I received the parcel, it's fine.
 
                 Example:
                 1| Groceries
                 2| milk eggs bread
+                3| um also batteries for the remote
                 Gives:
                 1: Groceries
                 2: Milk, eggs, bread
+                3: Batteries for the remote
                 """)
             let response = try await session.respond(to: numbered, generating: Fixes.self, options: options)
             return response.content.lines

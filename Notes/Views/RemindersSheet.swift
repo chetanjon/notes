@@ -39,6 +39,11 @@ struct RemindersSheet: View {
                     .foregroundStyle(Theme.muted)
                     .padding(.horizontal, Theme.pagePadding)
                     .padding(.top, 12)
+                Text("Put a day or a time on the line, like “dentist tuesday 3pm” or “call mum tomorrow at 10”.")
+                    .font(Theme.Font.label)
+                    .foregroundStyle(Theme.muted)
+                    .padding(.horizontal, Theme.pagePadding)
+                    .padding(.top, 6)
                 Spacer()
             } else {
                 Text("Found in the note. Tap a circle to leave one out.")

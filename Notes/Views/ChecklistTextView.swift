@@ -205,12 +205,19 @@ struct ChecklistTextView: UIViewRepresentable {
             if parent.isFocused { parent.isFocused = false }
         }
 
+        /// Return continues or ends a list; a deletion that touches a marker
+        /// takes the whole marker, so backspace never leaves a bare glyph.
         func textView(_ view: UITextView, shouldChangeTextIn range: NSRange,
                       replacementText replacement: String) -> Bool {
-            guard replacement == "\n",
-                  let edit = Checklist.handleReturn(in: view.text, selection: range) else {
-                return true
+            let edit: Checklist.Edit?
+            if replacement == "\n" {
+                edit = Checklist.handleReturn(in: view.text, selection: range)
+            } else if replacement.isEmpty {
+                edit = Checklist.handleDeletion(in: view.text, range: range)
+            } else {
+                edit = nil
             }
+            guard let edit else { return true }
             apply(edit, to: view)
             return false
         }
