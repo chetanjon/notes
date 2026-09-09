@@ -114,7 +114,7 @@ struct EditorView: View {
         }
         .onChange(of: text) { _, newValue in
             scheduleSave(newValue)
-            brief = nil
+            if brief != nil { brief = nil }
             scheduleRecall(newValue)
         }
         .onChange(of: note.text) { _, synced in

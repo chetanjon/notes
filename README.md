@@ -157,7 +157,10 @@ on each foreground.
 2. **Archive**: in Xcode, Product → Archive with "Any iOS Device" selected.
    Release builds use automatic signing, same as Debug.
 3. **Upload**: in the Organizer, Distribute App → TestFlight & App Store →
-   Upload. Xcode manages the profiles.
+   Upload. Xcode manages the profiles. Both targets carry a
+   `PrivacyInfo.xcprivacy` (no tracking, nothing collected, `UserDefaults`
+   declared with reasons CA92.1 and 1C8F.1 for the App Group record), which
+   App Store Connect checks at upload.
 4. **TestFlight**: in App Store Connect, under TestFlight, add testers by
    email. Internal testers (your team) need no review. External testers go
    through a short review once, a day or two. They install through the
