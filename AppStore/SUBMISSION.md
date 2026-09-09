@@ -22,7 +22,7 @@ text the forms ask for.
 ## 1. The store name
 
 **Matte**, with **Matte Notes** as the fallback if the Name field refuses
-it. "Notes" alone is taken; the Home Screen icon still says "Notes". The
+it. "Notes" alone is taken; the Home Screen icon says Matte as well. The
 next step needs the name and it is awkward to change later.
 
 ## 2. Create the app record

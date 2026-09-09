@@ -149,8 +149,7 @@ enum NoteIntentError: Error, CustomLocalizedStringResourceConvertible {
 }
 
 /// The phrases Siri answers to without any setup. The app's name in a
-/// phrase is "Notes" (the Home Screen name) or "Matte" (the store name),
-/// through INAlternativeAppNames in project.yml.
+/// phrase is "Matte", the name on the Home Screen and in the store.
 struct NotesShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(

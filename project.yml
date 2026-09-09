@@ -36,7 +36,7 @@ targets:
     info:
       path: Notes/Info.plist
       properties:
-        CFBundleDisplayName: Notes
+        CFBundleDisplayName: Matte
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         # Dark only, at the OS level too, so no system sheet or alert ever
@@ -63,10 +63,6 @@ targets:
         # Pinning a note starts a Live Activity, which is how it reaches the
         # Lock Screen without the user adding anything.
         NSSupportsLiveActivities: true
-        # Siri takes "in Matte" (the store name) as well as "in Notes" (the
-        # Home Screen name) in a phrase; Apple's Notes owns the plain word.
-        INAlternativeAppNames:
-          - INAlternativeAppName: Matte
         # "Reminders" in the sparkle menu: the dates the on-device model finds
         # in a note go into the Reminders app. iOS asks the first time; the
         # app never reads the reminders that are there.
@@ -105,7 +101,7 @@ targets:
     info:
       path: NotesWidget/Info.plist
       properties:
-        CFBundleDisplayName: Notes
+        CFBundleDisplayName: Matte
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSExtension:

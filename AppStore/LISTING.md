@@ -8,8 +8,8 @@ from here. Character limits are Apple's; every field below is inside them.
 **Matte**. Fallback if App Store Connect refuses it: **Matte Notes**.
 
 "Notes" alone is taken on the App Store, which is why the store name is
-something else. The name on the Home Screen stays "Notes" regardless: that
-is `CFBundleDisplayName` in `project.yml`, and Apple allows the two to differ.
+something else, and the Home Screen icon says Matte too (`CFBundleDisplayName`
+in `project.yml`), so a reviewer never sees an icon that looks like Apple's.
 A search of the store in September 2026 found no app named Matte; the Name
 field is the final check.
 
@@ -117,11 +117,10 @@ are no analytics, no crash reporting SDKs, no ads, no identifiers.
 
 Notes for the reviewer, paste as is:
 
-> Matte is a local-first notes app; its icon on the Home Screen is labelled
-> "Notes". No account is needed. To test the Lock Screen feature: create a
+> Matte is a local-first notes app. No account is needed. To test the Lock Screen feature: create a
 > note, long-press it in the list, choose "Pin to Lock Screen", and lock the
 > device: the note shows as a Live Activity under the clock. Three widgets
-> are listed under Notes in the widget gallery (long-press the Lock Screen →
+> are listed under Matte in the widget gallery (long-press the Lock Screen →
 > Customize → Lock Screen → tap under the clock): Notes (the app's logo,
 > opens the app; on the Home Screen, the latest notes), New note (a pencil,
 > starts a note), and Pinned note (the pinned note, permanently). Siri: say
