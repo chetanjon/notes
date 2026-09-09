@@ -154,10 +154,12 @@ struct EditorView: View {
                 ProgressView()
                     .tint(Theme.fg)
                     .frame(width: Theme.tapTarget, height: Theme.tapTarget)
-            } else if OnDevice.isAvailable || OnDevice.status == .off || OnDevice.status == .downloading {
-                // With Apple's on-device model, the sparkle is a menu. When
-                // the model is off or still downloading, the menu says so
-                // instead of pretending there is only Make a list.
+            } else {
+                // The sparkle is a menu. Make a list, Tidy up and Reminders
+                // work on every iPhone; the rest need Apple's on-device
+                // model and are there only where it could be. When it is
+                // off or still downloading, the menu says so instead of
+                // pretending.
                 Menu {
                     if OnDevice.status == .off {
                         Text("Apple Intelligence is off in Settings")
@@ -166,16 +168,22 @@ struct EditorView: View {
                     }
                     Button("Make a list", systemImage: "checklist") { makeList() }
                         .disabled(!canMakeList)
-                    Button("Add a title", systemImage: "textformat") { addTitle() }
-                        .disabled(isBlank || !OnDevice.isAvailable)
+                    if OnDevice.status != .none {
+                        Button("Add a title", systemImage: "textformat") { addTitle() }
+                            .disabled(isBlank || !OnDevice.isAvailable)
+                    }
                     Button("Tidy up", systemImage: "wand.and.stars") { tidy() }
-                        .disabled(isBlank || !OnDevice.isAvailable)
-                    Button("Sort the list", systemImage: "arrow.up.arrow.down") { sortList() }
-                        .disabled(!canSortList || !OnDevice.isAvailable)
+                        .disabled(isBlank)
+                    if OnDevice.status != .none {
+                        Button("Sort the list", systemImage: "arrow.up.arrow.down") { sortList() }
+                            .disabled(!canSortList || !OnDevice.isAvailable)
+                    }
                     Button("Reminders", systemImage: "bell") { findReminders() }
-                        .disabled(isBlank || !OnDevice.isAvailable)
-                    Button("Where did I leave off?", systemImage: "clock.arrow.circlepath") { loadBrief(onDemand: true) }
-                        .disabled(!Brief.wanted(for: text) || !OnDevice.isAvailable)
+                        .disabled(isBlank)
+                    if OnDevice.status != .none {
+                        Button("Where did I leave off?", systemImage: "clock.arrow.circlepath") { loadBrief(onDemand: true) }
+                            .disabled(!Brief.wanted(for: text) || !OnDevice.isAvailable)
+                    }
                 } label: {
                     Image(systemName: "sparkles")
                         .font(Theme.Font.barGlyph)
@@ -183,11 +191,7 @@ struct EditorView: View {
                         .frame(width: Theme.tapTarget, height: Theme.tapTarget)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Apple Intelligence")
-            } else {
-                barButton("sparkles", label: "Make a list") { makeList() }
-                    .disabled(!canMakeList)
-                    .opacity(canMakeList ? 1 : 0.35)
+                .accessibilityLabel("Sparkle")
             }
             barButton("checklist", label: "Checklist") { command = .toggleItem }
             barButton(note.isPinned ? "pin.fill" : "pin",
@@ -268,15 +272,16 @@ struct EditorView: View {
         }
     }
 
-    /// The model fixes spelling, capitalisation and punctuation across the
-    /// note, line for line, with the checklist markers kept out of its
-    /// hands. One edit; a shake takes it back.
+    /// Each line made to read cleanly, line for line, with the checklist
+    /// markers kept out of the model's hands and the items kept fragments.
+    /// One edit; a shake takes it back.
     private func tidy() {
         guard !isBlank, !working else { return }
         working = true
         let lines = Checklist.bareLines(of: text)
+        let items = Checklist.itemFlags(of: text)
         Task { @MainActor in
-            let tidied = await OnDevice.tidied(lines)
+            let tidied = await OnDevice.tidied(lines, items: items)
             working = false
             if let tidied { command = .tidy(lines: tidied) } else { show("Nothing to fix") }
         }
@@ -299,16 +304,17 @@ struct EditorView: View {
         }
     }
 
-    /// The model finds the dates and times in the note; a sheet shows them,
-    /// and one tap there puts them in the Reminders app.
+    /// The dates and times in the note, read off the lines and, with the
+    /// model, found by it too; a sheet shows them, and one tap there puts
+    /// them in the Reminders app or sets a notification.
     private func findReminders() {
         guard !isBlank, !working else { return }
         working = true
         let snapshot = text
         Task { @MainActor in
-            let found = await OnDevice.reminders(in: snapshot)
+            let found = await Reminders.find(in: snapshot)
             working = false
-            foundReminders = found ?? []
+            foundReminders = found
             showingReminders = true
         }
     }

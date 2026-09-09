@@ -53,6 +53,32 @@ enum Recall {
     static let minimumWords = 8
     static let maxCandidates = 5
 
+    /// A quote is this many words at most.
+    static let quoteWords = 14
+
+    /// The line of the older note that the model's `said` points at: the
+    /// one sharing the most content words with it, marker taken off, the
+    /// title left out when there is more to the note. What the hint shows,
+    /// so it is always a line the note contains and never the whole note
+    /// run together. Nil when no line shares a word.
+    static func quote(from text: String, near said: String) -> String? {
+        let wanted = ModelGuard.words(said)
+        guard !wanted.isEmpty else { return nil }
+        var lines = text.split(separator: "\n")
+            .map { Checklist.content(String($0)).trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        if lines.count > 1 { lines.removeFirst() }
+        var best: (line: String, shared: Int)?
+        for line in lines {
+            let shared = ModelGuard.words(line).intersection(wanted).count
+            if shared > (best?.shared ?? 0) { best = (line, shared) }
+        }
+        guard let best else { return nil }
+        let words = best.line.split(whereSeparator: { $0.isWhitespace })
+        if words.count <= quoteWords { return best.line }
+        return words.prefix(quoteWords).joined(separator: " ") + "…"
+    }
+
     /// The other notes most likely to bear on `writing`, best first, those
     /// sharing fewer than `minimumOverlap` words left out.
     static func candidates(for writing: String, among others: [NoteFinder.Card]) -> [NoteFinder.Card] {

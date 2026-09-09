@@ -195,24 +195,34 @@ the note went in. On an iPhone with Apple
 Intelligence, iOS's Writing Tools (Proofread, Rewrite, Summarize) work
 inline in the editor; the editor runs on TextKit 2 for that, and hands
 Writing Tools the marker ranges to leave alone, so a rewritten checklist
-is still a checklist. The sparkle in the editor bar is Make a list: the
-plain lines under the title become items, with Apple's on-device model
-(`ListMaker`, the Foundation Models framework, on iOS 26 with Apple
+is still a checklist. The sparkle in the editor bar is a menu. Make a
+list: the plain lines under the title become items, with Apple's on-device
+model (`ListMaker`, the Foundation Models framework, on iOS 26 with Apple
 Intelligence) or, anywhere else, with `Checklist.split` on commas, "and",
-and line breaks. On a phone with the model the sparkle is a menu with three
-more (`OnDevice`): Add a title, which reads the note and puts a few words
-on a new first line; Tidy up, which fixes spelling, capitalisation and
-punctuation across the note line for line, the checklist markers taken off
-before the model sees the lines and put back after (`Checklist.bareLines`,
-`restoringMarkers`; a line count that does not match means no change); and
-Sort the list, for a checklist of three items or more, which has the model
-group the items by kind (the same aisle, the same place) and gives back
-their order (`Checklist.items`, `reordering`; anything but a permutation of
-the items means no change, and so does a list that changed under the
-spinner). Ticks and plain lines stay where they are. Each is one edit, so a
-shake takes it back. A fifth, Reminders, has the model find the dates and
-times in the note (`OnDevice.reminders`, told today's date so "tuesday"
-lands on one; `ReminderStamp` parses what it writes) and shows them on a
+and line breaks. Tidy up makes each line read cleanly, line for line: the
+model, where there is one, fixes spelling, punctuation and filler, and
+every line then gets the careful typist's pass whatever the phone
+(`NoteText.tidied`: capitals, no space before a comma, one after). The
+checklist markers are taken off before the model sees the lines and put
+back after (`Checklist.bareLines`, `restoringMarkers`), items stay
+fragments with no full stop, and a line the model rewrote or ran together
+with its neighbour keeps its original (`ModelGuard.tidyKeeps`, tested), so
+lines are never merged. With the model there are three more (`OnDevice`):
+Add a title, which reads the note and puts a few words on a new first
+line; Sort the list, for a checklist of three items or more, which has the
+model group the items by kind (the same aisle, the same place) and gives
+back their order (`Checklist.items`, `reordering`; anything but a
+permutation of the items means no change, and so does a list that changed
+under the spinner); and Where did I leave off, below. Ticks and plain
+lines stay where they are. Each is one edit, so a shake takes it back.
+Reminders finds the dates and times in the note on any iPhone:
+`DateSpotter` (tested) reads each line, and each part of a line between
+slashes or semicolons, for a weekday, today or tomorrow, a time, "in
+twenty minutes", "on the 1st" or "3 October", and takes the date words
+out for the title; with the model, its findings are merged in too
+(`OnDevice.reminders`, told the coming week so "tuesday" lands on a date;
+`ReminderStamp` parses what it writes; `Reminders.find` joins the two).
+They show on a
 sheet; one tap puts the chosen ones in the iPhone's Reminders app through
 EventKit (`Reminders.add`), asked at that tap and never before, or, with
 "Notify me", a one-time local notification from the app at the time, the

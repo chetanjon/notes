@@ -30,3 +30,18 @@ final class BriefTests: XCTestCase {
         XCTAssertEqual(Recall.candidates(for: "standing desk", among: [shop, desk]), [])
     }
 }
+
+extension BriefTests {
+    func testQuoteIsTheLineTheModelPointsAt() {
+        let text = "Shop\n□ milk eggs\n□ call the dentist tuesday"
+        XCTAssertEqual(Recall.quote(from: text, near: "call the dentist tuesday"), "call the dentist tuesday")
+        XCTAssertEqual(Recall.quote(from: text, near: "Shop milk eggs call the dentist tuesday"), "call the dentist tuesday")
+        XCTAssertNil(Recall.quote(from: text, near: "standing desk"))
+        XCTAssertNil(Recall.quote(from: text, near: "the and"))
+        // A one-line note is its own quote.
+        XCTAssertEqual(Recall.quote(from: "milk eggs bread", near: "eggs"), "milk eggs bread")
+        // A long line is cut.
+        let long = "Desk\n" + (1...20).map { "word\($0)" }.joined(separator: " ") + " knee"
+        XCTAssertEqual(Recall.quote(from: long, near: "knee")?.hasSuffix("word14…"), true)
+    }
+}

@@ -122,3 +122,15 @@ extension NoteTextTests {
         XCTAssertEqual(NoteText.capitalised("  3 things"), "  3 things")
     }
 }
+
+extension NoteTextTests {
+    func testTidiedIsTheCarefulTypist() {
+        XCTAssertEqual(NoteText.tidied("i recieved the parcel , its fine"), "I recieved the parcel, its fine")
+        XCTAssertEqual(NoteText.tidied("  milk,eggs ,bread .  "), "Milk, eggs, bread.")
+        XCTAssertEqual(NoteText.tidied("call  the   dentist"), "Call the dentist")
+        // Numbers keep their commas; a clean line is unchanged.
+        XCTAssertEqual(NoteText.tidied("Budget $3,000"), "Budget $3,000")
+        XCTAssertEqual(NoteText.tidied("Call the dentist Tuesday, it's at 3."), "Call the dentist Tuesday, it's at 3.")
+        XCTAssertEqual(NoteText.tidied(""), "")
+    }
+}

@@ -39,7 +39,7 @@ Matte is a notes app with nothing in the way, and Apple Intelligence where it he
 It is black and white and dark only. Open it and write. The first line is the title. Everything saves as you type; there is no save button and nothing to set up.
 
 APPLE INTELLIGENCE, WHERE IT HELPS
-On an iPhone with Apple Intelligence, the smart parts are built in and run on the phone. Select text and use Writing Tools to proofread, rewrite, or summarize, right in the note; a checklist comes through intact. Tap Make a list and a paragraph or a dictated jumble ("milk eggs and call the dentist tuesday") becomes checklist items, one per task, in your own words, using Apple's on-device model. Add a title reads the note and gives it one. Tidy up fixes spelling and punctuation through the whole note without changing what it says. Sort the list groups a checklist by kind, dairy with dairy and errands with errands. Reminders finds the dates and times in a note and, with one tap, puts them in your Reminders app or sets a notification from Matte that opens the note at the time. Hold the pencil and speak: the note lands with a title, clean spelling, and a checklist where you spoke a list, with speech turned into text on the phone. Come back to a note after a day and it tells you where you left off: what you decided, what is open, what is next. And while you write, if an older note says something you should remember, it comes up under the bar. Nothing you write or say leaves the phone for any of it. On other iPhones, Make a list still works, splitting on commas and line breaks.
+On an iPhone with Apple Intelligence, the smart parts are built in and run on the phone. Select text and use Writing Tools to proofread, rewrite, or summarize, right in the note; a checklist comes through intact. Tap Make a list and a paragraph or a dictated jumble ("milk eggs and call the dentist tuesday") becomes checklist items, one per task, in your own words, using Apple's on-device model. Add a title reads the note and gives it one. Tidy up makes every line read cleanly, in your own words. Sort the list groups a checklist by kind, dairy with dairy and errands with errands. Reminders finds the dates and times in a note ("dentist tuesday 3pm") and, with one tap, puts them in your Reminders app or sets a notification from Matte that opens the note at the time. Hold the pencil and speak: the note lands with a title, clean spelling, and a checklist where you spoke a list, with speech turned into text on the phone. Come back to a note after a day and it tells you where you left off: what you decided, what is open, what is next. And while you write, if an older note says something you should remember, it comes up under the bar. Nothing you write or say leaves the phone for any of it. On other iPhones, Make a list, Tidy up and Reminders still work, by plain rules on the phone.
 
 SIRI, NO SETUP
 "Add milk to Groceries in Matte". "What's on Groceries in Matte", and Siri reads what is left. "Tick milk off Groceries in Matte". "New note in Matte". "Pin Groceries in Matte". Siri and the Shortcuts app do all five, hands free. Your notes also show up when you search your iPhone from the Home Screen.
@@ -131,9 +131,9 @@ Notes for the reviewer, paste as is:
 > editor, and the sparkle button in the editor bar ("Make a list") turns the
 > note's plain lines into checklist items with the on-device model on an
 > iPhone with Apple Intelligence, or by splitting on commas and line breaks
-> on any other iPhone; there the sparkle is a menu with four more on-device
-> actions, "Add a title", "Tidy up", "Sort the list" and "Reminders" (the
-> last asks for Reminders access when its Add button is tapped, or for
+> on any other iPhone. The sparkle is a menu: "Tidy up" and "Reminders"
+> work on any iPhone, "Add a title" and "Sort the list" need the model
+> ("Reminders" asks for Reminders access when its Add button is tapped, or for
 > notification permission when "Notify me" is tapped, which schedules a
 > local notification that opens the note). Holding the pencil in the list
 > dictates a note; it asks for the microphone and speech recognition, and
