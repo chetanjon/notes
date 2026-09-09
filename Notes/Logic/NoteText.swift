@@ -101,8 +101,12 @@ enum NoteText {
             if s.done == s.total { return "All done" }
             return "\(s.done)/\(s.total) · \(s.open.joined(separator: ", "))"
         }
-        return bodyLines(text)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
+        // A counter line has a row of its own on the card, so it is not
+        // also the preview: "Water 11" once, not twice.
+        let counted = Set(counters(text).map(\.lineIndex))
+        return lines(text).enumerated().dropFirst()
+            .filter { !counted.contains($0.offset) }
+            .map { $0.element.trimmingCharacters(in: .whitespaces) }
             .first(where: { !$0.isEmpty }) ?? ""
     }
 
@@ -262,6 +266,13 @@ enum NoteText {
         let words = text.lowercased().split(whereSeparator: { !$0.isLetter && $0 != "'" })
         guard words.count >= 2, let first = words.first else { return false }
         return questionWords.contains(String(first))
+    }
+
+    /// The first sentence of a run-on answer, its full stop kept.
+    static func firstSentence(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let end = trimmed.firstIndex(where: { ".!?".contains($0) }) else { return trimmed }
+        return String(trimmed[...end]).trimmingCharacters(in: .whitespaces)
     }
 
     /// Case-insensitive search over the whole text.

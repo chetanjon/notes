@@ -153,3 +153,18 @@ extension NoteTextTests {
         XCTAssertFalse(NoteText.isQuestion("milk eggs"))
     }
 }
+
+extension NoteTextTests {
+    func testWidgetPreviewLeavesCounterLinesToTheirOwnRows() {
+        // "Water 11" has a counter row on the card, so it is not the preview.
+        XCTAssertEqual(NoteText.widgetPreview("Water\nWater 11"), "")
+        XCTAssertEqual(NoteText.widgetPreview("Water\ndrink more\nWater 11"), "drink more")
+        XCTAssertEqual(NoteText.widgetPreview("Trip\nOctober, two weeks"), "October, two weeks")
+    }
+
+    func testFirstSentence() {
+        XCTAssertEqual(NoteText.firstSentence("Call the dentist Tuesday. Then the bank."), "Call the dentist Tuesday.")
+        XCTAssertEqual(NoteText.firstSentence("  no full stop here  "), "no full stop here")
+        XCTAssertEqual(NoteText.firstSentence(""), "")
+    }
+}

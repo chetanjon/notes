@@ -25,6 +25,14 @@ enum LockScreenSummary {
         #endif
     }
 
+    /// The summary already written for this text, if the model has answered
+    /// for it in this run. The Lock Screen record is rebuilt from the note
+    /// on every foreground, so without this the summary would be replaced
+    /// by the note's first line each time.
+    static func cached(for text: String) -> String? {
+        cache.first(where: { $0.text == text })?.line
+    }
+
     static func line(for text: String) async -> String? {
         if let hit = cache.first(where: { $0.text == text }) { return hit.line }
         #if canImport(FoundationModels)

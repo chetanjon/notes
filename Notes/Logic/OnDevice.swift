@@ -109,15 +109,28 @@ enum OnDevice {
     /// once, first for the top. The model labels each item with its kind
     /// and `ListSorter` turns the labels into the order. Nil when there is
     /// no model, when a label is missing, or when nothing would move.
-    static func sorted(_ items: [String]) async -> [Int]? {
+    /// What "Sort the list" came back with, so the editor can tell the two
+    /// apart: the list was already grouped, or the model had nothing usable
+    /// to say. Both used to read as "Already in order".
+    enum Sorted: Equatable {
+        case order([Int])
+        case alreadyGrouped
+        case noAnswer
+    }
+
+    static func sorted(_ items: [String]) async -> Sorted {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, items.count >= 3,
-           items.joined(separator: "\n").count < limit,
-           let made = try? await Model.grouped(items) {
-            return ListSorter.order(groups: made.map { (number: $0.number, group: $0.group) }, count: items.count)
+           items.joined(separator: "\n").count < limit {
+            guard let made = try? await Model.grouped(items), !made.isEmpty else { return .noAnswer }
+            let groups = made.map { (number: $0.number, group: $0.group) }
+            guard let order = ListSorter.order(groups: groups, count: items.count) else {
+                return .alreadyGrouped
+            }
+            return .order(order)
         }
         #endif
-        return nil
+        return .noAnswer
     }
 
     /// The things in the note that have a day or a time: each as a short

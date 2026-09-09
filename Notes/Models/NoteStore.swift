@@ -104,7 +104,7 @@ enum NoteStore {
         // A notification whose line left the note goes with it.
         Notify.reconcile(noteID: note.id, text: text)
         if note.isPinned {
-            showOnLockScreen(note.pinned)
+            showOnLockScreen(pinnedRecord(note))
             summarizeOnLockScreen(note)
         }
     }
@@ -148,7 +148,7 @@ enum NoteStore {
         for other in all where other.isPinned { other.isPinned = false }
         note.isPinned = !wasPinned
         save(context)
-        showOnLockScreen(note.isPinned ? note.pinned : nil)
+        showOnLockScreen(note.isPinned ? pinnedRecord(note) : nil)
         if note.isPinned { summarizeOnLockScreen(note) }
     }
 
@@ -159,8 +159,23 @@ enum NoteStore {
     static func syncLockScreen(in context: ModelContext) {
         let pinned = try? context.fetch(
             FetchDescriptor<Note>(predicate: #Predicate { $0.isPinned })).first
-        showOnLockScreen(pinned?.pinned)
+        showOnLockScreen(pinned.map(pinnedRecord))
         if let pinned { summarizeOnLockScreen(pinned) }
+    }
+
+    /// The note as the Lock Screen shows it, with the model's one-line
+    /// summary in place of the first line when it has written one for this
+    /// text. The record is rebuilt from the note on every foreground and
+    /// every save, so the summary has to be put back each time or it is
+    /// lost to the next rebuild.
+    private static func pinnedRecord(_ note: Note) -> PinStore.Pinned {
+        let record = note.pinned
+        guard NoteText.wantsSummary(note.text),
+              let line = LockScreenSummary.cached(for: note.text) else { return record }
+        return PinStore.Pinned(
+            id: record.id, title: record.title, preview: line, updatedAt: record.updatedAt,
+            counters: record.counters, isChecklist: record.isChecklist,
+            done: record.done, total: record.total)
     }
 
     /// The pinned note's text has to hold still this long before the model

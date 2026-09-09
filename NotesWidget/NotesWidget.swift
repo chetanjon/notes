@@ -137,21 +137,16 @@ struct PinnedCardView: View {
                     .lineLimit(1)
             }
             ForEach(counters, id: \.line) { counter in
-                if let noteID {
-                    Button(intent: StepCounterIntent(noteID: noteID, line: counter.line)) {
-                        counterRow(counter)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    counterRow(counter)
-                }
+                counterRow(counter, noteID: noteID)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// "Water  3  +": the number in monospaced digits, the plus at the edge.
-    private func counterRow(_ counter: PinnedCounter) -> some View {
+    /// Only the plus is the button; the rest of the row is the card, so a
+    /// tap anywhere else opens the note instead of counting.
+    private func counterRow(_ counter: PinnedCounter, noteID: UUID?) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(counter.label)
                 .font(.subheadline)
@@ -162,12 +157,23 @@ struct PinnedCardView: View {
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
                 .foregroundStyle(fg)
-            Image(systemName: "plus")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(fg)
-                .frame(width: 20)
+            if let noteID {
+                Button(intent: StepCounterIntent(noteID: noteID, line: counter.line)) {
+                    plus
+                }
+                .buttonStyle(.plain)
+            } else {
+                plus
+            }
         }
-        .contentShape(Rectangle())
+    }
+
+    private var plus: some View {
+        Image(systemName: "plus")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(fg)
+            .frame(width: 24, height: 24)
+            .contentShape(Rectangle())
     }
 }
 
