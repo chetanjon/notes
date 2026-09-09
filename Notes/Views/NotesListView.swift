@@ -248,9 +248,11 @@ struct NotesListView: View {
         } else {
             List {
                 if !trimmedQuery.isEmpty {
-                    // The count, or the model's one-line answer.
+                    // The model's one-line answer, or that it is being
+                    // asked, or the count.
                     let answer = answered == nil ? "" : (asked?.found.answer ?? "")
-                    Text(answer.isEmpty ? (rows.count == 1 ? "1 note" : "\(rows.count) notes") : answer)
+                    let count = rows.count == 1 ? "1 note" : "\(rows.count) notes"
+                    Text(!answer.isEmpty ? answer : (asking ? "Asking…" : count))
                         .font(Theme.Font.label)
                         .foregroundStyle(Theme.muted)
                         .padding(.horizontal, Theme.pagePadding)

@@ -308,9 +308,13 @@ struct EditorView: View {
         working = true
         let items = Checklist.items(of: text)
         Task { @MainActor in
-            let order = await OnDevice.sorted(items)
+            let sorted = await OnDevice.sorted(items)
             working = false
-            if let order { command = .sortList(order: order, items: items) } else { show("Already in order") }
+            switch sorted {
+            case let .order(order): command = .sortList(order: order, items: items)
+            case .alreadyGrouped: show("Already in order")
+            case .noAnswer: show("Couldn't sort that")
+            }
         }
     }
 

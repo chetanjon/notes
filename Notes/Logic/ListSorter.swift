@@ -10,14 +10,21 @@ enum ListSorter {
     /// when a number is missing, repeated or out of range, or when the
     /// order would be the one the list already has.
     static func order(groups: [(number: Int, group: String)], count: Int) -> [Int]? {
-        guard count > 0, groups.count == count else { return nil }
-        var kind = [String](repeating: "", count: count)
+        guard count > 0 else { return nil }
+        // An item the model skipped keeps a kind of its own, so a partial
+        // answer still groups what it did label instead of being thrown away.
+        var kind = (0..<count).map { "item \($0)" }
         var seen = Set<Int>()
         for pair in groups {
-            guard pair.number >= 1, pair.number <= count, seen.insert(pair.number).inserted else { return nil }
-            kind[pair.number - 1] = pair.group.trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = pair.group.trimmingCharacters(in: .whitespacesAndNewlines)
                 .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            guard pair.number >= 1, pair.number <= count, !name.isEmpty,
+                  seen.insert(pair.number).inserted else { continue }
+            kind[pair.number - 1] = name
         }
+        // One kind for everything, or a label each, is not a grouping.
+        let named = Set(seen.map { kind[$0 - 1] })
+        guard named.count >= 2 else { return nil }
         var rank: [String: Int] = [:]
         for name in kind where rank[name] == nil { rank[name] = rank.count }
         let result = Array(0..<count).sorted { a, b in

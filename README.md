@@ -80,11 +80,15 @@ with Apple Intelligence, gets instead a one-line summary of what it is
 about, from Apple's on-device model (`LockScreenSummary`, cached by text
 so a note is summarised once; the first line stands in until the model
 answers, and the answer is used only if that note is still pinned and
-unchanged). A body line
+unchanged; `LockScreenSummary.cached` puts it back each time the record is
+rebuilt, which happens on every save and every foreground, or the note's
+first line would take its place again). A body line
 that ends in a number, like `Water 3` or `Pushups 20`, is a counter: it
-gets a + on the card, and a tap makes it `Water 4` in the note. (A label
-with a digit in it, such as `Room 4`, is left alone; the card carries three
-counters at most.) Tapping the card opens the note. Pinning another note
+gets a + on the card, and a tap on the + makes it `Water 4` in the note.
+Only the + counts: the rest of the row is the card, so a tap beside it
+opens the note. A counter line has its own row, so it is not shown as the
+preview as well. (A label with a digit in it, such as `Room 4`, is left
+alone; the card carries three counters at most.) Tapping the card opens the note. Pinning another note
 replaces it; unpinning or deleting removes it. The widget draws the same
 card.
 

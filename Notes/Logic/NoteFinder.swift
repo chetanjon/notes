@@ -24,7 +24,7 @@ enum NoteFinder {
     /// first, each cut to `cardLimit` characters on one line.
     static let maxCards = 15
     static let cardLimit = 240
-    static let answerLimit = 25
+    static let answerLimit = 30
 
     static var isAvailable: Bool {
         #if canImport(FoundationModels)
@@ -112,7 +112,12 @@ enum NoteFinder {
             var seen = Set<UUID>()
             let unique = ids.filter { seen.insert($0).inserted }
             var answer = response.content.answer.trimmingCharacters(in: .whitespacesAndNewlines)
-            if ModelGuard.wordCount(answer) > answerLimit { answer = "" }
+            // A model that ran on is cut to its first sentence rather than
+            // thrown away: an answer that is too long is still an answer.
+            if ModelGuard.wordCount(answer) > answerLimit {
+                answer = NoteText.firstSentence(answer)
+                if ModelGuard.wordCount(answer) > answerLimit { answer = "" }
+            }
             return Found(answer: unique.isEmpty ? "" : answer, ids: unique)
         }
     }
