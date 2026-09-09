@@ -73,6 +73,40 @@ enum Checklist {
         return Edit(text: replaced, cursor: cursor + markerLength)
     }
 
+    /// The toolbar button with a selection: every line the selection
+    /// touches. If they are all items, the markers come off; otherwise
+    /// every plain line gets one, the items keeping theirs. The cursor
+    /// lands at the end of the last line touched. A selection of nothing
+    /// is the single-line button.
+    static func toggleItems(in text: String, selection: NSRange) -> Edit {
+        guard selection.length > 0 else { return toggleItem(in: text, at: selection.location) }
+        let ns = text as NSString
+        let end = min(NSMaxRange(selection), ns.length)
+        var lines: [NSRange] = []
+        var index = min(selection.location, ns.length)
+        repeat {
+            let line = lineRange(in: text, at: index)
+            lines.append(line)
+            let full = ns.lineRange(for: NSRange(location: line.location, length: 0))
+            guard full.length > 0 else { break }
+            index = NSMaxRange(full)
+        } while index < end
+        let allItems = lines.allSatisfy { isItem(ns.substring(with: $0)) }
+        let result = NSMutableString(string: text)
+        var delta = 0
+        for line in lines.reversed() {
+            if allItems {
+                result.replaceCharacters(in: NSRange(location: line.location, length: markerLength), with: "")
+                delta -= markerLength
+            } else if !isItem(ns.substring(with: line)) {
+                result.insert(open, at: line.location)
+                delta += markerLength
+            }
+        }
+        let last = lines.last.map(NSMaxRange) ?? selection.location
+        return Edit(text: result as String, cursor: last + delta)
+    }
+
     /// Tapping the marker. Flips open and done on the line containing
     /// `cursor`; a plain line is left alone.
     static func toggleDone(in text: String, at cursor: Int) -> Edit {

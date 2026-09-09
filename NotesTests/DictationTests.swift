@@ -19,3 +19,13 @@ final class DictationTests: XCTestCase {
         XCTAssertEqual(Dictation.plain("  "), "")
     }
 }
+
+extension DictationTests {
+    func testPlainMakesAListFromPieces() {
+        XCTAssertEqual(Dictation.plain("groceries, milk, eggs and bread"), "groceries\n□ milk\n□ eggs\n□ bread")
+        XCTAssertEqual(Dictation.plain("Shop today. milk, eggs and bread"), "Shop today\n□ milk\n□ eggs\n□ bread")
+        // Too few pieces to be a list.
+        XCTAssertEqual(Dictation.plain("milk and eggs"), "milk and eggs")
+        XCTAssertEqual(Dictation.plain("Idea. Record voice while walking"), "Idea\nRecord voice while walking")
+    }
+}

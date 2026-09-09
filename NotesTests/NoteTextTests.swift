@@ -134,3 +134,14 @@ extension NoteTextTests {
         XCTAssertEqual(NoteText.tidied(""), "")
     }
 }
+
+extension NoteTextTests {
+    func testIsQuestion() {
+        XCTAssertTrue(NoteText.isQuestion("when is the dentist"))
+        XCTAssertTrue(NoteText.isQuestion("What was the wifi password?"))
+        XCTAssertTrue(NoteText.isQuestion("dentist?"))
+        XCTAssertFalse(NoteText.isQuestion("dentist"))
+        XCTAssertFalse(NoteText.isQuestion("what"))
+        XCTAssertFalse(NoteText.isQuestion("milk eggs"))
+    }
+}

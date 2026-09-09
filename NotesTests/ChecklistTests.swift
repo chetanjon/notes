@@ -224,3 +224,25 @@ extension ChecklistTests {
         XCTAssertEqual(Checklist.itemFlags(of: "Shop\n□ milk\n\n■ eggs"), [false, true, false, true])
     }
 }
+
+extension ChecklistTests {
+    func testToggleItemsOnASelectionMarksEveryLine() {
+        let text = "Shop\nmilk\neggs\nbread"
+        // From inside "milk" to inside "bread": three lines become items.
+        let edit = Checklist.toggleItems(in: text, selection: NSRange(location: 6, length: 12))
+        XCTAssertEqual(edit.text, "Shop\n□ milk\n□ eggs\n□ bread")
+        XCTAssertEqual(edit.cursor, edit.text.utf16.count)
+        // A mixed selection marks the plain ones and keeps the item.
+        let mixed = Checklist.toggleItems(in: "Shop\n□ milk\neggs", selection: NSRange(location: 5, length: 10))
+        XCTAssertEqual(mixed.text, "Shop\n□ milk\n□ eggs")
+        // All items: the markers come off.
+        let back = Checklist.toggleItems(in: edit.text, selection: NSRange(location: 5, length: 20))
+        XCTAssertEqual(back.text, text)
+        XCTAssertEqual(back.cursor, text.utf16.count)
+        // A selection ending right after a line break does not take the next line.
+        XCTAssertEqual(Checklist.toggleItems(in: text, selection: NSRange(location: 5, length: 5)).text, "Shop\n□ milk\neggs\nbread")
+        // Nothing selected: the single-line button.
+        XCTAssertEqual(Checklist.toggleItems(in: text, selection: NSRange(location: 6, length: 0)),
+                       Checklist.toggleItem(in: text, at: 6))
+    }
+}

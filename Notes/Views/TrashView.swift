@@ -1,9 +1,9 @@
 import SwiftData
 import SwiftUI
 
-/// Deleted notes, newest first. A tap puts one back in the list; a swipe
-/// deletes it for good; Empty clears the lot, with the editor's two-tap
-/// confirmation and no system alert. Empty, it says so.
+/// Deleted notes, newest first. A tap asks: put it back, or delete it for
+/// good; a swipe deletes it for good; Empty clears the lot, with the
+/// editor's two-tap confirmation and no system alert. Empty, it says so.
 struct TrashView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -12,6 +12,8 @@ struct TrashView: View {
 
     @State private var confirmingEmpty = false
     @State private var emptyTimer: Task<Void, Never>?
+    /// The note tapped, while its two choices are up.
+    @State private var chosen: Note?
 
     /// The Empty button reverts from "Delete all" after this long.
     private static let confirmWindow: Duration = .seconds(3)
@@ -25,7 +27,7 @@ struct TrashView: View {
                 .foregroundStyle(Theme.fg)
                 .padding(.horizontal, Theme.pagePadding)
                 .padding(.top, 8)
-            Text("Tap a note to put it back. Swipe to delete for good. Gone after 30 days.")
+            Text("Tap a note to put it back or delete it for good. Gone after 30 days.")
                 .font(Theme.Font.label)
                 .foregroundStyle(Theme.muted)
                 .padding(.horizontal, Theme.pagePadding)
@@ -43,7 +45,7 @@ struct TrashView: View {
                     ForEach(notes) { note in
                         NoteRow(note: note, date: note.deletedAt)
                             .contentShape(Rectangle())
-                            .onTapGesture { restore(note) }
+                            .onTapGesture { chosen = note }
                             .listRowInsets(EdgeInsets())
                             .listRowBackground(Theme.bg)
                             .noteSeparator(isLast: note.id == notes.last?.id)
@@ -72,6 +74,12 @@ struct TrashView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .confirmationDialog(chosen?.title ?? "", isPresented: Binding(
+                    get: { chosen != nil }, set: { if !$0 { chosen = nil } }
+                ), titleVisibility: .visible, presenting: chosen) { note in
+                    Button("Put back") { restore(note) }
+                    Button("Delete for good", role: .destructive) { erase(note) }
+                }
             }
         }
         .background(Theme.bg.ignoresSafeArea())
