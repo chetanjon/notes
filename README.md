@@ -214,8 +214,14 @@ shake takes it back. A fifth, Reminders, has the model find the dates and
 times in the note (`OnDevice.reminders`, told today's date so "tuesday"
 lands on one; `ReminderStamp` parses what it writes) and shows them on a
 sheet; one tap puts the chosen ones in the iPhone's Reminders app through
-EventKit (`Reminders.add`), which is the app's only permission prompt,
-asked at that tap and never before. The note is not changed. Holding the
+EventKit (`Reminders.add`), asked at that tap and never before, or, with
+"Notify me", a one-time local notification from the app at the time, the
+note's title and the line, a tap opening the note (`Notify`,
+`NotificationRouter`; `NotifyPlan`, tested, names each one per note and
+line and finds the ones a later edit no longer backs, which are cancelled
+on save; the Trash cancels a note's). No repeats or snooze; those are the
+Reminders app's. Notifications are asked for at that tap. The note is
+not changed. Holding the
 pencil in the list dictates a note: iOS's speech recognition with
 on-device recognition required (`SpeechListener`; where the language has
 none, the app does not listen), the words shown as they are heard, and

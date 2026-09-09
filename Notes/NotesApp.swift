@@ -1,6 +1,7 @@
 import CoreSpotlight
 import SwiftData
 import SwiftUI
+import UserNotifications
 
 @main
 struct NotesApp: App {
@@ -12,6 +13,11 @@ struct NotesApp: App {
         StepCounterIntent.handler = { noteID, line, delta in
             NoteStore.stepCounter(noteID: noteID, line: line, delta: delta)
         }
+        // A tapped notification opens its note; one that lands while the
+        // app is open shows as a banner.
+        let navigation = self.navigation
+        NotificationRouter.shared.open = { id in navigation.open(id) }
+        UNUserNotificationCenter.current().delegate = NotificationRouter.shared
     }
 
     var body: some Scene {

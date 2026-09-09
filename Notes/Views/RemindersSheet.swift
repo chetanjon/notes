@@ -1,18 +1,29 @@
 import SwiftUI
 
 /// What the model found in the note, each with a circle to leave it out,
-/// and one button that puts the rest in the iPhone's Reminders app.
+/// and two ways to keep the rest: the iPhone's Reminders app, or a
+/// notification from this app at the time, which opens the note.
 struct RemindersSheet: View {
     let found: [Reminders.Found]
+    let noteID: UUID
+    let noteTitle: String
+    /// Called with how many notifications were set, before the sheet goes.
+    var onNotified: (Int) -> Void = { _ in }
+
     @Environment(\.dismiss) private var dismiss
     @State private var chosen: Set<String>
-    @State private var adding = false
-    @State private var refused = false
+    @State private var working = false
+    @State private var trouble: String?
 
-    init(found: [Reminders.Found]) {
+    init(found: [Reminders.Found], noteID: UUID, noteTitle: String, onNotified: @escaping (Int) -> Void = { _ in }) {
         self.found = found
+        self.noteID = noteID
+        self.noteTitle = noteTitle
+        self.onNotified = onNotified
         _chosen = State(initialValue: Set(found.map(\.id)))
     }
+
+    private var picked: [Reminders.Found] { found.filter { chosen.contains($0.id) } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -48,25 +59,20 @@ struct RemindersSheet: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
-                if refused {
-                    Text("Reminders access is off. Turn it on in Settings › Privacy & Security › Reminders.")
+                if let trouble {
+                    Text(trouble)
                         .font(Theme.Font.label)
                         .foregroundStyle(Theme.muted)
                         .padding(.horizontal, Theme.pagePadding)
                         .padding(.bottom, 12)
                 }
-                Button {
-                    add()
-                } label: {
-                    Text(adding ? "Adding…" : chosen.count == 1 ? "Add 1 to Reminders" : "Add \(chosen.count) to Reminders")
-                        .font(Theme.Font.toolbar)
-                        .foregroundStyle(Theme.bg)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: Theme.tapTarget + 6)
-                        .background(Theme.fg, in: Capsule())
+                VStack(spacing: 10) {
+                    // From this app, at the time, opening the note.
+                    pill(working ? "Setting…" : count("Notify me for %ld"), filled: true) { notify() }
+                    // Apple's app, with its repeats and snooze.
+                    pill(count("Add %ld to Reminders"), filled: false) { add() }
                 }
-                .buttonStyle(PressedButtonStyle())
-                .disabled(chosen.isEmpty || adding)
+                .disabled(chosen.isEmpty || working)
                 .opacity(chosen.isEmpty ? 0.35 : 1)
                 .padding(.horizontal, Theme.pagePadding)
                 .padding(.bottom, 20)
@@ -77,6 +83,24 @@ struct RemindersSheet: View {
         .presentationDetents([.medium, .large])
         .presentationBackground(Theme.bg)
         .presentationDragIndicator(.visible)
+    }
+
+    private func count(_ form: String) -> String {
+        String(format: form, chosen.count)
+    }
+
+    /// A white pill, or an outlined one for the second choice.
+    private func pill(_ label: String, filled: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .font(Theme.Font.toolbar)
+                .foregroundStyle(filled ? Theme.bg : Theme.fg)
+                .frame(maxWidth: .infinity)
+                .frame(height: Theme.tapTarget + 6)
+                .background(filled ? Theme.fg : Theme.bg, in: Capsule())
+                .overlay(Capsule().strokeBorder(Theme.fg, lineWidth: filled ? 0 : 1))
+        }
+        .buttonStyle(PressedButtonStyle())
     }
 
     private func row(_ item: Reminders.Found) -> some View {
@@ -105,14 +129,36 @@ struct RemindersSheet: View {
     }
 
     private func add() {
-        let picked = found.filter { chosen.contains($0.id) }
-        guard !picked.isEmpty, !adding else { return }
-        adding = true
-        refused = false
+        let items = picked
+        guard !items.isEmpty, !working else { return }
+        working = true
+        trouble = nil
         Task { @MainActor in
-            let done = await Reminders.add(picked)
-            adding = false
-            if done { dismiss() } else { refused = true }
+            let done = await Reminders.add(items)
+            working = false
+            if done { dismiss() } else {
+                trouble = "Reminders access is off. Turn it on in Settings › Privacy & Security › Reminders."
+            }
+        }
+    }
+
+    private func notify() {
+        let items = picked.filter { $0.due > .now }
+        guard !items.isEmpty, !working else {
+            trouble = "Those times have passed."
+            return
+        }
+        working = true
+        trouble = nil
+        Task { @MainActor in
+            let done = await Notify.schedule(items, noteID: noteID, noteTitle: noteTitle)
+            working = false
+            if done {
+                onNotified(items.count)
+                dismiss()
+            } else {
+                trouble = "Notifications are off for Matte. Turn them on in Settings › Notifications › Notes."
+            }
         }
     }
 }
