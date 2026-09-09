@@ -110,7 +110,9 @@ struct EditorView: View {
             }
         }
         .sheet(isPresented: $showingReminders) {
-            RemindersSheet(found: foundReminders)
+            RemindersSheet(found: foundReminders, noteID: note.id, noteTitle: NoteText.title(text)) { count in
+                show(count == 1 ? "Notification set" : "\(count) notifications set")
+            }
         }
         .onChange(of: text) { _, newValue in
             scheduleSave(newValue)

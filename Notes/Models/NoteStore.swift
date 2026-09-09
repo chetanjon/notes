@@ -44,6 +44,7 @@ enum NoteStore {
         note.deletedAt = .now
         save(context)
         NoteIndex.remove([note.id])
+        Notify.cancel(noteIDs: [note.id])
         if wasPinned { showOnLockScreen(nil) }
     }
 
@@ -62,6 +63,7 @@ enum NoteStore {
         context.delete(note)
         save(context)
         NoteIndex.remove([id])
+        Notify.cancel(noteIDs: [id])
         if wasPinned { showOnLockScreen(nil) }
     }
 
@@ -71,6 +73,7 @@ enum NoteStore {
         for note in notes { context.delete(note) }
         save(context)
         NoteIndex.remove(ids)
+        Notify.cancel(noteIDs: ids)
     }
 
     /// Deletes every note that has sat in the Trash past `Trash.retention`.
@@ -84,6 +87,7 @@ enum NoteStore {
         for note in expired { context.delete(note) }
         save(context)
         NoteIndex.remove(ids)
+        Notify.cancel(noteIDs: ids)
     }
 
     private static func trashed(in context: ModelContext) -> [Note] {
@@ -97,6 +101,8 @@ enum NoteStore {
         note.updatedAt = .now
         save(context)
         if !note.isTrashed { NoteIndex.index(note) }
+        // A notification whose line left the note goes with it.
+        Notify.reconcile(noteID: note.id, text: text)
         if note.isPinned {
             showOnLockScreen(note.pinned)
             summarizeOnLockScreen(note)
