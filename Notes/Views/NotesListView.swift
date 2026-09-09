@@ -248,14 +248,12 @@ struct NotesListView: View {
         let answered = matched.isEmpty || (picks?.isEmpty == false) ? picks : nil
         // The letters first, then anything the model added: a note that
         // literally contains what was typed must never drop off the list
-        // because the model preferred others.
-        let rows: [Note]
-        if let answered {
-            let seen = Set(matched.map(\.id))
-            rows = matched + answered.filter { !seen.contains($0.id) }
-        } else {
-            rows = matched
-        }
+        // because the model preferred others. One expression, not an
+        // if/else: this is a ViewBuilder, and a statement there is read as
+        // content rather than as a value.
+        let rows = answered.map { picks in
+            matched + picks.filter { pick in !matched.contains { $0.id == pick.id } }
+        } ?? matched
         if notes.isEmpty {
             Text("No notes yet. Tap the pen to write one.")
                 .font(Theme.Font.rowBody)
