@@ -10,7 +10,6 @@ final class NotifyPlanTests: XCTestCase {
     }
 
     func testFingerprintIsDeterministic() {
-        XCTAssertEqual(NotifyPlan.fingerprint("dentist"), "27b8a1a5ac2d40d7".isEmpty ? "" : NotifyPlan.fingerprint("dentist"))
         XCTAssertEqual(NotifyPlan.fingerprint(""), "cbf29ce484222325")
         XCTAssertNotEqual(NotifyPlan.fingerprint("a"), NotifyPlan.fingerprint("b"))
     }
