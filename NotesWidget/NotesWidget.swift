@@ -445,7 +445,7 @@ struct RecentNotesWidget: Widget {
         StaticConfiguration(kind: "NotesRecent", provider: RecentProvider()) { entry in
             RecentNotesView(entry: entry)
         }
-        .configurationDisplayName("Notes")
+        .configurationDisplayName("Recent notes")
         .description("Your latest notes. The small one is the pinned note; the round one opens the app.")
         .supportedFamilies([.accessoryCircular, .systemSmall, .systemMedium, .systemLarge])
     }
