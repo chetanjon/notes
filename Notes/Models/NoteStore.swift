@@ -104,9 +104,25 @@ enum NoteStore {
     }
 
     /// The editor showed the note: it moves to the top of the list.
-    static func markOpened(_ note: Note, in context: ModelContext) {
+    /// Returns when it was last opened before this, nil for never.
+    @discardableResult
+    static func markOpened(_ note: Note, in context: ModelContext) -> Date? {
+        let previous = note.openedAt
         note.openedAt = .now
         save(context)
+        return previous
+    }
+
+    /// Every note that is not in the Trash and not blank, as the model reads
+    /// them, leaving out `excluded`: the older notes a new one is checked
+    /// against.
+    static func liveCards(in context: ModelContext, excluding excluded: UUID) -> [NoteFinder.Card] {
+        let notes = (try? context.fetch(FetchDescriptor<Note>(
+            predicate: #Predicate { $0.deletedAt == nil }))) ?? []
+        return notes
+            .filter { $0.id != excluded && !$0.isBlank }
+            .sorted { $0.touchedAt > $1.touchedAt }
+            .map { NoteFinder.Card(id: $0.id, text: $0.text) }
     }
 
     /// Only one note is pinned at a time; pinning a new one unpins the old.

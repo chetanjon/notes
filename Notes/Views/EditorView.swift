@@ -7,6 +7,7 @@ struct EditorView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(Navigation.self) private var navigation
     let note: Note
 
     @State private var text: String
@@ -23,6 +24,24 @@ struct EditorView: View {
     /// of the date line for a moment.
     @State private var notice: String?
     @State private var noticeTimer: Task<Void, Never>?
+    /// "Where did I leave off?": the brief in place of the date line, until
+    /// a tap or a keystroke.
+    @State private var brief: String?
+    /// "You've thought about this before": an older note that bears on what
+    /// is being written; a tap opens it.
+    @State private var recall: RecallHint?
+    @State private var recallTask: Task<Void, Never>?
+    /// Notes already brought up in this sitting, so one comes up once.
+    @State private var recalled: Set<UUID> = []
+
+    struct RecallHint: Equatable {
+        var id: UUID
+        var title: String
+        var said: String
+    }
+
+    /// The recall waits this long after the last keystroke.
+    private static let recallDelay: Duration = .milliseconds(2500)
     /// What "Reminders" found, shown on a sheet.
     @State private var foundReminders: [Reminders.Found] = []
     @State private var showingReminders = false
@@ -44,13 +63,35 @@ struct EditorView: View {
             bar
             // When the note was last edited, in the muted grey, where the
             // list used to say it. It follows each autosave.
-            Text(notice ?? DateFormat.stamp(note.updatedAt))
+            Text(brief ?? notice ?? DateFormat.stamp(note.updatedAt))
                 .font(Theme.Font.label)
                 .foregroundStyle(Theme.muted)
+                .lineLimit(brief == nil ? 1 : 4)
                 .padding(.horizontal, Theme.pagePadding)
                 .padding(.top, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture { brief = nil }
                 .animation(.easeOut(duration: 0.15), value: notice)
+                .animation(.easeOut(duration: 0.15), value: brief)
+            if let recall {
+                // An older note that bears on this one. Tap to open it; the
+                // note here saves on the way out, as always.
+                Button {
+                    navigation.open(recall.id)
+                } label: {
+                    Text("You wrote about this in \(recall.title): “\(recall.said)”")
+                        .font(Theme.Font.label)
+                        .foregroundStyle(Theme.muted)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                        .padding(.horizontal, Theme.pagePadding)
+                        .padding(.top, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .transition(.opacity)
+            }
             ChecklistTextView(text: $text, isFocused: $isFocused, command: $command)
                 .padding(.horizontal, Theme.pagePadding - 5)
         }
@@ -59,15 +100,22 @@ struct EditorView: View {
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             // The list is in order of use; this note goes to the top.
-            NoteStore.markOpened(note, in: context)
+            let lastOpened = NoteStore.markOpened(note, in: context)
             // So the first sparkle tap answers as fast as the second.
             OnDevice.prewarm()
+            // Back after a day to a note with something in it: where it stands.
+            if OnDevice.isAvailable, Brief.wanted(for: text),
+               Date.now.timeIntervalSince(lastOpened ?? .distantPast) > Brief.away {
+                loadBrief(onDemand: false)
+            }
         }
         .sheet(isPresented: $showingReminders) {
             RemindersSheet(found: foundReminders)
         }
         .onChange(of: text) { _, newValue in
             scheduleSave(newValue)
+            brief = nil
+            scheduleRecall(newValue)
         }
         .onChange(of: note.text) { _, synced in
             // Another device edited this note while it was open.
@@ -81,6 +129,7 @@ struct EditorView: View {
         .onDisappear {
             deleteTimer?.cancel()
             noticeTimer?.cancel()
+            recallTask?.cancel()
             guard !isDeleted else { return }
             saveTask?.cancel()
             saveTask = nil
@@ -123,6 +172,8 @@ struct EditorView: View {
                         .disabled(!canSortList || !OnDevice.isAvailable)
                     Button("Reminders", systemImage: "bell") { findReminders() }
                         .disabled(isBlank || !OnDevice.isAvailable)
+                    Button("Where did I leave off?", systemImage: "clock.arrow.circlepath") { loadBrief(onDemand: true) }
+                        .disabled(!Brief.wanted(for: text) || !OnDevice.isAvailable)
                 } label: {
                     Image(systemName: "sparkles")
                         .font(Theme.Font.barGlyph)
@@ -257,6 +308,42 @@ struct EditorView: View {
             working = false
             foundReminders = found ?? []
             showingReminders = true
+        }
+    }
+
+    /// The brief: what the note has settled, what is open, what is next,
+    /// in place of the date line. On demand the spinner shows meanwhile.
+    private func loadBrief(onDemand: Bool) {
+        guard Brief.wanted(for: text), !working else { return }
+        if onDemand { working = true }
+        let snapshot = text
+        Task { @MainActor in
+            let made = await OnDevice.brief(for: snapshot)
+            if onDemand { working = false }
+            guard text == snapshot else { return }
+            if let made { brief = made.line } else if onDemand { show("Nothing to sum up yet") }
+        }
+    }
+
+    /// A pause in typing: is there an older note that bears on this? Only
+    /// when the note has enough words, only for a note that shares three
+    /// words or more with it, and each older note once per sitting.
+    private func scheduleRecall(_ value: String) {
+        recallTask?.cancel()
+        guard OnDevice.isAvailable, ModelGuard.words(value).count >= Recall.minimumWords else { return }
+        recallTask = Task { @MainActor in
+            try? await Task.sleep(for: Self.recallDelay)
+            guard !Task.isCancelled else { return }
+            let candidates = Recall.candidates(for: value, among: NoteStore.liveCards(in: context, excluding: note.id))
+                .filter { !recalled.contains($0.id) }
+            guard !candidates.isEmpty else { return }
+            guard let found = await OnDevice.recall(writing: value, candidates: candidates),
+                  !Task.isCancelled,
+                  let older = NoteStore.note(withID: found.id, in: context) else { return }
+            recalled.insert(found.id)
+            withAnimation(.easeOut(duration: 0.2)) {
+                recall = RecallHint(id: found.id, title: older.title, said: found.said)
+            }
         }
     }
 
