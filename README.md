@@ -1,7 +1,7 @@
 # Notes
 
-A dark, minimal notes app for iPhone, sold on the App Store as **Matte** (the
-Home Screen icon says Notes). Black and white, dark mode only. Write, edit,
+A dark, minimal notes app for iPhone, called **Matte** on the App Store and
+on the Home Screen. Black and white, dark mode only. Write, edit,
 delete, search, checklists, and one extra: pin a note to the Lock Screen.
 Notes sync between your own devices through iCloud; there are no accounts and
 no server.
@@ -144,9 +144,7 @@ Matte" (which opens the app, since a Live Activity can only be started
 from the foreground), "What's on Groceries in Matte" (Siri reads the open
 items, or a plain note's first lines: `NoteText.spoken`), and "Tick
 something off Groceries in Matte" (Siri asks which; the first open item
-that is or contains the words is marked done: `Checklist.ticking`). "In
-Notes" works too; `INAlternativeAppNames` in `project.yml` adds Matte
-because Apple's own Notes owns the plain word.
+that is or contains the words is marked done: `Checklist.ticking`).
 Siri learns the note titles from `NoteQuery.suggestedEntities`, refreshed
 on each foreground.
 

@@ -162,7 +162,7 @@ struct RemindersSheet: View {
                 onNotified(items.count)
                 dismiss()
             } else {
-                trouble = "Notifications are off for Matte. Turn them on in Settings › Notifications › Notes."
+                trouble = "Notifications are off for Matte. Turn them on in Settings › Notifications › Matte."
             }
         }
     }
