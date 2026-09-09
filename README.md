@@ -236,6 +236,23 @@ forty percent keeps its original, a dictation that lost half its words is
 kept as spoken. When an action changes nothing, the date line under the
 bar says why for a moment.
 
+Two things reach across time, both on the on-device model and both quiet.
+"Where did I leave off?": opening a plain note with three body lines or
+more that was last opened over a day ago (`openedAt`), the line under the
+bar becomes a brief in the note's own words, "Decided: October, $3,000
+budget. Open: pick a hotel. Next: compare the two near the station."
+(`OnDevice.brief`, `Brief`, tested; every part must be in the note's words
+or it is dropped; cached by text), gone at a tap or a keystroke, and
+there on demand in the sparkle menu. "You've thought about this before":
+2.5 seconds after typing stops in a note with eight content words or more,
+the other notes are ranked by shared words (`Recall.candidates`, tested;
+three shared words at least, five candidates at most, so most pauses cost
+nothing) and the model is asked whether one of them says something that
+bears on what is being written (`OnDevice.recall`; what it said must be
+in that note's words). If so, a line under the bar: "You wrote about this
+in Standing desk: 'standing hurt my knee for a week'", a tap opening that
+note; each older note comes up once per sitting.
+
 Two places iOS decides, not the spec: a swipe action paints its label white
 whatever the tint and draws it in its own shape, so the swipe-to-delete is
 a dark grey circle with a white trash glyph rather than the spec's white

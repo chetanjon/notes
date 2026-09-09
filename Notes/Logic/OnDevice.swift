@@ -134,6 +134,46 @@ enum OnDevice {
         return nil
     }
 
+    /// Briefs already written, by text: the same note gives the same brief
+    /// without a second call.
+    private static var briefs: [(text: String, brief: Brief)] = []
+
+    /// "Where did I leave off?": what the note has settled, what is still
+    /// open, and what to do next, in the note's own words. Nil when there
+    /// is no model or it found nothing to say.
+    static func brief(for text: String) async -> Brief? {
+        if let hit = briefs.first(where: { $0.text == text }) { return hit.brief }
+        #if canImport(FoundationModels)
+        if #available(iOS 26, *), isAvailable, text.count < limit,
+           let made = try? await Model.brief(for: text),
+           let brief = Brief.kept(decided: made.decided, open: made.open, next: made.next, from: text) {
+            briefs.append((text, brief))
+            if briefs.count > 16 { briefs.removeFirst() }
+            return brief
+        }
+        #endif
+        return nil
+    }
+
+    /// "You've thought about this before": which of the candidate notes
+    /// bears on what is being written, and what it said, in that note's
+    /// own words. Nil when none does, or there is no model.
+    static func recall(writing: String, candidates: [NoteFinder.Card]) async -> (id: UUID, said: String)? {
+        #if canImport(FoundationModels)
+        if #available(iOS 26, *), isAvailable, !candidates.isEmpty, writing.count < limit,
+           let made = try? await Model.recall(writing: writing, candidates: candidates),
+           made.note >= 1, made.note <= candidates.count {
+            let card = candidates[made.note - 1]
+            let said = made.said.trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"“”"))
+            if !said.isEmpty, ModelGuard.wordCount(said) <= 20, ModelGuard.sharesWords(said, with: card.text) {
+                return (card.id, said)
+            }
+        }
+        #endif
+        return nil
+    }
+
     /// A dictation as a note: a title, the words with spelling and
     /// punctuation fixed and filler dropped, each spoken task or item on a
     /// line of its own as a checklist item. Nil where there is no model, it
@@ -318,6 +358,81 @@ enum OnDevice {
                 """)
             let response = try await session.respond(to: text, generating: DatedList.self, options: options)
             return response.content.items
+        }
+
+        // MARK: Where did I leave off
+
+        @Generable
+        struct Standing {
+            @Guide(description: "What the note has settled, each a few words in the note's own words.", .maximumCount(3))
+            var decided: [String]
+            @Guide(description: "What is still undecided or not done, each a few words in the note's own words.", .maximumCount(3))
+            var open: [String]
+            @Guide(description: "The one next step the note points to, a few words, or empty.")
+            var next: String
+        }
+
+        static func brief(for text: String) async throws -> Standing {
+            let session = LanguageModelSession(instructions: """
+                The user is coming back to a note after a while. Say where it stands, in the \
+                note's own words: what has been decided, what is still open, and the next \
+                step. Only what the note says; nothing added. Empty lists are fine.
+
+                Example note:
+                Japan trip
+                October, two weeks. Budget $3,000.
+                Hotels: one near the station, one by the park. Not decided.
+                Need to compare prices this weekend.
+                Gives: decided October, two weeks; $3,000 budget. open which hotel. next \
+                compare prices this weekend.
+
+                Example note:
+                Walking app
+                Record voice while walking, screen off, one button.
+                Transcribe at home, not live. Name still open: Stride or Amble.
+                Gives: decided record voice while walking; transcribe at home. open the name, \
+                Stride or Amble. next (empty).
+                """)
+            let response = try await session.respond(to: text, generating: Standing.self, options: options)
+            return response.content
+        }
+
+        // MARK: You've thought about this before
+
+        @Generable
+        struct Recalled {
+            @Guide(description: "The number of the older note that bears on what is being written, or 0 when none does.")
+            var note: Int
+            @Guide(description: "What that older note said about it, in its own words, under twenty words. Empty when note is 0.")
+            var said: String
+        }
+
+        static func recall(writing: String, candidates: [NoteFinder.Card]) async throws -> Recalled {
+            let listing = candidates.enumerated()
+                .map { "\($0.offset + 1). \(NoteText.oneLine($0.element.text, limit: NoteFinder.cardLimit))" }
+                .joined(separator: "\n")
+            let session = LanguageModelSession(instructions: """
+                The user is writing a note. You get what they are writing and a numbered list \
+                of their older notes. If one of the older notes says something they should \
+                remember about the same thing, give its number and what it said, in its own \
+                words. If none does, give 0. Do not stretch: the same topic is not enough; it \
+                must say something that bears on what is being written.
+
+                Example writing: Thinking about getting a standing desk for the study.
+                Older notes:
+                1. Shop: milk, eggs, bread
+                2. Standing desk: tried standing all day at work, knee hurt for a week, back to sitting
+                Gives: note 2; said "standing all day hurt my knee for a week"
+
+                Example writing: Book ideas: a novel set in a lighthouse.
+                Older notes:
+                1. Reading list: The Lighthouse by Woolf, Dune
+                2. Trip: Cornwall in May, see the lighthouse at Lizard Point
+                Gives: note 0; said empty
+                """)
+            let response = try await session.respond(
+                to: "Writing: \(writing)\n\nOlder notes:\n\(listing)", generating: Recalled.self, options: options)
+            return response.content
         }
 
         // MARK: Dictation
