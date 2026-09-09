@@ -36,6 +36,9 @@ targets:
     info:
       path: Notes/Info.plist
       properties:
+        # The name Siri and the Shortcuts app know the app by, so "in Matte"
+        # in a phrase is this app and not an App Store search.
+        CFBundleName: Matte
         CFBundleDisplayName: Matte
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
@@ -101,6 +104,7 @@ targets:
     info:
       path: NotesWidget/Info.plist
       properties:
+        CFBundleName: Matte
         CFBundleDisplayName: Matte
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)

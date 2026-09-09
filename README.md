@@ -103,9 +103,11 @@ and reloads WidgetKit whenever the pin changes; the widget only reads that.
 
 ## The widgets
 
-Three widgets, all in the system's colours on the system's widget
-background, so they look like the phone's own: translucent on the Home
-Screen, vibrant on the Lock Screen.
+Three widgets, all in the system's colours. On the Home Screen they sit
+on a solid ground, white in light mode and black in dark, never
+translucent, so the wallpaper never washes them out; on the Lock Screen
+they sit on the system's accessory pill and are accentable, so the tinted
+and vibrant modes keep them legible.
 
 - **Notes.** Round, on the Lock Screen, it is the app's logo (`LogoMark`,
   the icon's three bars drawn from the numbers in `scripts/make-icon.py`),
@@ -208,10 +210,11 @@ with its neighbour keeps its original (`ModelGuard.tidyKeeps`, tested), so
 lines are never merged. With the model there are three more (`OnDevice`):
 Add a title, which reads the note and puts a few words on a new first
 line; Sort the list, for a checklist of three items or more, which has the
-model group the items by kind (the same aisle, the same place) and gives
-back their order (`Checklist.items`, `reordering`; anything but a
-permutation of the items means no change, and so does a list that changed
-under the spinner); and Where did I leave off, below. Ticks and plain
+model label each item with its kind (dairy, hardware, calls) and puts the
+items of a kind together in the order the kinds first appear
+(`ListSorter.order`, tested: a missing or repeated number means no change,
+and so does a list that changed under the spinner; `Checklist.items`,
+`reordering`); and Where did I leave off, below. Ticks and plain
 lines stay where they are. Each is one edit, so a shake takes it back.
 Reminders finds the dates and times in the note on any iPhone:
 `DateSpotter` (tested) reads each line, and each part of a line between
@@ -275,9 +278,8 @@ whatever the tint and draws it in its own shape, so the swipe-to-delete is
 a dark grey circle with a white trash glyph rather than the spec's white
 block with black text; the widget's text uses the Lock Screen's own
 rendering, so it is always white on the wallpaper; and the Live Activity
-is a translucent black over the system's blur, dark with the wallpaper
-showing through like other apps' cards, with the system's text colours,
-because iOS's own default material for Live Activities is near-opaque.
+is solid black, the app's own ground, with white text, so it reads the
+same on every wallpaper.
 
 Not built, on purpose: folders, tags, colours, rich text, attachments,
 sharing, accounts, and light mode.

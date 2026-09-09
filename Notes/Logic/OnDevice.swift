@@ -106,16 +106,15 @@ enum OnDevice {
     }
 
     /// The items grouped by kind, as a new order: each item's index exactly
-    /// once, first for the top. Nil when there is no model, when it gave
-    /// anything but a permutation, or when it changed nothing.
+    /// once, first for the top. The model labels each item with its kind
+    /// and `ListSorter` turns the labels into the order. Nil when there is
+    /// no model, when a label is missing, or when nothing would move.
     static func sorted(_ items: [String]) async -> [Int]? {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, items.count >= 3,
            items.joined(separator: "\n").count < limit,
-           let made = try? await Model.sorted(items) {
-            let order = made.map { $0 - 1 }
-            if order.count == items.count, Set(order) == Set(items.indices),
-               order != Array(items.indices) { return order }
+           let made = try? await Model.grouped(items) {
+            return ListSorter.order(groups: made.map { (number: $0.number, group: $0.group) }, count: items.count)
         }
         #endif
         return nil
@@ -190,9 +189,10 @@ enum OnDevice {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, dictation.count < limit,
            let made = try? await Model.cleaned(dictation: dictation) {
-            let body = made.lines.joined(separator: "\n")
+            let lines = made.lines.map { $0.isItem ? "- " + $0.text : $0.text }
+            let body = made.lines.map(\.text).joined(separator: "\n")
             guard ModelGuard.kept(of: dictation, in: made.title + "\n" + body) >= 0.5 else { return nil }
-            let text = Dictation.compose(title: made.title, lines: made.lines)
+            let text = Dictation.compose(title: made.title, lines: lines)
             if !NoteText.isBlank(text) { return text }
         }
         #endif
@@ -298,18 +298,26 @@ enum OnDevice {
         // MARK: Sort
 
         @Generable
-        struct Order {
-            @Guide(description: "Every item's number exactly once, in the new order: items of the same kind next to each other.")
-            var order: [Int]
+        struct Labelled {
+            @Guide(description: "The item's number.")
+            var number: Int
+            @Guide(description: "The kind of thing it is, one or two words: dairy, hardware, calls, packing, fruit.")
+            var group: String
         }
 
-        static func sorted(_ items: [String]) async throws -> [Int] {
+        @Generable
+        struct Groups {
+            @Guide(description: "One entry for every item, in the list's own order.")
+            var items: [Labelled]
+        }
+
+        static func grouped(_ items: [String]) async throws -> [Labelled] {
             let listing = items.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
             let session = LanguageModelSession(instructions: """
-                You reorder a numbered checklist so items of the same kind sit next to each \
-                other: things from the same shop aisle, errands in the same place, tasks that \
-                belong together. Give back the numbers in the new order, every number exactly \
-                once, none added.
+                You label each item of a numbered checklist with the kind of thing it is, so \
+                items of the same kind can be put together: the same shop aisle, errands in \
+                the same place, tasks that belong together. Use the same label for items of \
+                the same kind. One entry for every item, by number.
 
                 Example:
                 1. milk
@@ -317,17 +325,17 @@ enum OnDevice {
                 3. cheese
                 4. light bulb
                 5. yoghurt
-                Gives: 1, 3, 5, 2, 4
+                Gives: 1 dairy, 2 hardware, 3 dairy, 4 hardware, 5 dairy
 
                 Example:
                 1. book flights
                 2. call mum
                 3. pack charger
                 4. text dad
-                Gives: 1, 3, 2, 4
+                Gives: 1 travel, 2 calls, 3 travel, 4 calls
                 """)
-            let response = try await session.respond(to: listing, generating: Order.self, options: options)
-            return response.content.order
+            let response = try await session.respond(to: listing, generating: Groups.self, options: options)
+            return response.content.items
         }
 
         // MARK: Reminders
@@ -453,11 +461,19 @@ enum OnDevice {
         // MARK: Dictation
 
         @Generable
+        struct SpokenLine {
+            @Guide(description: "The line, in the speaker's own words, spelling and punctuation fixed, filler dropped.")
+            var text: String
+            @Guide(description: "True when the line is one task or one thing on a list; false for a sentence.")
+            var isItem: Bool
+        }
+
+        @Generable
         struct Spoken {
             @Guide(description: "Two to five words in the speaker's language, no full stop.")
             var title: String
-            @Guide(description: "The note's lines in the speaker's own words, spelling and punctuation fixed, filler words dropped. A list of tasks or things: each on its own line starting with '- '.")
-            var lines: [String]
+            @Guide(description: "The note's lines, one per task or thing when the speech is a list, one per sentence otherwise.")
+            var lines: [SpokenLine]
         }
 
         static func cleaned(dictation: String) async throws -> Spoken {
@@ -466,22 +482,18 @@ enum OnDevice {
                 five words, then the note as lines in the speaker's own words with spelling \
                 and punctuation fixed and filler ("um", "so", "like", "you know") dropped. Add \
                 nothing that was not said. When the speech is a list of tasks or things to buy, \
-                put each on its own line starting with "- ".
+                each goes on its own line as an item (isItem true); a sentence is a line that \
+                is not an item.
 
                 Example heard: um so for the shop I need milk eggs and uh bread and also call \
                 the dentist tuesday
                 Title: Shop and dentist
-                Lines:
-                - Milk
-                - Eggs
-                - Bread
-                - Call the dentist Tuesday
+                Lines: Milk (item), Eggs (item), Bread (item), Call the dentist Tuesday (item)
 
                 Example heard: idea for the walking app like it should just record voice while \
                 you walk and then you know make it text later
                 Title: Walking app idea
-                Lines:
-                Record voice while you walk, then make it text later.
+                Lines: Record voice while you walk, then make it text later. (not an item)
                 """)
             let response = try await session.respond(to: dictation, generating: Spoken.self, options: options)
             return response.content
