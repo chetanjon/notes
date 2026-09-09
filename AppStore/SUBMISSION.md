@@ -19,11 +19,36 @@ text the forms ask for.
   `/docs`), then open https://chetanjon.github.io/notes/privacy.html in a
   browser and confirm it loads before you fill in the form.
 
+## 0. Two account gates
+
+Neither is about the app, and both block a submission, so clear them first.
+
+1. **The licence agreement.** App Store Connect shows a yellow banner when
+   Apple has updated the Apple Developer Program License Agreement. Only
+   the Account Holder can accept it: developer.apple.com/account → Agreements.
+   Until it is accepted, no new app can be submitted.
+2. **Trader status (EU Digital Services Act).** App Store Connect →
+   **Business** → Complete Compliance Requirements. A free app published by
+   an individual with no company: **"I'm not a trader under the DSA"**, which
+   keeps a home address and phone number off the product page. A paid app
+   makes you a trader, and those details are displayed. Without an answer the
+   app is not distributed in the EU.
+
+The **Free Apps Agreement** is active on the account by default and is all a
+free app needs. The **Paid Apps Agreement** is deliberately not signed: it
+wants bank and US tax details, and Apple's approval of those takes days. A
+price can be added later, and signing the agreement then is the only extra
+step.
+
 ## 1. The store name
 
 **Matte**, with **Matte Notes** as the fallback if the Name field refuses
 it. "Notes" alone is taken; the Home Screen icon says Matte as well. The
 next step needs the name and it is awkward to change later.
+
+Settled on 9 September 2026: the record exists as **Matte**, bundle
+`com.cj.notes`, SKU `notes-ios`, primary language English (U.S.), price
+**Free** in all territories, non-trader.
 
 ## 2. Create the app record
 
@@ -97,7 +122,10 @@ Left sidebar, still to do once each:
    rights: no third-party content. Privacy Policy URL.
 9. **Pricing and Availability**: Free, all territories.
 10. **App Privacy**: Get Started → Data Not Collected → Publish.
-11. **Age Rating**: Edit → none of the above for everything → 4+.
+11. **Age Rating**: Edit → none of the above for everything → 4+. The
+    questionnaire now asks about social-media capabilities as well; the
+    answer is no to all of them (the app has no accounts, no feed, no
+    messaging, and no user-to-user content).
 
 ## 6. Submit
 

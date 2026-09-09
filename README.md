@@ -109,11 +109,12 @@ translucent, so the wallpaper never washes them out; on the Lock Screen
 they sit on the system's accessory pill and are accentable, so the tinted
 and vibrant modes keep them legible.
 
-- **Notes.** Round, on the Lock Screen, it is the app's logo (`LogoMark`,
-  the icon's three bars drawn from the numbers in `scripts/make-icon.py`),
-  and a tap opens the app. Medium and large, on the Home Screen, it lists
-  the latest notes, three or seven, the pinned one first, each a link to
-  itself, with the pencil at the side. The app writes the list
+- **Recent notes.** Round, on the Lock Screen, it is the app's logo
+  (`LogoMark`, the icon's three bars drawn from the numbers in
+  `scripts/make-icon.py`), and a tap opens the app. Small, on the Home
+  Screen, it is the pinned note or the latest one. Medium and large, it
+  lists the latest notes, four or nine, the pinned one first, each a link
+  to itself, with the pencil in the corner. The app writes the list
   (`RecentStore`, in the App Group) after every save and on each
   foreground, blank notes left out; the widget only reads it.
 - **New note.** Round, on the Lock Screen, or small, on the Home Screen: the

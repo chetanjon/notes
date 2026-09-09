@@ -39,25 +39,25 @@ Matte is a notes app with nothing in the way, and Apple Intelligence where it he
 It is black and white and dark only. Open it and write. The first line is the title. Everything saves as you type; there is no save button and nothing to set up.
 
 APPLE INTELLIGENCE, WHERE IT HELPS
-On an iPhone with Apple Intelligence, the smart parts are built in and run on the phone. Select text and use Writing Tools to proofread, rewrite, or summarize, right in the note; a checklist comes through intact. Tap Make a list and a paragraph or a dictated jumble ("milk eggs and call the dentist tuesday") becomes checklist items, one per task, in your own words, using Apple's on-device model. Add a title reads the note and gives it one. Tidy up makes every line read cleanly, in your own words. Sort the list groups a checklist by kind, dairy with dairy and errands with errands. Reminders finds the dates and times in a note ("dentist tuesday 3pm") and, with one tap, puts them in your Reminders app or sets a notification from Matte that opens the note at the time. Hold the pencil and speak: the note lands with a title, clean spelling, and a checklist where you spoke a list, with speech turned into text on the phone. Come back to a note after a day and it tells you where you left off: what you decided, what is open, what is next. And while you write, if an older note says something you should remember, it comes up under the bar. Nothing you write or say leaves the phone for any of it. On other iPhones, Make a list, Tidy up and Reminders still work, by plain rules on the phone.
+On an iPhone with Apple Intelligence, the smart parts are built in and run on the phone. Select text and use Writing Tools to proofread, rewrite, or summarize, right in the note; a checklist comes through intact. Tap Make a list and a paragraph or a dictated jumble ("milk eggs and call the dentist tuesday") becomes checklist items, one per task, in your own words, using Apple's on-device model. Add a title reads the note and gives it one. Tidy up makes every line read cleanly, in your own words. Sort the list groups a checklist by kind, dairy with dairy and errands with errands. Reminders finds the dates and times in a note ("dentist tuesday 3pm") and, with one tap, puts them in your Reminders app or sets a notification from Matte that opens the note at the time. Hold the pencil and speak: the note lands with a title, clean spelling, and a checklist where you spoke a list, with speech turned into text on the phone. Come back to a note after a day and it tells you where you left off: what you decided, what is open, what is next. And while you write, if an older note says something you should remember, it comes up under the bar; tap it to open that note, or to move what you have written into it. Nothing you write or say leaves the phone for any of it. On other iPhones, Make a list, Tidy up and Reminders still work, by plain rules on the phone.
 
 SIRI, NO SETUP
 "Add milk to Groceries in Matte". "What's on Groceries in Matte", and Siri reads what is left. "Tick milk off Groceries in Matte". "New note in Matte". "Pin Groceries in Matte". Siri and the Shortcuts app do all five, hands free. Your notes also show up when you search your iPhone from the Home Screen.
 
 PIN ONE NOTE TO YOUR LOCK SCREEN
-Long-press a note and pin it. It appears on your Lock Screen right away, no setup, so the thing you must not forget is the first thing you see when you pick up the phone. A checklist shows how many items are done; a long note shows a one-line summary of what it is about, written on the phone by Apple's on-device model where there is one. Write "Water 0" and it becomes a counter with a + on your Lock Screen. Tap the card and the note opens. Pin a different note and it takes its place. Add the Notes widget once and the pin stays put for good.
+Long-press a note and pin it. It appears on your Lock Screen right away, no setup, so the thing you must not forget is the first thing you see when you pick up the phone. A checklist shows how many items are done; a long note shows a one-line summary of what it is about, written on the phone by Apple's on-device model where there is one. Write "Water 0" and it becomes a counter with a + on your Lock Screen. Tap the card and the note opens. Pin a different note and it takes its place. Add the Pinned note widget once and the pin stays put for good.
 
 ON YOUR HOME SCREEN
-A widget with your latest notes and a pencil. Tap a note to open it, tap the pencil to start one.
+A widget with your latest notes and a pencil in the corner. Tap a note to open it, tap the pencil to start one. Its small size shows the note you pinned. It sits on a solid ground, white in light mode and black in dark, so it reads over any wallpaper.
 
 CHECKLISTS INSIDE YOUR NOTES
 Turn any line into a checklist item with one tap. Tick items off in the note, and the list shows how far along you are: "2/5 done · milk, eggs".
 
 SEARCH EVERYTHING
-Search matches titles and bodies as you type, with every match highlighted. On an iPhone with Apple Intelligence, a search that matches nothing becomes a question: "when is the dentist" finds the note that says "call the dentist tuesday", answered on the phone by Apple's on-device model.
+Search matches titles and bodies as you type, with every match highlighted. On an iPhone with Apple Intelligence you can ask instead of search: type "when is the dentist" and the note that says "call the dentist tuesday" comes up with a one-line answer above it, worked out on the phone by Apple's on-device model.
 
 A TRASH, NOT A WARNING
-Swipe to delete, no confirmation. The note waits in the Trash for 30 days, where one tap puts it back.
+Swipe to delete, no confirmation. The note waits in the Trash for 30 days, where one tap asks whether to put it back or delete it for good.
 
 SYNCS THROUGH YOUR ICLOUD
 Your notes appear on all your iPhones, through your own iCloud. There is no account to create, no server, and no sign-in.
@@ -66,13 +66,13 @@ NOTHING COLLECTED
 No analytics, no tracking, no ads, no third-party code. The developer cannot read your notes. See the privacy policy: it fits on one screen.
 
 WHAT IT DOES NOT DO
-No folders, tags, colours, fonts, images, or sharing. No light mode. It is for the notes you write in a hurry and need to see again.
+No folders, tags, colors, fonts, images, or sharing. No light mode. It is for the notes you write in a hurry and need to see again.
 
 Requires iOS 17 or later.
 
 ## Keywords (100 characters, comma separated, no spaces)
 
-notes,lock screen,widget,checklist,minimal,dark,matte,siri,writing tools,ai,todo,notepad,icloud
+notes,lock screen,widget,checklist,minimal,dark,reminders,siri,writing tools,ai,todo,notepad,icloud
 
 ## URLs
 
@@ -121,9 +121,9 @@ Notes for the reviewer, paste as is:
 > note, long-press it in the list, choose "Pin to Lock Screen", and lock the
 > device: the note shows as a Live Activity under the clock. Three widgets
 > are listed under Matte in the widget gallery (long-press the Lock Screen →
-> Customize → Lock Screen → tap under the clock): Notes (the app's logo,
-> opens the app; on the Home Screen, the latest notes), New note (a pencil,
-> starts a note), and Pinned note (the pinned note, permanently). Siri: say
+> Customize → Lock Screen → tap under the clock): Recent notes (the app's
+> logo, opens the app; on the Home Screen, the latest notes), New note (a
+> pencil, starts a note), and Pinned note (the pinned note, permanently). Siri: say
 > "Add milk to Groceries in Matte", "What's on Groceries in Matte", or
 > "Tick something off Groceries in Matte" after opening the app once, so
 > Siri knows the note titles. Apple Intelligence: Writing Tools work inline in the
@@ -159,14 +159,16 @@ Take these five, in this order (the first two do most of the selling):
    real life: "Walking app v1 scope", "Groceries" (a checklist, showing
    "1/4 done · eggs, milk"), "Call amma re: Sunday", "Book title ideas".
 2. **The Lock Screen** on a real phone: the pinned note's card under the
-   clock, and the round Notes and New note widgets beside the clock. (Lock
+   clock, and the round Recent notes and New note widgets beside the clock. (Lock
    Screen widgets and Live Activities do not render in the simulator's Lock
    Screen; a real-device screenshot of a 6.9-inch phone is the right size.)
-   Pick a wallpaper with some texture so the card's see-through look shows.
+   Any wallpaper does: the card is solid black and reads the same over all
+   of them.
 3. **A checklist** open in the editor, two items ticked, the circles
    showing.
-4. **The Home Screen** with the medium Notes widget over the wallpaper,
-   three notes listed and the pencil at the side.
+4. **The Home Screen** with the medium Recent notes widget, four notes
+   listed and the pencil in the corner. The widget is opaque, so take this
+   one in dark mode to match the other four.
 5. **Search** with a query typed and matches highlighted.
 
 Optional: a caption above each. Keep them short and in the app's voice:
