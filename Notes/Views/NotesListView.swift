@@ -113,14 +113,16 @@ struct NotesListView: View {
 
     // MARK: Ask the note
 
-    /// When the letters match nothing, and the phone has the on-device
-    /// model, the question goes to it a moment after typing stops. A new
-    /// keystroke cancels the wait; a result is kept for its query only.
+    /// When the letters match nothing, or the search reads as a question
+    /// ("when is the dentist"), and the phone has the on-device model, the
+    /// question goes to it a moment after typing stops. A new keystroke
+    /// cancels the wait; a result is kept for its query only.
     private func scheduleAsk() {
         askTask?.cancel()
         askTask = nil
         let question = trimmedQuery
-        guard NoteFinder.isAvailable, !question.isEmpty, visible.isEmpty,
+        guard NoteFinder.isAvailable, !question.isEmpty,
+              visible.isEmpty || NoteText.isQuestion(question),
               asked?.query != question else {
             asking = false
             return
@@ -223,9 +225,11 @@ struct NotesListView: View {
 
     @ViewBuilder
     private var content: some View {
-        // The letters first; when they match nothing, what the model found.
+        // The letters first; when they match nothing, or the search is a
+        // question the model has answered, what the model found.
         let matched = visible
-        let answered = matched.isEmpty ? askedRows : nil
+        let picks = askedRows
+        let answered = matched.isEmpty || (picks?.isEmpty == false) ? picks : nil
         let rows = answered ?? matched
         if notes.isEmpty {
             Text("No notes yet. Tap the pen to write one.")

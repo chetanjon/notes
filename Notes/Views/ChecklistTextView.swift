@@ -251,8 +251,8 @@ struct ChecklistTextView: UIViewRepresentable {
         func run(_ command: Command, on view: UITextView) {
             switch command {
             case .toggleItem:
-                let cursor = view.selectedRange.location
-                apply(Checklist.toggleItem(in: view.text, at: cursor), to: view)
+                // The line under the cursor, or every line in a selection.
+                apply(Checklist.toggleItems(in: view.text, selection: view.selectedRange), to: view)
                 if !view.isFirstResponder { view.becomeFirstResponder() }
             case let .makeList(items):
                 // One replacement, so a shake takes the whole list back.

@@ -39,6 +39,8 @@ enum Theme {
         static let rowBody = SwiftUI.Font.system(.subheadline)
         /// Labels and meta.
         static let label = SwiftUI.Font.system(.footnote)
+        /// The smallest line: the edit time under the editor's bar.
+        static let meta = SwiftUI.Font.system(.caption)
         /// Toolbar text buttons.
         static let toolbar = SwiftUI.Font.system(.body, weight: .semibold)
         /// Glyph buttons in a bar.

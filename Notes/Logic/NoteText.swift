@@ -247,6 +247,23 @@ enum NoteText {
         return capitalised(result)
     }
 
+    /// Words a question starts with.
+    static let questionWords: Set<String> = [
+        "when", "what", "where", "who", "whose", "whom", "how", "which", "why",
+        "is", "are", "was", "were", "do", "does", "did", "can", "could", "has", "have", "will", "should",
+    ]
+
+    /// Whether a search reads as a question rather than a word to find:
+    /// it ends in a question mark, or starts with a question word and has
+    /// more than that word. "when is the dentist" is one; "dentist" is not.
+    static func isQuestion(_ query: String) -> Bool {
+        let text = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.hasSuffix("?") { return true }
+        let words = text.lowercased().split(whereSeparator: { !$0.isLetter && $0 != "'" })
+        guard words.count >= 2, let first = words.first else { return false }
+        return questionWords.contains(String(first))
+    }
+
     /// Case-insensitive search over the whole text.
     static func matches(_ text: String, query: String) -> Bool {
         let q = query.trimmingCharacters(in: .whitespaces)

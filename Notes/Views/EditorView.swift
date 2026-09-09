@@ -63,15 +63,17 @@ struct EditorView: View {
     var body: some View {
         VStack(spacing: 0) {
             bar
-            // When the note was last edited, in the muted grey, where the
-            // list used to say it. It follows each autosave.
+            // When the note was last edited: small, centred under the bar,
+            // in the muted grey, the way a note's date sits. A notice or the
+            // brief takes the same slot. It follows each autosave.
             Text(brief ?? notice ?? DateFormat.stamp(note.updatedAt))
-                .font(Theme.Font.label)
+                .font(Theme.Font.meta)
                 .foregroundStyle(Theme.muted)
+                .multilineTextAlignment(.center)
                 .lineLimit(brief == nil ? 1 : 4)
                 .padding(.horizontal, Theme.pagePadding)
-                .padding(.top, 10)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 8)
+                .frame(maxWidth: .infinity, alignment: .center)
                 .contentShape(Rectangle())
                 .onTapGesture { brief = nil }
                 .animation(.easeOut(duration: 0.15), value: notice)
