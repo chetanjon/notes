@@ -10,11 +10,19 @@ import UniformTypeIdentifiers
 enum NoteIndex {
     static let domain = "note"
 
-    /// Every note that is not in the Trash, rewritten on each foreground.
-    /// That also covers what iCloud brought in or took away while the app
-    /// was closed, which no save on this phone would have seen.
+    /// A full rewrite is not worth doing more often than this; every save
+    /// on this phone indexes its own note at once anyway.
+    static let reindexInterval: TimeInterval = 10 * 60
+    private static var lastReindex: Date?
+
+    /// Every note that is not in the Trash, rewritten on a foreground, at
+    /// most every ten minutes. That also covers what iCloud brought in or
+    /// took away while the app was closed, which no save on this phone
+    /// would have seen.
     static func reindex(in context: ModelContext) {
         guard CSSearchableIndex.isIndexingAvailable() else { return }
+        if let last = lastReindex, Date.now.timeIntervalSince(last) < reindexInterval { return }
+        lastReindex = .now
         let notes = (try? context.fetch(FetchDescriptor<Note>())) ?? []
         let items = notes.filter { !$0.isTrashed }.map(item)
         let index = CSSearchableIndex.default()

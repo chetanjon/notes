@@ -147,6 +147,10 @@ enum NoteStore {
         if let pinned { summarizeOnLockScreen(pinned) }
     }
 
+    /// The pinned note's text has to hold still this long before the model
+    /// is asked for its summary.
+    private static let summaryDelay: Duration = .seconds(2)
+
     /// A long plain note gets a one-line summary under its title on the
     /// card, from the on-device model, once it has answered; the first line
     /// stands in until then, and for good where there is no model. The
@@ -156,6 +160,10 @@ enum NoteStore {
         let id = note.id
         let text = note.text
         Task { @MainActor in
+            // Typing in the pinned note saves every third of a second; the
+            // model is asked only once the text has held still for two.
+            try? await Task.sleep(for: summaryDelay)
+            guard note.text == text else { return }
             guard let line = await LockScreenSummary.line(for: text),
                   note.isPinned, note.text == text,
                   let current = PinStore.read(), current.id == id, current.preview != line else { return }
