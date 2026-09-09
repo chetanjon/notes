@@ -4,12 +4,15 @@ import Foundation
 /// pending ones a note no longer backs. Tested without the notification
 /// centre.
 enum NotifyPlan {
-    /// One identifier per note and line, so setting the same line twice
-    /// replaces rather than doubles.
-    static func identifier(noteID: UUID, body: String) -> String {
+    /// One identifier per note, line and time, so setting the same line
+    /// twice replaces rather than doubles, while two lines that read the
+    /// same at different times ("standup tuesday 9am", "standup wednesday
+    /// 9am") keep a notification each: iOS replaces by identifier, so
+    /// without the time the second would silently swallow the first.
+    static func identifier(noteID: UUID, body: String, due: Date) -> String {
         let folded = body.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        return "note.\(noteID.uuidString).\(fingerprint(folded))"
+        return "note.\(noteID.uuidString).\(fingerprint(folded)).\(Int(due.timeIntervalSince1970))"
     }
 
     /// FNV-1a over the bytes: the same line gives the same number on every

@@ -11,12 +11,24 @@ struct TrashView: View {
     private var notes: [Note]
 
     @State private var confirmingEmpty = false
+    /// The confirming tap counts only after a moment has passed.
+    @State private var armed = false
     @State private var emptyTimer: Task<Void, Never>?
-    /// The note tapped, while its two choices are up.
-    @State private var chosen: Note?
+    /// The note tapped, while its two choices are up: its id and title, not
+    /// the note itself, since deleting it while the dialog is on screen
+    /// would leave the view reading a model the store no longer has.
+    @State private var chosen: Chosen?
+
+    struct Chosen: Identifiable, Equatable {
+        var id: UUID
+        var title: String
+    }
 
     /// The Empty button reverts from "Delete all" after this long.
     private static let confirmWindow: Duration = .seconds(3)
+    /// And it ignores the second tap for this long, so two quick taps on a
+    /// button that seemed not to react do not empty the Trash outright.
+    private static let armingPause: Duration = .milliseconds(400)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -45,11 +57,13 @@ struct TrashView: View {
                     ForEach(notes) { note in
                         NoteRow(note: note, date: note.deletedAt)
                             .contentShape(Rectangle())
-                            .onTapGesture { chosen = note }
+                            .onTapGesture { chosen = Chosen(id: note.id, title: note.title) }
                             .listRowInsets(EdgeInsets())
                             .listRowBackground(Theme.bg)
                             .noteSeparator(isLast: note.id == notes.last?.id)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            // No full swipe here: this one cannot be undone,
+                            // and a tap on the same row stops to ask.
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
                                     erase(note)
                                 } label: {
@@ -76,9 +90,9 @@ struct TrashView: View {
                 .scrollContentBackground(.hidden)
                 .confirmationDialog(chosen?.title ?? "", isPresented: Binding(
                     get: { chosen != nil }, set: { if !$0 { chosen = nil } }
-                ), titleVisibility: .visible, presenting: chosen) { note in
-                    Button("Put back") { restore(note) }
-                    Button("Delete for good", role: .destructive) { erase(note) }
+                ), titleVisibility: .visible, presenting: chosen) { picked in
+                    Button("Put back") { act(on: picked.id, restore) }
+                    Button("Delete for good", role: .destructive) { act(on: picked.id, erase) }
                 }
             }
         }
@@ -105,7 +119,7 @@ struct TrashView: View {
             Spacer()
             if !notes.isEmpty {
                 Button {
-                    if confirmingEmpty { emptyNow() } else { armEmpty() }
+                    if confirmingEmpty, armed { emptyNow() } else if !confirmingEmpty { armEmpty() }
                 } label: {
                     Text(confirmingEmpty ? "Delete all" : "Empty")
                         .font(Theme.Font.toolbar)
@@ -124,6 +138,14 @@ struct TrashView: View {
 
     // MARK: Actions
 
+    /// Looks the note up again: the dialog was raised from a snapshot, and
+    /// iCloud may have taken the note away while it was on screen.
+    private func act(on id: UUID, _ body: (Note) -> Void) {
+        chosen = nil
+        guard let note = notes.first(where: { $0.id == id }) else { return }
+        body(note)
+    }
+
     private func restore(_ note: Note) {
         withAnimation(.easeOut(duration: 0.2)) {
             NoteStore.restore(note, in: context)
@@ -140,11 +162,16 @@ struct TrashView: View {
     /// seconds empties the Trash; otherwise it reverts.
     private func armEmpty() {
         confirmingEmpty = true
+        armed = false
         emptyTimer?.cancel()
         emptyTimer = Task { @MainActor in
+            try? await Task.sleep(for: Self.armingPause)
+            guard !Task.isCancelled else { return }
+            armed = true
             try? await Task.sleep(for: Self.confirmWindow)
             guard !Task.isCancelled else { return }
             confirmingEmpty = false
+            armed = false
         }
     }
 

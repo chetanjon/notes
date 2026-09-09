@@ -21,9 +21,13 @@ struct CreateNoteIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<NoteEntity> & ProvidesDialog {
+        // Siri heard nothing usable: no note rather than a blank one that
+        // nothing would ever clear away, since the editor never opens here.
+        guard !NoteText.isBlank(text) else { throw NoteIntentError.empty }
         let context = NoteStore.container.mainContext
         let note = NoteStore.create(in: context)
         NoteStore.update(note, text: text, in: context)
+        NotesShortcuts.updateAppShortcutParameters()
         return .result(value: NoteEntity(note), dialog: "Added \(note.title).")
     }
 }
@@ -140,10 +144,12 @@ struct TickItemIntent: AppIntent {
 
 enum NoteIntentError: Error, CustomLocalizedStringResourceConvertible {
     case gone
+    case empty
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .gone: "That note is gone."
+        case .empty: "There was nothing to write down."
         }
     }
 }

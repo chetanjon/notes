@@ -216,6 +216,9 @@ enum NoteText {
         return base.isEmpty ? body : base + "\n\n" + body
     }
 
+    private static let lonePronoun = try? NSRegularExpression(
+        pattern: "(?<![\\p{L}\\p{N}'’])i(?![\\p{L}\\p{N}'’])")
+
     static func capitalised(_ line: String) -> String {
         var result = line
         if let first = result.firstIndex(where: { $0.isLetter }),
@@ -223,8 +226,7 @@ enum NoteText {
             result.replaceSubrange(first...first, with: String(result[first]).uppercased())
         }
         // A lone "i" between spaces or at the ends: "i think" and "so i".
-        let pattern = try? NSRegularExpression(pattern: "(?<![\\p{L}\\p{N}'’])i(?![\\p{L}\\p{N}'’])")
-        if let pattern {
+        if let pattern = lonePronoun {
             let range = NSRange(result.startIndex..., in: result)
             result = pattern.stringByReplacingMatches(in: result, range: range, withTemplate: "I")
         }
@@ -238,13 +240,7 @@ enum NoteText {
     /// after the model where there is one and instead of it where not.
     static func tidied(_ line: String) -> String {
         var result = line.trimmingCharacters(in: .whitespaces)
-        let rules: [(String, String)] = [
-            ("[ \\t]{2,}", " "),
-            ("\\s+([,.!?;:])", "$1"),
-            (",(?=[^\\s\\d])", ", "),
-        ]
-        for (pattern, template) in rules {
-            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+        for (regex, template) in tidyRules {
             result = regex.stringByReplacingMatches(
                 in: result, range: NSRange(result.startIndex..., in: result), withTemplate: template)
         }
@@ -268,12 +264,34 @@ enum NoteText {
         return questionWords.contains(String(first))
     }
 
+    /// Every line break the same: text pasted from a PDF or a Windows file
+    /// carries CRLF, U+2028 or U+0085, which the text view treats as breaks
+    /// but the rest of the app, which splits on "\n", does not. Left as
+    /// they are, a checklist marker after one draws no circle.
+    static func normalised(_ text: String) -> String {
+        guard text.contains(where: { "\r\u{0085}\u{2028}\u{2029}".contains($0) }) else { return text }
+        return text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: "\u{0085}", with: "\n")
+            .replacingOccurrences(of: "\u{2028}", with: "\n")
+            .replacingOccurrences(of: "\u{2029}", with: "\n")
+    }
+
     /// The first sentence of a run-on answer, its full stop kept.
     static func firstSentence(_ text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let end = trimmed.firstIndex(where: { ".!?".contains($0) }) else { return trimmed }
         return String(trimmed[...end]).trimmingCharacters(in: .whitespaces)
     }
+
+    /// Built once: Reminders reads every line of a note, and each line was
+    /// compiling these again.
+    private static let tidyRules: [(regex: NSRegularExpression, template: String)] =
+        [("[ \\t]{2,}", " "), ("\\s+([,.!?;:])", "$1"), (",(?=[^\\s\\d])", ", ")]
+        .compactMap { pattern, template in
+            (try? NSRegularExpression(pattern: pattern)).map { ($0, template) }
+        }
 
     /// Case-insensitive search over the whole text.
     static func matches(_ text: String, query: String) -> Bool {

@@ -22,19 +22,29 @@ struct NotesListView: View {
     struct Asked: Equatable {
         var query: String
         var found: NoteFinder.Found
+        /// What the notes looked like when this was asked.
+        var signature: String
     }
     @State private var asked: Asked?
+    /// Changes whenever a note is added, edited or removed, so an answer is
+    /// not served again for the same words over notes that have moved on.
+    private var notesSignature: String {
+        let newest = notes.map(\.updatedAt).max().map(\.timeIntervalSince1970) ?? 0
+        return "\(notes.count)|\(newest)"
+    }
     @State private var asking = false
     @State private var askTask: Task<Void, Never>?
 
     /// The model is asked this long after the last keystroke with no match.
     private static let askDelay: Duration = .milliseconds(700)
+    /// The model has this long before the search gives up on it.
+    private static let askLimit: Duration = .seconds(20)
 
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
 
     /// The notes the model picked for the current query, in its order.
     private var askedRows: [Note]? {
-        guard let asked, asked.query == trimmedQuery else { return nil }
+        guard let asked, asked.query == trimmedQuery, asked.signature == notesSignature else { return nil }
         return asked.found.ids.compactMap { id in notes.first { $0.id == id } }
     }
 
@@ -101,6 +111,9 @@ struct NotesListView: View {
                 // catch up with whatever iCloud brought in.
                 NoteIndex.reindex(in: context)
                 NotesShortcuts.updateAppShortcutParameters()
+                // A note deleted on another device takes its notifications
+                // with it; nothing local cancelled them when it synced in.
+                Notify.cancelOrphans(liveNoteIDs: Set(notes.filter { !$0.isTrashed }.map(\.id)))
             }
         }
         .onChange(of: pinnedSignature) { _, _ in
@@ -123,7 +136,7 @@ struct NotesListView: View {
         let question = trimmedQuery
         guard NoteFinder.isAvailable, !question.isEmpty,
               visible.isEmpty || NoteText.isQuestion(question),
-              asked?.query != question else {
+              askedRows == nil else {
             asking = false
             return
         }
@@ -134,9 +147,12 @@ struct NotesListView: View {
         askTask = Task { @MainActor in
             try? await Task.sleep(for: Self.askDelay)
             guard !Task.isCancelled else { return }
-            let found = await NoteFinder.find(question, in: cards)
+            // The model has this long to answer; without a limit a call that
+            // never returns leaves the screen saying "Asking…" for good.
+            let found = await withTimeout(Self.askLimit) { await NoteFinder.find(question, in: cards) }
             guard !Task.isCancelled else { return }
-            asked = Asked(query: question, found: found ?? NoteFinder.Found(answer: "", ids: []))
+            asked = Asked(query: question, found: found ?? NoteFinder.Found(answer: "", ids: []),
+                          signature: notesSignature)
             asking = false
         }
     }
@@ -230,7 +246,16 @@ struct NotesListView: View {
         let matched = visible
         let picks = askedRows
         let answered = matched.isEmpty || (picks?.isEmpty == false) ? picks : nil
-        let rows = answered ?? matched
+        // The letters first, then anything the model added: a note that
+        // literally contains what was typed must never drop off the list
+        // because the model preferred others.
+        let rows: [Note]
+        if let answered {
+            let seen = Set(matched.map(\.id))
+            rows = matched + answered.filter { !seen.contains($0.id) }
+        } else {
+            rows = matched
+        }
         if notes.isEmpty {
             Text("No notes yet. Tap the pen to write one.")
                 .font(Theme.Font.rowBody)

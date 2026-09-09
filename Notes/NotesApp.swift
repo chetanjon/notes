@@ -10,8 +10,8 @@ struct NotesApp: App {
     init() {
         // A tap on a counter on the Lock Screen card. The intent runs in
         // this process, so this is where it learns how to reach the store.
-        StepCounterIntent.handler = { noteID, line, delta in
-            NoteStore.stepCounter(noteID: noteID, line: line, delta: delta)
+        StepCounterIntent.handler = { noteID, line, delta, label in
+            NoteStore.stepCounter(noteID: noteID, line: line, delta: delta, label: label)
         }
         // A tapped notification opens its note; one that lands while the
         // app is open shows as a banner.

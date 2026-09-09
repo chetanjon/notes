@@ -158,7 +158,7 @@ struct PinnedCardView: View {
                 .monospacedDigit()
                 .foregroundStyle(fg)
             if let noteID {
-                Button(intent: StepCounterIntent(noteID: noteID, line: counter.line)) {
+                Button(intent: StepCounterIntent(noteID: noteID, line: counter.line, label: counter.label)) {
                     plus
                 }
                 .buttonStyle(.plain)
@@ -333,7 +333,7 @@ struct RecentNotesView: View {
     @Environment(\.widgetFamily) private var family
     let entry: RecentEntry
 
-    private var rowCount: Int { family == .systemLarge ? 9 : 4 }
+    private var rowCount: Int { family == .systemLarge ? RecentStore.limit : 4 }
     private var shown: [RecentStore.Summary] { Array(entry.notes.prefix(rowCount)) }
 
     var body: some View {

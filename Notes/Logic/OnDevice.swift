@@ -123,11 +123,12 @@ enum OnDevice {
         if #available(iOS 26, *), isAvailable, items.count >= 3,
            items.joined(separator: "\n").count < limit {
             guard let made = try? await Model.grouped(items), !made.isEmpty else { return .noAnswer }
-            let groups = made.map { (number: $0.number, group: $0.group) }
-            guard let order = ListSorter.order(groups: groups, count: items.count) else {
-                return .alreadyGrouped
+            switch ListSorter.outcome(groups: made.map { (number: $0.number, group: $0.group) },
+                                      count: items.count) {
+            case let .order(order): return .order(order)
+            case .alreadyGrouped: return .alreadyGrouped
+            case .noAnswer: return .noAnswer
             }
-            return .order(order)
         }
         #endif
         return .noAnswer
@@ -143,7 +144,10 @@ enum OnDevice {
                                                  week: ReminderStamp.week(from: now)) {
             return made.compactMap { item in
                 let title = item.title.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !title.isEmpty, ModelGuard.sharesWords(title, with: text),
+                // A title of only small words ("do it", "TBD") passes the
+                // strict check, whose word set is empty; it makes a useless
+                // reminder and a notification nothing can ever cancel.
+                guard !title.isEmpty, ModelGuard.grounded(title, in: text),
                       let due = ReminderStamp.parse(item.when) else { return nil }
                 return Reminders.Found(title: title, due: due)
             }
@@ -153,20 +157,24 @@ enum OnDevice {
     }
 
     /// Briefs already written, by text: the same note gives the same brief
-    /// without a second call.
+    /// without a second call. Behind a lock, since `brief(for:)` runs on
+    /// whatever thread its task lands on.
     private static var briefs: [(text: String, brief: Brief)] = []
+    private static let briefLock = NSLock()
 
     /// "Where did I leave off?": what the note has settled, what is still
     /// open, and what to do next, in the note's own words. Nil when there
     /// is no model or it found nothing to say.
     static func brief(for text: String) async -> Brief? {
-        if let hit = briefs.first(where: { $0.text == text }) { return hit.brief }
+        if let hit = briefLock.withLock({ briefs.first(where: { $0.text == text }) }) { return hit.brief }
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, text.count < limit,
            let made = try? await Model.brief(for: text),
            let brief = Brief.kept(decided: made.decided, open: made.open, next: made.next, from: text) {
-            briefs.append((text, brief))
-            if briefs.count > 16 { briefs.removeFirst() }
+            briefLock.withLock {
+                briefs.append((text, brief))
+                if briefs.count > 16 { briefs.removeFirst() }
+            }
             return brief
         }
         #endif
@@ -204,7 +212,11 @@ enum OnDevice {
            let made = try? await Model.cleaned(dictation: dictation) {
             let lines = made.lines.map { $0.isItem ? "- " + $0.text : $0.text }
             let body = made.lines.map(\.text).joined(separator: "\n")
-            guard ModelGuard.kept(of: dictation, in: made.title + "\n" + body) >= 0.5 else { return nil }
+            // The model was told to drop "um", "like", "you know"; counting
+            // those as words lost means the more filler is spoken, the more
+            // certain a good cleanup is thrown away.
+            guard ModelGuard.kept(of: Dictation.withoutFiller(dictation),
+                                  in: made.title + "\n" + body) >= 0.5 else { return nil }
             let text = Dictation.compose(title: made.title, lines: lines)
             if !NoteText.isBlank(text) { return text }
         }

@@ -21,7 +21,11 @@ enum ReminderStamp {
             components.hour = t[0]
             components.minute = t[1]
         }
-        return calendar.date(from: components)
+        // A calendar builds 31 September as 1 October rather than refusing
+        // it, which would put a reminder a day out with no sign of trouble.
+        guard let date = calendar.date(from: components),
+              calendar.component(.day, from: date) == d[2] else { return nil }
+        return date
     }
 
     /// What the model is told about now, so "tuesday" and "tomorrow" land

@@ -14,8 +14,12 @@ enum LockScreenSummary {
     static let wordLimit = 12
     private static let cacheSize = 16
 
-    /// Text to summary, most recent last.
+    /// Text to summary, most recent last. `line(for:)` is not tied to an
+    /// actor, so it runs on whatever thread the caller's task lands on
+    /// while `cached(for:)` is read from the main one: the lock is what
+    /// keeps the two off each other.
     private static var cache: [(text: String, line: String)] = []
+    private static let lock = NSLock()
 
     static var isAvailable: Bool {
         #if canImport(FoundationModels)
@@ -30,11 +34,11 @@ enum LockScreenSummary {
     /// on every foreground, so without this the summary would be replaced
     /// by the note's first line each time.
     static func cached(for text: String) -> String? {
-        cache.first(where: { $0.text == text })?.line
+        lock.withLock { cache.first(where: { $0.text == text })?.line }
     }
 
     static func line(for text: String) async -> String? {
-        if let hit = cache.first(where: { $0.text == text }) { return hit.line }
+        if let hit = cached(for: text) { return hit }
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, text.count < limit,
            let made = try? await Model.line(for: text) {
@@ -43,8 +47,10 @@ enum LockScreenSummary {
                 .trimmingCharacters(in: CharacterSet(charactersIn: ".")) ?? ""
             // Well over the word limit, the model ran on; the first line stays.
             guard !line.isEmpty, ModelGuard.wordCount(line) <= wordLimit + 6 else { return nil }
-            cache.append((text, line))
-            if cache.count > cacheSize { cache.removeFirst() }
+            lock.withLock {
+                cache.append((text, line))
+                if cache.count > cacheSize { cache.removeFirst() }
+            }
             return line
         }
         #endif

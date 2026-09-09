@@ -72,6 +72,56 @@ final class DateSpotterTests: XCTestCase {
         XCTAssertEqual(find("1st of January party").first?.due, date(2027, 1, 1, 9, 0))
     }
 
+    func testALetterThatGrowsWhenLoweredDoesNotCorruptTheTitle() {
+        // "İ" is one unit as written and two lowercased; ranges taken from
+        // the lowered string used to be applied to the original.
+        let hits = find("İstanbul tomorrow")
+        XCTAssertEqual(hits.count, 1)
+        XCTAssertEqual(hits.first?.due, date(2026, 9, 8, 9, 0))
+        XCTAssertEqual(hits.first?.title, "İstanbul")
+    }
+
+    func testTwoThingsAtTheSameTimeAreTwoReminders() {
+        // They used to eat each other in the merge.
+        let hits = find("gym at 7\ncall mum at 7")
+        XCTAssertEqual(hits.count, 2)
+        XCTAssertEqual(Set(hits.map(\.title)), ["Gym", "Call mum"])
+    }
+
+    func testAPriceIsNotATime() {
+        XCTAssertEqual(find("bread 2.20"), [])
+        XCTAssertEqual(find("milk 3.50\ncoffee 4.30"), [])
+        // With "at" or a meridiem it is a time again.
+        XCTAssertEqual(find("standup at 2.20").first?.due, date(2026, 9, 7, 14, 20))
+        XCTAssertEqual(find("standup 2.20pm").first?.due, date(2026, 9, 7, 14, 20))
+    }
+
+    func testADayTheMonthDoesNotHaveRollsToOneItDoes() {
+        // September has 30 days, so "the 31st" is 31 October, not 1 October.
+        XCTAssertEqual(find("rent on the 31st").first?.due, date(2026, 10, 31, 9, 0))
+        XCTAssertEqual(find("sept 31 party"), [])
+    }
+
+    func testAnIntervalKeepsTheTimeGivenWithIt() {
+        XCTAssertEqual(find("call the bank in 3 days at 9").first?.due, date(2026, 9, 10, 9, 0))
+    }
+
+    func testABareHourCountsNextToADay() {
+        // A bare hour reads the same here as after "at": under seven is an
+        // afternoon one, seven and over a morning one.
+        let hit = find("gym friday 8").first
+        XCTAssertEqual(hit?.due, date(2026, 9, 11, 8, 0))
+        XCTAssertEqual(find("gym friday 5").first?.due, date(2026, 9, 11, 17, 0))
+        XCTAssertEqual(hit?.title, "Gym")
+        // With no day, a bare number is just a number.
+        XCTAssertEqual(find("buy 8 eggs"), [])
+    }
+
+    func testSeveralDatesOnOneLineReadLeftToRight() {
+        // The weekday is written first, so it is the day.
+        XCTAssertEqual(find("dentist tuesday, rent on the 1st").first?.due, date(2026, 10, 1, 9, 0))
+    }
+
     func testNothingDatedGivesNothing() {
         XCTAssertEqual(find("Shop\nmilk eggs bread\nsat in the sun\nmorning pages"), [])
         XCTAssertEqual(find("budget $3,000 for 2 weeks"), [])

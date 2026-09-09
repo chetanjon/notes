@@ -18,21 +18,27 @@ struct StepCounterIntent: LiveActivityIntent {
     @Parameter(title: "Delta")
     var delta: Int
 
+    /// The label the card showed, so the app can tell that the line it is
+    /// about to count is still the one the user tapped.
+    @Parameter(title: "Label")
+    var label: String
+
     init() {}
 
-    init(noteID: UUID, line: Int, delta: Int = 1) {
+    init(noteID: UUID, line: Int, label: String, delta: Int = 1) {
         self.noteID = noteID.uuidString
         self.line = line
+        self.label = label
         self.delta = delta
     }
 
     /// Installed by the app at launch. Nil in the extension, where it never runs.
-    static var handler: (@MainActor (UUID, Int, Int) async -> Void)?
+    static var handler: (@MainActor (UUID, Int, Int, String) async -> Void)?
 
     @MainActor
     func perform() async throws -> some IntentResult {
         if let id = UUID(uuidString: noteID) {
-            await Self.handler?(id, line, delta)
+            await Self.handler?(id, line, delta, label)
         }
         return .result()
     }

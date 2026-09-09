@@ -29,3 +29,16 @@ extension DictationTests {
         XCTAssertEqual(Dictation.plain("Idea. Record voice while walking"), "Idea\nRecord voice while walking")
     }
 }
+
+extension DictationTests {
+    func testFillerIsNotCountedAsWordsSpoken() {
+        XCTAssertEqual(Dictation.withoutFiller("um so like I basically need to call the dentist"),
+                       "so I need to call the dentist")
+        XCTAssertEqual(Dictation.withoutFiller("milk and eggs"), "milk and eggs")
+    }
+
+    func testSentenceEndIgnoresADecimal() {
+        XCTAssertEqual(Dictation.plain("buy 2.5 kg of flour"), "buy 2.5 kg of flour")
+        XCTAssertEqual(Dictation.plain("Shop. milk and eggs"), "Shop\nmilk and eggs")
+    }
+}

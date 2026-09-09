@@ -21,6 +21,13 @@ final class ReminderStampTests: XCTestCase {
         XCTAssertEqual(ReminderStamp.parse("2026-09-15", calendar: calendar), date(2026, 9, 15, 9, 0))
     }
 
+    func testADayTheMonthDoesNotHaveIsNil() {
+        // Building it would silently give 1 October.
+        XCTAssertNil(ReminderStamp.parse("2026-09-31", calendar: calendar))
+        XCTAssertNil(ReminderStamp.parse("2026-02-30", calendar: calendar))
+        XCTAssertEqual(ReminderStamp.parse("2026-02-28", calendar: calendar), date(2026, 2, 28, 9, 0))
+    }
+
     func testAnythingElseIsNil() {
         XCTAssertNil(ReminderStamp.parse("", calendar: calendar))
         XCTAssertNil(ReminderStamp.parse("tuesday", calendar: calendar))
