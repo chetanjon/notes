@@ -270,10 +270,12 @@ enum NoteStore {
         // The widget's card can be a moment behind the note, so the line the
         // button names is checked against the label it showed: a line added
         // above must not turn a tap on "Water" into a tap on "Pushups".
-        let line = NoteText.counters(note.text).first {
+        let match = NoteText.counters(note.text).first {
             $0.lineIndex == line && (label.isEmpty || $0.label == label)
-        }?.lineIndex ?? (label.isEmpty ? line : -1)
-        guard line >= 0, let text = NoteText.stepping(counterAt: line, by: delta, in: note.text) else { return }
+        }
+        // No label to check against (an older widget): the line is trusted.
+        guard let target = match?.lineIndex ?? (label.isEmpty ? line : nil),
+              let text = NoteText.stepping(counterAt: target, by: delta, in: note.text) else { return }
         update(note, text: text, in: context)
     }
 
