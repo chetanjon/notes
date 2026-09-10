@@ -102,26 +102,31 @@ struct NotesListView: View {
             }
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active {
-                OnDevice.prewarm()
-                NoteStore.purgeTrash(in: context)
-                NoteStore.syncLockScreen(in: context)
-                NoteStore.syncRecent(in: context)
-                // The phone's search index and Siri's list of note names
-                // catch up with whatever iCloud brought in.
-                NoteIndex.reindex(in: context)
-                NotesShortcuts.updateAppShortcutParameters()
-                // A note deleted on another device takes its notifications
-                // with it; nothing local cancelled them when it synced in.
-                Notify.cancelOrphans(liveNoteIDs: Set(notes.filter { !$0.isTrashed }.map(\.id)))
-            }
+            if phase == .active { foregroundSync() }
         }
+        .task { foregroundSync() }
         .onChange(of: pinnedSignature) { _, _ in
             NoteStore.syncLockScreen(in: context)
         }
         .onChange(of: trimmedQuery) { _, _ in
             scheduleAsk()
         }
+    }
+
+    /// Everything that has to catch up when the app comes to the front: the
+    /// Trash's thirty days, the Lock Screen after iOS ends an activity, the
+    /// widget's list, the phone's search index and Siri's note names, and
+    /// notifications for notes another device deleted. Also on the first
+    /// appearance, since a change handler does not fire for a first value
+    /// and a cold launch would otherwise skip all of it.
+    private func foregroundSync() {
+        OnDevice.prewarm()
+        NoteStore.purgeTrash(in: context)
+        NoteStore.syncLockScreen(in: context)
+        NoteStore.syncRecentNow(in: context)
+        NoteIndex.reindex(in: context)
+        NotesShortcuts.updateAppShortcutParameters()
+        Notify.cancelOrphans(liveNoteIDs: Set(notes.filter { !$0.isTrashed }.map(\.id)))
     }
 
     // MARK: Ask the note

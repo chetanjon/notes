@@ -27,6 +27,9 @@ struct CreateNoteIntent: AppIntent {
         let context = NoteStore.container.mainContext
         let note = NoteStore.create(in: context)
         NoteStore.update(note, text: text, in: context)
+        // The store can refuse a write, and a locked phone is one of the
+        // ways: better to say so than to answer "Added" for nothing.
+        guard NoteStore.saveChecked(context) else { throw NoteIntentError.notSaved }
         NotesShortcuts.updateAppShortcutParameters()
         return .result(value: NoteEntity(note), dialog: "Added \(note.title).")
     }
@@ -55,6 +58,7 @@ struct AddToListIntent: AppIntent {
             throw NoteIntentError.gone
         }
         NoteStore.update(target, text: Checklist.appendingItem(item, to: target.text), in: context)
+        guard NoteStore.saveChecked(context) else { throw NoteIntentError.notSaved }
         return .result(dialog: "Added \(item) to \(target.title).")
     }
 }
@@ -136,6 +140,7 @@ struct TickItemIntent: AppIntent {
             return .result(dialog: "There is no \(item) left on \(target.title).")
         }
         NoteStore.update(target, text: ticked.text, in: context)
+        guard NoteStore.saveChecked(context) else { throw NoteIntentError.notSaved }
         let summary = NoteText.checklistSummary(ticked.text)
         let left = summary.open.isEmpty ? "That was the last one." : "\(summary.open.count) left."
         return .result(dialog: "Ticked off \(ticked.item). \(left)")
@@ -145,11 +150,13 @@ struct TickItemIntent: AppIntent {
 enum NoteIntentError: Error, CustomLocalizedStringResourceConvertible {
     case gone
     case empty
+    case notSaved
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
         case .gone: "That note is gone."
         case .empty: "There was nothing to write down."
+        case .notSaved: "That could not be saved. Try again with the phone unlocked."
         }
     }
 }

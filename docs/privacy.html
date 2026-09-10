@@ -37,9 +37,9 @@
   <h2>Where your notes live</h2>
   <ul>
     <li><strong>On your iPhone.</strong> Every note is stored in the app's own storage on the device.</li>
-    <li><strong>In your iCloud, if you are signed in.</strong> Matte syncs between your own devices through iCloud, using Apple's CloudKit private database. That database belongs to your Apple Account, is encrypted by Apple, and is readable only by your devices. The developer has no access to it. If you are not signed into iCloud, nothing leaves the phone.</li>
+    <li><strong>In your iCloud, if you are signed in.</strong> Matte syncs between your own devices through iCloud, using Apple's CloudKit private database. That database belongs to your Apple Account and the developer has no access to it. The text of your notes is marked for CloudKit's own encryption, so with Advanced Data Protection turned on in your iCloud settings it is readable only by your devices; without it, Apple holds the keys, as with any iCloud data. If you are not signed into iCloud, nothing leaves the phone.</li>
     <li><strong>In your iPhone's search index.</strong> So that a note turns up when you search from the Home Screen, and Siri can find it by name. That index is part of iOS, stays on the phone, and is removed with the app.</li>
-    <li><strong>On the Lock Screen widget.</strong> When you pin a note, a copy of its title and first line is written to a storage area shared between the app and its widget, on the phone only, so the widget can show it. Unpinning removes it.</li>
+    <li><strong>In the widgets' storage.</strong> So the widgets can draw without opening the app, a short record of your most recent notes is written to a storage area shared between the app and its widget, on the phone only: each note's title and up to about two hundred characters of a preview, never the whole note. The pinned note has a record of its own. Deleting a note removes it from that storage on the next save.</li>
   </ul>
 
   <h2>What the app never does</h2>
@@ -53,13 +53,13 @@
   <p>On an iPhone with Apple Intelligence, Writing Tools (proofread, rewrite, summarise) is Apple's feature, offered by iOS inside the note. Matte does not see those requests; Apple's privacy terms for Apple Intelligence cover them. The sparkle in the editor (Make a list, Add a title, Tidy up, Sort the list, Reminders, Where did I leave off), the brief that appears when you come back to a note, and the line that recalls an older note while you write, all use Apple's on-device model on those iPhones: the note's text is processed on the phone and is never sent anywhere. On other iPhones, Make a list, Tidy up and Reminders work by plain rules in the app, on the phone.</p>
 
   <h2>Reminders</h2>
-  <p>The Reminders action in the sparkle menu finds the dates and times in a note, on the phone, and offers to add them to the iPhone's Reminders app. If you tap Add, iOS asks once for permission to your Reminders. Matte only writes the reminders you chose; it never reads the ones you have. Say no and nothing is added; the note is unchanged either way. The same sheet's "Notify me" sets a notification from Matte itself at that time, with the note's title and the line; iOS asks once for permission to notify. It is scheduled on the phone and never leaves it, and it is cancelled when the note is deleted or the line removed.</p>
+  <p>The Reminders action in the sparkle menu finds the dates and times in a note, on the phone, and offers to add them to the iPhone's Reminders app. If you tap Add, iOS asks once for permission to your Reminders. Matte only writes the reminders you chose; it never reads the ones you have. Say no and nothing is added; the note is unchanged either way. The same sheet's "Notify me" sets a notification from Matte itself at that time, with the note's title and the line; iOS asks once for permission to notify. It is scheduled on the phone and never leaves it. Deleting the note, or removing the line, cancels it, and also clears any notification of it already sitting in Notification Center.</p>
 
   <h2>Dictation</h2>
   <p>Hold the pencil and iOS asks, once, for the microphone and for speech recognition. Matte requires recognition on the phone itself: what you say is turned into text by iOS on the device and is never sent to Apple or anyone else. If on-device recognition is not available for your language, Matte does not listen at all rather than send your voice away. The microphone is on only while the sheet says Listening.</p>
 
   <h2>Deleting your data</h2>
-  <p>Deleting a note in the app moves it to the Trash for 30 days; deleting it there, or emptying the Trash, removes it from the phone and from iCloud on your next sync. The 30 days run out on their own. Deleting the app removes everything stored on that phone. To remove what is in iCloud, open Settings, tap your name, then iCloud, then Manage Account Storage, and delete Matte from the list.</p>
+  <p>Deleting a note in the app moves it to the Trash for 30 days; deleting it there, or emptying the Trash, removes it from the phone and from iCloud on your next sync. The 30 days are counted when you next open the app, so a note in the Trash of an app you never open waits until you do. Deleting the app removes everything stored on that phone. To remove what is in iCloud, open Settings, tap your name, then iCloud, then Manage Account Storage, and delete Matte from the list.</p>
 
   <h2>Children</h2>
   <p>The app has no content of its own and collects nothing, from anyone of any age.</p>

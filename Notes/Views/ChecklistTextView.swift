@@ -217,6 +217,15 @@ struct ChecklistTextView: UIViewRepresentable {
 
         func textViewDidEndEditing(_ view: UITextView) {
             if parent.isFocused { parent.isFocused = false }
+            // Writing Tools tells us when it begins and ends, and a rewrite
+            // interrupted by the app going away may never report the end.
+            // Left set, the flag stops every later keystroke reaching the
+            // store, and the note would be saved as it was before.
+            if writingToolsActive {
+                writingToolsActive = false
+                restyle(view)
+                parent.text = view.text
+            }
         }
 
         /// Return continues or ends a list; a deletion that touches a marker
@@ -433,17 +442,33 @@ final class MarkerLayoutFragment: NSTextLayoutFragment {
 
 /// Hiding the back button turns off the swipe-from-the-left-edge pop. The
 /// editor hides the whole bar and draws its own, so put the gesture back.
+///
+/// The conformance has to be on the navigation controller, since it is the
+/// delegate iOS asks. What it must not do is claim every navigation
+/// controller in the process: a share sheet or a system picker brings its
+/// own, and overriding `viewDidLoad` in an extension would take those too.
+/// So the wiring is done by the editor, on the stack the editor is in.
 extension UINavigationController: UIGestureRecognizerDelegate {
-    override open func viewDidLoad() {
-        super.viewDidLoad()
-        interactivePopGestureRecognizer?.delegate = self
-    }
-
     /// The name matters: `gestureRecognizer(_:shouldBegin:)` is not in the
     /// protocol, so it was never called and the edge swipe was live on the
     /// list as well, where there is nothing to go back to.
     public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard gestureRecognizer === interactivePopGestureRecognizer else { return true }
         return viewControllers.count > 1
+    }
+}
+
+/// Puts the edge-swipe pop back on the stack this view is in, and nowhere
+/// else. Nothing is drawn.
+struct EdgeSwipeBack: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController { Holder() }
+    func updateUIViewController(_ controller: UIViewController, context: Context) {}
+
+    final class Holder: UIViewController {
+        override func didMove(toParent parent: UIViewController?) {
+            super.didMove(toParent: parent)
+            guard let navigation = parent?.navigationController else { return }
+            navigation.interactivePopGestureRecognizer?.delegate = navigation
+        }
     }
 }

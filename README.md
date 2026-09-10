@@ -105,6 +105,23 @@ the card and the inline slot one line. The app writes a
 small record (id, title, preview, counters, count) to the App Group's `UserDefaults`
 and reloads WidgetKit whenever the pin changes; the widget only reads that.
 
+## What is copied out of a note
+
+A note's text lives in SwiftData, and in the user's own CloudKit private
+database when they are signed in (`text` carries
+`@Attribute(.allowsCloudEncryption)`, so it is end-to-end under Advanced
+Data Protection rather than readable to Apple). Four places hold a copy of
+part of it, and each is bounded on purpose: the App Group record the
+widgets read (a title and `NoteText.previewLimit` characters of preview,
+for the eight most recent notes), the Live Activity's content state (the
+same, and it has to fit in the four kilobytes iOS allows), the phone's own
+Spotlight index, and a scheduled notification's title and line. Deleting a
+note takes all four with it, the delivered notification included. The
+records are written with hand-rolled `init(from:)` decoders that tolerate a
+missing field, so a record written by one version is still readable by the
+next; without that, adding a field would blank the widget until the app
+was next opened.
+
 ## The widgets
 
 Three widgets, all in the system's colours. On the Home Screen they sit

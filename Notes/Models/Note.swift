@@ -14,7 +14,13 @@ import SwiftData
 @Model
 final class Note {
     var id: UUID = UUID()
-    var text: String = ""
+    /// Marked for CloudKit's own encryption, so the note's words are
+    /// end-to-end where the user has Advanced Data Protection on, rather
+    /// than readable to Apple under their keys. Nothing queries on it: the
+    /// app's predicates only ever use `id`, `isPinned` and `deletedAt`, and
+    /// an encrypted field cannot be queried. Set before the schema was
+    /// first deployed, since adding it later is a migration.
+    @Attribute(.allowsCloudEncryption) var text: String = ""
     var createdAt: Date = Date.now
     var updatedAt: Date = Date.now
     var isPinned: Bool = false

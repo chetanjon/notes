@@ -13,7 +13,16 @@ enum NoteIndex {
     /// A full rewrite is not worth doing more often than this; every save
     /// on this phone indexes its own note at once anyway.
     static let reindexInterval: TimeInterval = 10 * 60
-    private static var lastReindex: Date?
+    /// Kept across launches: in memory alone, every cold launch rebuilt the
+    /// whole index whether or not anything had changed.
+    private static let lastReindexKey = "index.lastReindex"
+    private static var lastReindex: Date? {
+        get {
+            let stamp = PinStore.suite.double(forKey: lastReindexKey)
+            return stamp > 0 ? Date(timeIntervalSince1970: stamp) : nil
+        }
+        set { PinStore.suite.set(newValue?.timeIntervalSince1970 ?? 0, forKey: lastReindexKey) }
+    }
 
     /// Every note that is not in the Trash, rewritten on a foreground, at
     /// most every ten minutes. That also covers what iCloud brought in or
@@ -23,12 +32,15 @@ enum NoteIndex {
         guard CSSearchableIndex.isIndexingAvailable() else { return }
         if let last = lastReindex, Date.now.timeIntervalSince(last) < reindexInterval { return }
         lastReindex = .now
-        let notes = (try? context.fetch(FetchDescriptor<Note>())) ?? []
-        let items = notes.filter { !$0.isTrashed }.map(item)
+        guard let notes = try? context.fetch(FetchDescriptor<Note>()) else { return }
+        let live = notes.filter { !$0.isTrashed }
+        let gone = notes.filter { $0.isTrashed }.map(\.id)
         let index = CSSearchableIndex.default()
-        index.deleteSearchableItems(withDomainIdentifiers: [domain]) { _ in
-            index.indexSearchableItems(items) { _ in }
-        }
+        // Added to rather than emptied and refilled: between a delete-all and
+        // the refill the user's notes are missing from Spotlight, and if the
+        // app is killed in that window they stay missing.
+        index.indexSearchableItems(live.map(item)) { _ in }
+        remove(gone)
     }
 
     static func index(_ note: Note) {

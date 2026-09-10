@@ -43,6 +43,23 @@ enum PinStore {
             self.total = total
         }
 
+        /// Only the id and the title are required. Swift's own decoder
+        /// throws on a missing key rather than falling back to a property's
+        /// default, so a field added in a later version would make the
+        /// record written by this one undecodable, and the widget would
+        /// read "Nothing pinned" until the app was next opened.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(UUID.self, forKey: .id)
+            title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+            preview = try c.decodeIfPresent(String.self, forKey: .preview) ?? ""
+            updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+            counters = try c.decodeIfPresent([PinnedCounter].self, forKey: .counters) ?? []
+            isChecklist = try c.decodeIfPresent(Bool.self, forKey: .isChecklist) ?? false
+            done = try c.decodeIfPresent(Int.self, forKey: .done) ?? 0
+            total = try c.decodeIfPresent(Int.self, forKey: .total) ?? 0
+        }
+
         /// `notes://note/<uuid>`, the URL the widget opens.
         var url: URL? { URL(string: "\(PinStore.urlScheme)://note/\(id.uuidString)") }
     }

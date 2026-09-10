@@ -12,6 +12,14 @@ enum NoteText {
 
     /// The first non-empty line, marker stripped. "New note" when there is none.
     static func title(_ text: String) -> String {
+        cut(rawTitle(text), limit: titleLimit)
+    }
+
+    /// A title is shown in one line everywhere it appears, and it travels
+    /// in the Live Activity's payload, which iOS caps at four kilobytes.
+    static let titleLimit = 120
+
+    private static func rawTitle(_ text: String) -> String {
         lines(text)
             .map { Checklist.content($0).trimmingCharacters(in: .whitespaces) }
             .first(where: { !$0.isEmpty }) ?? untitled
@@ -77,6 +85,13 @@ enum NoteText {
         }
     }
 
+    /// How much of a note a preview carries. The list, the widget and the
+    /// Lock Screen all show one line of it, so anything past this is copied
+    /// out of the note for nothing: into the App Group the widget reads,
+    /// and into the Live Activity, whose whole payload has to stay under
+    /// four kilobytes or iOS refuses to start it.
+    static let previewLimit = 200
+
     /// The single line under a title in the list.
     ///
     /// Plain note: every line after the first, joined with spaces. Checklist:
@@ -85,12 +100,20 @@ enum NoteText {
         if isChecklist(text) {
             let s = checklistSummary(text)
             if s.done == s.total { return "All done" }
-            return "\(s.done)/\(s.total) done · \(s.open.joined(separator: ", "))"
+            return cut("\(s.done)/\(s.total) done · \(s.open.joined(separator: ", "))")
         }
-        return bodyLines(text)
+        return cut(bodyLines(text)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-            .joined(separator: " ")
+            .joined(separator: " "))
+    }
+
+    /// At most `previewLimit` characters, cut on a space where there is one.
+    static func cut(_ text: String, limit: Int = previewLimit) -> String {
+        guard text.count > limit else { return text }
+        let head = text.prefix(limit)
+        let stem = head.lastIndex(of: " ").map { head[..<$0] } ?? head
+        return stem.trimmingCharacters(in: .whitespaces) + "…"
     }
 
     /// What the widget shows under the title: the first line of the body,
@@ -99,7 +122,7 @@ enum NoteText {
         if isChecklist(text) {
             let s = checklistSummary(text)
             if s.done == s.total { return "All done" }
-            return "\(s.done)/\(s.total) · \(s.open.joined(separator: ", "))"
+            return cut("\(s.done)/\(s.total) · \(s.open.joined(separator: ", "))")
         }
         // A counter line has a row of its own on the card, so it is not
         // also the preview: "Water 11" once, not twice.
@@ -107,7 +130,8 @@ enum NoteText {
         return lines(text).enumerated().dropFirst()
             .filter { !counted.contains($0.offset) }
             .map { $0.element.trimmingCharacters(in: .whitespaces) }
-            .first(where: { !$0.isEmpty }) ?? ""
+            .first(where: { !$0.isEmpty })
+            .map { cut($0) } ?? ""
     }
 
     /// A plain note whose first line would not do on the Lock Screen: two
