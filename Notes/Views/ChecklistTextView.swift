@@ -19,11 +19,11 @@ struct ChecklistTextView: UIViewRepresentable {
         /// The toolbar's checklist button.
         case toggleItem
         /// "Make a list": the plain lines under the title become these items.
-        case makeList(items: [String])
+        case makeList(items: [String], from: String)
         /// "Add a title": this goes on a new first line.
         case addTitle(String)
         /// "Tidy up": the note's lines, marker-less, as the model fixed them.
-        case tidy(lines: [String])
+        case tidy(lines: [String], from: [String])
         /// "Sort the list": the items' new order, and the items it was made
         /// for, so a list that changed meanwhile is left alone.
         case sortList(order: [Int], items: [String])
@@ -88,9 +88,12 @@ struct ChecklistTextView: UIViewRepresentable {
             view.selectedRange = NSRange(location: min(selection.location, end), length: 0)
         }
         if let command {
+            // Cleared before the hop, not after: this runs on every parent
+            // redraw, and the date line alone redraws on each autosave, so
+            // a command left set would be run again by the next update.
+            self.command = nil
             DispatchQueue.main.async {
                 coordinator.run(command, on: view)
-                self.command = nil
             }
         }
         if isFocused, !view.isFirstResponder {
@@ -187,6 +190,17 @@ struct ChecklistTextView: UIViewRepresentable {
 
         func textViewDidChange(_ view: UITextView) {
             guard !writingToolsActive else { return }
+            // Text pasted from a PDF or a Windows file carries other line
+            // breaks, which the text view honours but the rest of the app,
+            // which splits on "\n", does not: a marker after one of those
+            // would be a glyph with no circle.
+            let tidy = NoteText.normalised(view.text)
+            if tidy != view.text, view.markedTextRange == nil {
+                let selection = view.selectedRange
+                view.text = tidy
+                let end = (tidy as NSString).length
+                view.selectedRange = NSRange(location: min(selection.location, end), length: 0)
+            }
             restyle(view)
             parent.text = view.text
         }
@@ -254,12 +268,19 @@ struct ChecklistTextView: UIViewRepresentable {
                 // The line under the cursor, or every line in a selection.
                 apply(Checklist.toggleItems(in: view.text, selection: view.selectedRange), to: view)
                 if !view.isFirstResponder { view.becomeFirstResponder() }
-            case let .makeList(items):
+            case let .makeList(items, from):
+                // The note may have been typed in while the model was
+                // thinking; the list is only put in if it is still the note
+                // the model was given, or the typing would be thrown away.
+                guard Checklist.plainBody(of: view.text) == from else { return }
                 // One replacement, so a shake takes the whole list back.
                 apply(Checklist.replacingPlainBody(in: view.text, with: items), to: view)
             case let .addTitle(title):
                 apply(Checklist.addingTitle(title, to: view.text), to: view)
-            case let .tidy(lines):
+            case let .tidy(lines, from):
+                // As above: a line corrected by hand under the spinner is
+                // not overwritten by the model's version of the old line.
+                guard Checklist.bareLines(of: view.text) == from else { return }
                 // The markers go back on line for line; if the text changed
                 // under the spinner and the lines no longer match, nothing
                 // happens, which is the safe outcome.
@@ -279,12 +300,15 @@ struct ChecklistTextView: UIViewRepresentable {
             guard let position = view.closestPosition(to: point) else { return }
             let offset = view.offset(from: view.beginningOfDocument, to: position)
             guard Checklist.isOnMarker(in: view.text, at: offset) else { return }
-            let edit = Checklist.toggleDone(in: view.text, at: offset)
             // The text view also handles this tap and moves the cursor; wait
-            // for it, then put the cursor after the marker on that line.
-            let line = Checklist.lineRange(in: view.text, at: offset)
+            // for it, then put the cursor after the marker on that line. The
+            // tick is worked out after the wait, not before: the tap is also
+            // what commits a pending autocorrection, and deciding beforehand
+            // would apply a snapshot from before the correction.
             DispatchQueue.main.async { [weak self] in
-                guard let self else { return }
+                guard let self, Checklist.isOnMarker(in: view.text, at: offset) else { return }
+                let line = Checklist.lineRange(in: view.text, at: offset)
+                let edit = Checklist.toggleDone(in: view.text, at: offset)
                 self.apply(Checklist.Edit(text: edit.text,
                                           cursor: line.location + Checklist.markerLength), to: view)
             }
@@ -326,6 +350,11 @@ struct ChecklistTextView: UIViewRepresentable {
         /// muted. Edits the storage directly, which does not call back into
         /// `textViewDidChange`.
         func restyle(_ view: UITextView) {
+            // Mid-composition, with a Japanese keyboard or dictation, the
+            // clause being typed carries the system's own styling and the
+            // selection belongs to the input method: setting either flattens
+            // the candidate or commits it early.
+            guard view.markedTextRange == nil else { return }
             let storage = view.textStorage
             let length = storage.length
             guard length > 0 else {
@@ -362,7 +391,9 @@ struct ChecklistTextView: UIViewRepresentable {
                 index = NSMaxRange(next)
             }
             storage.endEditing()
-            view.selectedRange = selection
+            // Only when it moved: reassigning it on every keystroke is one
+            // of the ways an input method is made to commit early.
+            if view.selectedRange != selection { view.selectedRange = selection }
             view.typingAttributes = Style.attributes(semibold: selection.location <= firstLine.length)
         }
     }
@@ -408,8 +439,11 @@ extension UINavigationController: UIGestureRecognizerDelegate {
         interactivePopGestureRecognizer?.delegate = self
     }
 
-    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
-                                  shouldBegin _: UIGestureRecognizer) -> Bool {
-        viewControllers.count > 1
+    /// The name matters: `gestureRecognizer(_:shouldBegin:)` is not in the
+    /// protocol, so it was never called and the edge swipe was live on the
+    /// list as well, where there is nothing to go back to.
+    public func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer === interactivePopGestureRecognizer else { return true }
+        return viewControllers.count > 1
     }
 }

@@ -4,9 +4,16 @@ import XCTest
 final class NotifyPlanTests: XCTestCase {
     func testIdentifierIsStablePerNoteAndLine() {
         let id = UUID()
-        XCTAssertEqual(NotifyPlan.identifier(noteID: id, body: "Dentist"), NotifyPlan.identifier(noteID: id, body: " dentist "))
-        XCTAssertNotEqual(NotifyPlan.identifier(noteID: id, body: "Dentist"), NotifyPlan.identifier(noteID: id, body: "Rent"))
-        XCTAssertNotEqual(NotifyPlan.identifier(noteID: id, body: "Dentist"), NotifyPlan.identifier(noteID: UUID(), body: "Dentist"))
+        let due = Date(timeIntervalSince1970: 1_800_000_000)
+        XCTAssertEqual(NotifyPlan.identifier(noteID: id, body: "Dentist", due: due),
+                       NotifyPlan.identifier(noteID: id, body: " dentist ", due: due))
+        XCTAssertNotEqual(NotifyPlan.identifier(noteID: id, body: "Dentist", due: due),
+                          NotifyPlan.identifier(noteID: id, body: "Rent", due: due))
+        XCTAssertNotEqual(NotifyPlan.identifier(noteID: id, body: "Dentist", due: due),
+                          NotifyPlan.identifier(noteID: UUID(), body: "Dentist", due: due))
+        // Two lines that read the same at different times keep one each.
+        XCTAssertNotEqual(NotifyPlan.identifier(noteID: id, body: "Standup", due: due),
+                          NotifyPlan.identifier(noteID: id, body: "Standup", due: due.addingTimeInterval(86_400)))
     }
 
     func testFingerprintIsDeterministic() {

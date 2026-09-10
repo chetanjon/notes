@@ -94,15 +94,19 @@ enum NoteStore {
         (try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.deletedAt != nil }))) ?? []
     }
 
-    /// Records an edit. Called by the editor's autosave.
-    static func update(_ note: Note, text: String, in context: ModelContext) {
+    /// Records an edit. Called by the editor's autosave, which passes
+    /// `settled: false`: a notification is only reconciled against text the
+    /// user has finished with, since a line cut on its way to being pasted
+    /// lower down is absent for a moment and its notification would go for
+    /// good.
+    static func update(_ note: Note, text: String, in context: ModelContext, settled: Bool = true) {
         guard note.text != text else { return }
         note.text = text
         note.updatedAt = .now
         save(context)
         if !note.isTrashed { NoteIndex.index(note) }
         // A notification whose line left the note goes with it.
-        Notify.reconcile(noteID: note.id, text: text)
+        if settled { Notify.reconcile(noteID: note.id, text: text) }
         if note.isPinned {
             showOnLockScreen(pinnedRecord(note))
             summarizeOnLockScreen(note)
@@ -157,10 +161,23 @@ enum NoteStore {
     /// both the widget record and the activity are brought back in line
     /// with the store.
     static func syncLockScreen(in context: ModelContext) {
-        let pinned = try? context.fetch(
-            FetchDescriptor<Note>(predicate: #Predicate { $0.isPinned })).first
-        showOnLockScreen(pinned.map(pinnedRecord))
-        if let pinned { summarizeOnLockScreen(pinned) }
+        // Also the repair point for the pin. Two devices can each pin a
+        // note before they sync, and a note trashed on one can arrive still
+        // flagged from the other, so the flag is trusted only after it has
+        // been checked against the Trash and reduced to one.
+        let flagged = ((try? context.fetch(
+            FetchDescriptor<Note>(predicate: #Predicate { $0.isPinned }))) ?? [])
+            .sorted { $0.updatedAt > $1.updatedAt }
+        let live = flagged.filter { !$0.isTrashed }
+        let keep = live.first
+        var repaired = false
+        for note in flagged where note.id != keep?.id {
+            note.isPinned = false
+            repaired = true
+        }
+        if repaired { save(context) }
+        showOnLockScreen(keep.map(pinnedRecord))
+        if let keep { summarizeOnLockScreen(keep) }
     }
 
     /// The note as the Lock Screen shows it, with the model's one-line
@@ -182,27 +199,46 @@ enum NoteStore {
     /// is asked for its summary.
     private static let summaryDelay: Duration = .seconds(2)
 
+    /// The one summary in flight. A save both writes the record and moves
+    /// the list, and the list's own foreground sync asks again, so without
+    /// this one edit would ask the model twice for the same text.
+    @MainActor private static var summaryTask: Task<Void, Never>?
+
     /// A long plain note gets a one-line summary under its title on the
     /// card, from the on-device model, once it has answered; the first line
     /// stands in until then, and for good where there is no model. The
-    /// answer is used only if the note is still the pinned one, unchanged.
+    /// answer is used only if the note is still there, still pinned and
+    /// unchanged: the note is looked up again after each wait rather than
+    /// held, since it can be deleted while the model is thinking.
     private static func summarizeOnLockScreen(_ note: Note) {
         guard LockScreenSummary.isAvailable, NoteText.wantsSummary(note.text) else { return }
         let id = note.id
         let text = note.text
         Task { @MainActor in
-            // Typing in the pinned note saves every third of a second; the
-            // model is asked only once the text has held still for two.
-            try? await Task.sleep(for: summaryDelay)
-            guard note.text == text else { return }
-            guard let line = await LockScreenSummary.line(for: text),
-                  note.isPinned, note.text == text,
-                  let current = PinStore.read(), current.id == id, current.preview != line else { return }
-            showOnLockScreen(PinStore.Pinned(
-                id: current.id, title: current.title, preview: line, updatedAt: current.updatedAt,
-                counters: current.counters, isChecklist: current.isChecklist,
-                done: current.done, total: current.total))
+            summaryTask?.cancel()
+            summaryTask = Task { @MainActor in
+                // Typing in the pinned note saves every third of a second;
+                // the model is asked only once the text has held still for
+                // two.
+                try? await Task.sleep(for: summaryDelay)
+                guard !Task.isCancelled, stillPinned(id: id, text: text) else { return }
+                guard let line = await LockScreenSummary.line(for: text), !Task.isCancelled,
+                      stillPinned(id: id, text: text),
+                      let current = PinStore.read(), current.id == id, current.preview != line else { return }
+                showOnLockScreen(PinStore.Pinned(
+                    id: current.id, title: current.title, preview: line, updatedAt: current.updatedAt,
+                    counters: current.counters, isChecklist: current.isChecklist,
+                    done: current.done, total: current.total))
+            }
         }
+    }
+
+    /// The note is still in the store, still pinned, and still says what it
+    /// said when the model was asked.
+    @MainActor
+    private static func stillPinned(id: UUID, text: String) -> Bool {
+        guard let note = note(withID: id, in: container.mainContext) else { return false }
+        return note.isPinned && !note.isTrashed && note.text == text
     }
 
     /// The Home Screen widget's list: the pinned note, then the rest in the
@@ -228,10 +264,18 @@ enum NoteStore {
 
     /// A tap on a counter on the Lock Screen: move the number on that line.
     @MainActor
-    static func stepCounter(noteID: UUID, line: Int, delta: Int) {
+    static func stepCounter(noteID: UUID, line: Int, delta: Int, label: String = "") {
         let context = container.mainContext
-        guard let note = note(withID: noteID, in: context),
-              let text = NoteText.stepping(counterAt: line, by: delta, in: note.text) else { return }
+        guard let note = note(withID: noteID, in: context), !note.isTrashed else { return }
+        // The widget's card can be a moment behind the note, so the line the
+        // button names is checked against the label it showed: a line added
+        // above must not turn a tap on "Water" into a tap on "Pushups".
+        let match = NoteText.counters(note.text).first {
+            $0.lineIndex == line && (label.isEmpty || $0.label == label)
+        }
+        // No label to check against (an older widget): the line is trusted.
+        guard let target = match?.lineIndex ?? (label.isEmpty ? line : nil),
+              let text = NoteText.stepping(counterAt: target, by: delta, in: note.text) else { return }
         update(note, text: text, in: context)
     }
 

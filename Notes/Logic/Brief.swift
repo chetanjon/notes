@@ -31,10 +31,10 @@ struct Brief: Equatable {
     static func kept(decided: [String], open: [String], next: String, from text: String) -> Brief? {
         func keep(_ items: [String]) -> [String] {
             items.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: ".")) }
-                .filter { !$0.isEmpty && ModelGuard.sharesWords($0, with: text) }
+                .filter { !$0.isEmpty && ModelGuard.grounded($0, in: text) }
         }
         let step = next.trimmingCharacters(in: .whitespacesAndNewlines)
-        let nextStep = ModelGuard.sharesWords(step, with: text) ? step : ""
+        let nextStep = ModelGuard.grounded(step, in: text) ? step : ""
         let openItems = keep(open).filter { !same($0, nextStep) }
         let decidedItems = keep(decided).filter { item in
             !same(item, nextStep) && !openItems.contains { same(item, $0) }

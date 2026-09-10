@@ -24,6 +24,8 @@ struct RemindersSheet: View {
     }
 
     private var picked: [Reminders.Found] { found.filter { chosen.contains($0.id) } }
+    /// What "Notify me" will really set: a time that has passed cannot be.
+    private var notifiable: [Reminders.Found] { picked.filter { $0.due > .now } }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -73,7 +75,7 @@ struct RemindersSheet: View {
                 }
                 VStack(spacing: 10) {
                     // From this app, at the time, opening the note.
-                    pill(working ? "Setting…" : count("Notify me for %ld"), filled: true) { notify() }
+                    pill(working ? "Setting…" : String(format: "Notify me for %ld", notifiable.count), filled: true) { notify() }
                     // Apple's app, with its repeats and snooze.
                     pill(count("Add %ld to Reminders"), filled: false) { add() }
                 }
@@ -139,30 +141,41 @@ struct RemindersSheet: View {
         working = true
         trouble = nil
         Task { @MainActor in
-            let done = await Reminders.add(items)
+            let outcome = await Reminders.add(items)
             working = false
-            if done { dismiss() } else {
+            switch outcome {
+            case .added:
+                dismiss()
+            case .denied:
                 trouble = "Reminders access is off. Turn it on in Settings › Privacy & Security › Reminders."
+            case .noList:
+                trouble = "There is no list to add to. Open the Reminders app once and make a list."
+            case .failed:
+                trouble = "Those could not be added to Reminders."
             }
         }
     }
 
     private func notify() {
-        let items = picked.filter { $0.due > .now }
-        guard !items.isEmpty, !working else {
+        guard !working else { return }
+        let items = notifiable
+        guard !items.isEmpty else {
             trouble = "Those times have passed."
             return
         }
         working = true
         trouble = nil
         Task { @MainActor in
-            let done = await Notify.schedule(items, noteID: noteID, noteTitle: noteTitle)
+            let outcome = await Notify.schedule(items, noteID: noteID, noteTitle: noteTitle)
             working = false
-            if done {
-                onNotified(items.count)
+            switch outcome {
+            case let .set(count):
+                onNotified(count)
                 dismiss()
-            } else {
+            case .denied:
                 trouble = "Notifications are off for Matte. Turn them on in Settings › Notifications › Matte."
+            case .full:
+                trouble = "Too many notifications are already set. Some have to pass or be removed first."
             }
         }
     }

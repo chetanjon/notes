@@ -313,6 +313,13 @@ enum Checklist {
         var suffix = 0
         while suffix < a.count - prefix, suffix < b.count - prefix,
               a[a.count - 1 - suffix] == b[b.count - 1 - suffix] { suffix += 1 }
+        // A character outside the basic plane, an emoji, is two UTF-16 units,
+        // and the common part can end between them. Cutting there would hand
+        // back half a character, which becomes a replacement glyph in the
+        // note, so the boundary steps back onto whole characters.
+        if prefix > 0, UTF16.isLeadSurrogate(a[prefix - 1]) { prefix -= 1 }
+        if suffix > 0, suffix < a.count, UTF16.isTrailSurrogate(a[a.count - suffix]) { suffix -= 1 }
+        suffix = min(suffix, a.count - prefix, b.count - prefix)
         let range = NSRange(location: prefix, length: a.count - prefix - suffix)
         let replacement = String(decoding: b[prefix..<(b.count - suffix)], as: UTF16.self)
         return (range, replacement)
@@ -330,8 +337,12 @@ enum Checklist {
         guard range.length > 0, range.location >= 0, NSMaxRange(range) <= ns.length else { return nil }
         var grown = range
         for marker in markerRanges(in: text, within: range) { grown = NSUnionRange(grown, marker) }
+        // The item below joins the line above, so its marker goes with the
+        // join. Only when there is a line above to join: a deletion that
+        // starts at the beginning of a line (a blank line above an item, or
+        // a whole line selected with its break) leaves the item alone.
         let end = NSMaxRange(range)
-        if end < ns.length {
+        if end < ns.length, lineRange(in: text, at: grown.location).location != grown.location {
             let next = lineRange(in: text, at: end)
             if next.location == end, isItem(ns.substring(with: next)) {
                 grown = NSUnionRange(grown, NSRange(location: next.location, length: markerLength))
@@ -356,6 +367,9 @@ enum Checklist {
         let range = lineRange(in: text, at: selection.location)
         let line = ns.substring(with: range)
         guard isItem(line) else { return nil }
+        // The caret sits on the marker itself: the text view puts a plain
+        // break in above the item, rather than a second circle on the line.
+        guard selection.location - range.location >= markerLength else { return nil }
         // Return with a selection deletes it and continues from there.
         let afterDeletion = ns.replacingCharacters(in: selection, with: "")
         let cursor = selection.location

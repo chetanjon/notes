@@ -59,6 +59,7 @@ enum DateSpotter {
             case dayOfMonth(Int)
             case monthDay(month: Int, day: Int)
             case time(hour: Int, minute: Int)
+            case bareHour(Int)         // "friday 8": an hour only if a day was given
             case period(hour: Int)     // morning, evening: a time, but a soft one
             case interval(TimeInterval)
         }
@@ -100,10 +101,16 @@ enum DateSpotter {
             guard let day = Int(g[1]) else { return nil }
             return .dayOfMonth(day)
         }),
-        // 15:00, 3.30pm, 3:30 pm
-        ("\\b(?:at\\s+)?(\\d{1,2})[:.](\\d{2})\\s*(am|pm|a\\.m\\.|p\\.m\\.)?\\b", { g in
+        // 15:00, 3:30 pm, and 3.30pm only with am/pm: a bare "2.20" is a price
+        ("\\b(?:at\\s+)?(\\d{1,2}):(\\d{2})\\s*(am|pm|a\\.m\\.|p\\.m\\.)?\\b", { g in
             guard let hour = Int(g[1]), let minute = Int(g[2]), hour <= 23, minute <= 59 else { return nil }
             return .time(hour: clock(hour, meridiem: g[3]), minute: minute)
+        }),
+        ("\\b(?:(at)\\s+)?(\\d{1,2})\\.(\\d{2})\\s*(am|pm|a\\.m\\.|p\\.m\\.)?", { g in
+            // "bread 2.20" is money; only "at 2.20" or "2.20pm" is a time.
+            guard !g[4].isEmpty || !g[1].isEmpty else { return nil }
+            guard let hour = Int(g[2]), let minute = Int(g[3]), hour <= 23, minute <= 59 else { return nil }
+            return .time(hour: clock(hour, meridiem: g[4]), minute: minute)
         }),
         // 3pm, 3 pm, 10am
         ("\\b(?:at\\s+)?(\\d{1,2})\\s*(am|pm|a\\.m\\.|p\\.m\\.)(?![a-z])", { g in
@@ -136,7 +143,20 @@ enum DateSpotter {
             guard let hour = periods[g[1]] else { return nil }
             return .period(hour: hour)
         }),
+        // "gym friday 8": a bare hour, used only when a day was named too
+        ("\\b(\\d{1,2})\\b(?![:.,]\\d)", { g in
+            guard let hour = Int(g[1]), hour <= 23 else { return nil }
+            return .bareHour(hour)
+        }),
     ]
+
+    /// Built once: a segment of a long note would otherwise recompile every
+    /// pattern, and Reminders reads every line of the note.
+    private static let compiled: [(regex: NSRegularExpression, kind: ([String]) -> Match.Kind?)] =
+        patterns.compactMap { pattern, make in
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) else { return nil }
+            return (regex, make)
+        }
 
     /// An hour on the 24-hour clock: "3pm" is 15; "3" alone is 15 too, and
     /// "9" alone is 9, since a bare hour under seven is an afternoon one.
@@ -148,20 +168,24 @@ enum DateSpotter {
     }
 
     private static func spot(_ segment: String, now: Date, calendar: Calendar) -> Hit? {
-        let lowered = segment.lowercased()
-        let ns = lowered as NSString
+        let ns = segment as NSString
         var matches: [Match] = []
-        for (pattern, make) in patterns {
-            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
-            for found in regex.matches(in: lowered, range: NSRange(location: 0, length: ns.length)) {
+        for (regex, make) in compiled {
+            for found in regex.matches(in: segment, range: NSRange(location: 0, length: ns.length)) {
                 guard !matches.contains(where: { NSIntersectionRange($0.range, found.range).length > 0 }) else { continue }
+                // The groups are read lowercased, but the ranges belong to
+                // the segment as written: lowercasing the whole string first
+                // would shift them, since "İ" grows a unit when it folds.
                 let groups = (0..<found.numberOfRanges).map { i -> String in
                     let r = found.range(at: i)
-                    return r.location == NSNotFound ? "" : ns.substring(with: r)
+                    return r.location == NSNotFound ? "" : ns.substring(with: r).lowercased()
                 }
                 if let kind = make(groups) { matches.append(Match(range: found.range, kind: kind)) }
             }
         }
+        // In the order they were written, not the order the patterns are
+        // tried, so "tuesday, rent on the 1st" reads left to right.
+        matches.sort { $0.range.location < $1.range.location }
         guard let due = when(matches.map(\.kind), now: now, calendar: calendar) else { return nil }
         return Hit(title: title(of: segment, without: matches.map(\.range)), due: due)
     }
@@ -174,57 +198,91 @@ enum DateSpotter {
         var day: Date?
         var time: (hour: Int, minute: Int)?
         var soft: Int?
+        var bare: Int?
+        var ahead: TimeInterval?
         var dayIsExplicit = false
         var weekdayGiven = false
         for kind in kinds {
             switch kind {
             case let .interval(seconds):
-                return now.addingTimeInterval(seconds)
+                if ahead == nil { ahead = seconds }
             case let .day(offset, at: hour):
                 day = calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: now))
                 dayIsExplicit = true
                 if let hour, soft == nil { soft = hour }
             case let .weekday(weekday, next):
                 let today = calendar.component(.weekday, from: now)
-                var ahead = (weekday - today + 7) % 7
-                if next, ahead == 0 { ahead = 7 }
-                day = calendar.date(byAdding: .day, value: ahead, to: calendar.startOfDay(for: now))
+                var forward = (weekday - today + 7) % 7
+                if next, forward == 0 { forward = 7 }
+                day = calendar.date(byAdding: .day, value: forward, to: calendar.startOfDay(for: now))
                 dayIsExplicit = true
                 weekdayGiven = true
             case let .dayOfMonth(number):
-                guard (1...31).contains(number) else { continue }
-                var components = calendar.dateComponents([.year, .month], from: now)
-                components.day = number
-                if let this = calendar.date(from: components), this >= calendar.startOfDay(for: now) {
-                    day = this
-                } else if let next = calendar.date(byAdding: .month, value: 1, to: calendar.date(from: components) ?? now) {
-                    day = next
-                }
+                guard let found = nextDate(day: number, from: now, calendar: calendar) else { continue }
+                day = found
                 dayIsExplicit = true
             case let .monthDay(month, number):
-                guard (1...31).contains(number) else { continue }
-                var components = DateComponents(year: calendar.component(.year, from: now), month: month, day: number)
-                if let this = calendar.date(from: components), this < calendar.startOfDay(for: now) {
-                    components.year = (components.year ?? 0) + 1
+                let year = calendar.component(.year, from: now)
+                guard var found = date(year: year, month: month, day: number, calendar: calendar) else { continue }
+                if found < calendar.startOfDay(for: now),
+                   let nextYear = date(year: year + 1, month: month, day: number, calendar: calendar) {
+                    found = nextYear
                 }
-                day = calendar.date(from: components)
+                day = found
                 dayIsExplicit = true
             case let .time(hour, minute):
                 if time == nil { time = (hour, minute) }
+            case let .bareHour(hour):
+                if bare == nil { bare = hour }
             case let .period(hour):
                 if soft == nil { soft = hour }
             }
         }
+        // "in twenty minutes" with no day and no clock time is that far off.
+        if let ahead, day == nil, time == nil { return now.addingTimeInterval(ahead) }
+        // A bare number is an hour only next to a day: "gym friday 8".
+        if time == nil, dayIsExplicit, let bare { time = (clock(bare, meridiem: ""), 0) }
         // A period alone ("morning pages") is not a date.
         guard day != nil || time != nil else { return nil }
-        let base = day ?? calendar.startOfDay(for: now)
+        var base = day ?? calendar.startOfDay(for: now)
+        if let ahead, day == nil {
+            base = calendar.startOfDay(for: now.addingTimeInterval(ahead))
+        }
         let at = time ?? (soft.map { ($0, 0) } ?? (ReminderStamp.morning, 0))
         guard var due = calendar.date(byAdding: DateComponents(hour: at.hour, minute: at.minute), to: base) else { return nil }
         if due <= now {
-            if !dayIsExplicit, let next = calendar.date(byAdding: .day, value: 1, to: due) { due = next }
+            if !dayIsExplicit, ahead == nil, let next = calendar.date(byAdding: .day, value: 1, to: due) { due = next }
             else if weekdayGiven, let next = calendar.date(byAdding: .day, value: 7, to: due) { due = next }
         }
         return due
+    }
+
+    /// That day of the month, this month or the first later month that has
+    /// it: "the 31st" in September is 31 October, not 1 October, which is
+    /// what building the date and letting it overflow would give.
+    private static func nextDate(day number: Int, from now: Date, calendar: Calendar) -> Date? {
+        guard (1...31).contains(number) else { return nil }
+        let today = calendar.startOfDay(for: now)
+        var month = today
+        for _ in 0..<14 {
+            let parts = calendar.dateComponents([.year, .month], from: month)
+            if let year = parts.year, let m = parts.month,
+               let found = date(year: year, month: m, day: number, calendar: calendar), found >= today {
+                return found
+            }
+            guard let next = calendar.date(byAdding: .month, value: 1, to: month) else { return nil }
+            month = next
+        }
+        return nil
+    }
+
+    /// That date, or nil when the month has no such day: a calendar builds
+    /// 31 September as 1 October rather than refusing it.
+    private static func date(year: Int, month: Int, day: Int, calendar: Calendar) -> Date? {
+        guard (1...12).contains(month), (1...31).contains(day),
+              let made = calendar.date(from: DateComponents(year: year, month: month, day: day)),
+              calendar.component(.day, from: made) == day else { return nil }
+        return made
     }
 
     /// The segment with the date words taken out and the joining words they

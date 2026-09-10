@@ -23,6 +23,22 @@ final class ListSorterTests: XCTestCase {
         XCTAssertNil(ListSorter.order(groups: groups, count: 3))
     }
 
+    func testOutcomeTellsAGarbageAnswerFromAGroupedList() {
+        // Two kinds, already in that order: nothing to move.
+        XCTAssertEqual(ListSorter.outcome(groups: [(number: 1, group: "a"), (number: 2, group: "b")], count: 2),
+                       ListSorter.Outcome.alreadyGrouped)
+        // Two kinds, interleaved: a new order.
+        XCTAssertEqual(ListSorter.outcome(groups: [(number: 1, group: "b"), (number: 2, group: "a"), (number: 3, group: "b")], count: 3),
+                       ListSorter.Outcome.order([0, 2, 1]))
+        // Every label blank, or every number out of range: nothing was said.
+        XCTAssertEqual(ListSorter.outcome(groups: [(number: 1, group: "  "), (number: 2, group: "")], count: 2), ListSorter.Outcome.noAnswer)
+        XCTAssertEqual(ListSorter.outcome(groups: [(number: 9, group: "dairy")], count: 2), ListSorter.Outcome.noAnswer)
+        XCTAssertEqual(ListSorter.outcome(groups: [], count: 2), ListSorter.Outcome.noAnswer)
+        // Labelled, but all the same kind: there is nothing to regroup.
+        XCTAssertEqual(ListSorter.outcome(groups: [(number: 1, group: "shop"), (number: 2, group: "shop")], count: 2),
+                       ListSorter.Outcome.alreadyGrouped)
+    }
+
     func testBadNumbersAreRefused() {
         // A repeated number: the second is ignored, so one kind is named
         // and there is nothing to group by.

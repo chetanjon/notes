@@ -168,3 +168,10 @@ extension NoteTextTests {
         XCTAssertEqual(NoteText.firstSentence(""), "")
     }
 }
+
+extension NoteTextTests {
+    func testNormalisedMakesEveryBreakALineFeed() {
+        XCTAssertEqual(NoteText.normalised("a\r\nb\rc\u{2028}d\u{0085}e"), "a\nb\nc\nd\ne")
+        XCTAssertEqual(NoteText.normalised("plain\ntext"), "plain\ntext")
+    }
+}

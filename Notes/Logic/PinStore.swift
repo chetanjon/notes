@@ -67,9 +67,23 @@ enum PinStore {
         suite.data(forKey: key).flatMap { try? JSONDecoder().decode(Pinned.self, from: $0) }
     }
 
+    /// A reload asked for while one is already queued. Typing in a pinned
+    /// note saves three times a second, and each save writes both the
+    /// pinned record and the recent list, so without this every keystroke
+    /// would re-render all four widget kinds twice.
+    private static let reloadDelay: Duration = .milliseconds(400)
+    @MainActor private static var reloadTask: Task<Void, Never>?
+
     static func reloadWidgets() {
         #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
+        Task { @MainActor in
+            reloadTask?.cancel()
+            reloadTask = Task { @MainActor in
+                try? await Task.sleep(for: reloadDelay)
+                guard !Task.isCancelled else { return }
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+        }
         #endif
     }
 

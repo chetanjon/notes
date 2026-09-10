@@ -52,3 +52,33 @@ extension ModelGuardTests {
         XCTAssertFalse(ModelGuard.absorbs("Milk, eggs, bread", own: "milk eggs bread", from: ["Groceries", "eggs and milk"]))
     }
 }
+
+extension ModelGuardTests {
+    func testTidyKeepsAllowsASpellingFix() {
+        // The corrected word is not the word that was there, so counting
+        // exact survivors read a two-word line as half destroyed.
+        XCTAssertTrue(ModelGuard.tidyKeeps("buy tomatos", "Buy tomatoes", others: []))
+        XCTAssertTrue(ModelGuard.tidyKeeps("wenesday meeting", "Wednesday meeting", others: []))
+        XCTAssertTrue(ModelGuard.tidyKeeps("i recieved it", "I received it", others: []))
+        // A different word is still a rewrite.
+        XCTAssertFalse(ModelGuard.tidyKeeps("buy tomatos", "Buy potatoes and bread", others: []))
+    }
+
+    func testNearIsOneEditForShortWordsAndTwoForLong() {
+        XCTAssertTrue(ModelGuard.near("tomatos", "tomatoes"))
+        XCTAssertTrue(ModelGuard.near("teh", "the"))
+        XCTAssertTrue(ModelGuard.near("hotel", "hotels"))
+        XCTAssertFalse(ModelGuard.near("cat", "dog"))
+        XCTAssertFalse(ModelGuard.near("milk", "bread"))
+    }
+
+    func testGroundedAllowsAnInflectionButNotAnInvention() {
+        let note = "Japan trip\nHotels: one near the station, one by the park"
+        XCTAssertTrue(ModelGuard.grounded("which hotel", in: note))
+        XCTAssertTrue(ModelGuard.grounded("the stations", in: note))
+        XCTAssertFalse(ModelGuard.grounded("book the flights", in: note))
+        // Nothing but small words says nothing, and must not pass.
+        XCTAssertFalse(ModelGuard.grounded("do it", in: note))
+        XCTAssertFalse(ModelGuard.grounded("", in: note))
+    }
+}

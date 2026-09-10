@@ -265,7 +265,7 @@ struct EditorView: View {
         Task { @MainActor in
             let items = await ListMaker.items(from: plain)
             working = false
-            if items.isEmpty { show("No list in this note") } else { command = .makeList(items: items) }
+            if items.isEmpty { show("No list in this note") } else { command = .makeList(items: items, from: plain) }
         }
     }
 
@@ -293,7 +293,7 @@ struct EditorView: View {
         Task { @MainActor in
             let tidied = await OnDevice.tidied(lines, items: items)
             working = false
-            if let tidied { command = .tidy(lines: tidied) } else { show("Nothing to fix") }
+            if let tidied { command = .tidy(lines: tidied, from: lines) } else { show("Nothing to fix") }
         }
     }
 
@@ -352,6 +352,9 @@ struct EditorView: View {
     /// words or more with it, and each older note once per sitting.
     private func scheduleRecall(_ value: String) {
         recallTask?.cancel()
+        // The writing has moved on, so a hint about the older text should
+        // not stay pinned above it.
+        if recall != nil { withAnimation(.easeOut(duration: 0.15)) { recall = nil } }
         guard OnDevice.isAvailable, ModelGuard.words(value).count >= Recall.minimumWords else { return }
         recallTask = Task { @MainActor in
             try? await Task.sleep(for: Self.recallDelay)
@@ -371,6 +374,9 @@ struct EditorView: View {
 
     /// A word from the sparkle in place of the date line, for a moment.
     private func show(_ text: String) {
+        // The brief sits in the same line and outranks the notice there, so
+        // "Already in order" behind one would never be seen.
+        if brief != nil { brief = nil }
         notice = text
         noticeTimer?.cancel()
         noticeTimer = Task { @MainActor in
@@ -384,8 +390,10 @@ struct EditorView: View {
         saveTask?.cancel()
         saveTask = Task { @MainActor in
             try? await Task.sleep(for: Self.saveDelay)
-            guard !Task.isCancelled else { return }
-            NoteStore.update(note, text: value, in: context)
+            guard !Task.isCancelled, !isDeleted, note.modelContext != nil else { return }
+            // Mid-edit: a line cut on its way to being pasted lower down is
+            // absent for a moment, and its notification must not go with it.
+            NoteStore.update(note, text: value, in: context, settled: false)
             saveTask = nil
         }
     }
@@ -413,9 +421,13 @@ struct EditorView: View {
 
     /// Save whatever is on screen right now.
     private func flush() {
-        guard !isDeleted, !NoteText.isBlank(text) else { return }
+        // Cancelled first: a blank note returns early, and its pending save
+        // would otherwise land after the view has gone.
         saveTask?.cancel()
         saveTask = nil
+        // A note deleted on another device is out of the store already;
+        // writing to it would either fault or bring it back from the dead.
+        guard !isDeleted, note.modelContext != nil, !NoteText.isBlank(text) else { return }
         NoteStore.update(note, text: text, in: context)
     }
 

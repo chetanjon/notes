@@ -9,6 +9,26 @@ enum ListSorter {
     /// model's `(number, group)` pairs for a list of `count` items. Nil
     /// when a number is missing, repeated or out of range, or when the
     /// order would be the one the list already has.
+    /// What the labels amounted to: a new order, a list already grouped, or
+    /// an answer with nothing usable in it. The last two look the same from
+    /// a nil, and the editor has different things to say about them.
+    enum Outcome: Equatable {
+        case order([Int])
+        case alreadyGrouped
+        case noAnswer
+    }
+
+    static func outcome(groups: [(number: Int, group: String)], count: Int) -> Outcome {
+        guard count > 0 else { return .noAnswer }
+        let usable = groups.contains { pair in
+            pair.number >= 1 && pair.number <= count
+                && !pair.group.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        guard usable else { return .noAnswer }
+        guard let order = order(groups: groups, count: count) else { return .alreadyGrouped }
+        return .order(order)
+    }
+
     static func order(groups: [(number: Int, group: String)], count: Int) -> [Int]? {
         guard count > 0 else { return nil }
         // An item the model skipped keeps a kind of its own, so a partial

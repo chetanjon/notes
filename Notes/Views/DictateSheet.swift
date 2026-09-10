@@ -12,6 +12,10 @@ struct DictateSheet: View {
     @State private var listener = SpeechListener()
     @State private var cleaning = false
 
+    /// The model has this long to tidy the dictation before the words are
+    /// used as they were heard.
+    private static let cleanLimit: Duration = .seconds(20)
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(heading)
@@ -50,6 +54,9 @@ struct DictateSheet: View {
         .presentationDragIndicator(.visible)
         .task { await listener.start() }
         .onDisappear { listener.stop() }
+        // A swipe down while it is thinking would otherwise still make the
+        // note a moment later, after the user had given up on it.
+        .interactiveDismissDisabled(cleaning)
     }
 
     private var heading: String {
@@ -76,9 +83,11 @@ struct DictateSheet: View {
         }
         cleaning = true
         Task { @MainActor in
-            let text = await OnDevice.cleaned(dictation: heard) ?? Dictation.plain(heard)
+            // The model has a limit here too: the words are already heard,
+            // and a call that never returns must not cost the user the note.
+            let cleaned = await withTimeout(Self.cleanLimit) { await OnDevice.cleaned(dictation: heard) }
             cleaning = false
-            onDone(text)
+            onDone(cleaned ?? Dictation.plain(heard))
             dismiss()
         }
     }

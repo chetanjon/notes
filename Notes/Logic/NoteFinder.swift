@@ -118,6 +118,11 @@ enum NoteFinder {
                 answer = NoteText.firstSentence(answer)
                 if ModelGuard.wordCount(answer) > answerLimit { answer = "" }
             }
+            // It is shown as a plain statement of fact, so it has to come
+            // from the notes it named: every other model answer in the app
+            // is checked this way, and this is the one the user reads first.
+            let source = unique.compactMap { id in cards.first { $0.id == id }?.text }.joined(separator: "\n")
+            if !answer.isEmpty, !ModelGuard.grounded(answer, in: source) { answer = "" }
             return Found(answer: unique.isEmpty ? "" : answer, ids: unique)
         }
     }

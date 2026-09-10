@@ -24,8 +24,14 @@ final class SpeechListener {
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
 
+    /// Set when the sheet goes while `start` is still waiting on a
+    /// permission prompt. Without it, `stop` sees `.idle`, does nothing, and
+    /// `start` carries on to open the microphone for a view that has gone.
+    private var stopped = false
+
     func start() async {
         guard state != .listening else { return }
+        stopped = false
         transcript = ""
         guard let recognizer = SFSpeechRecognizer(), recognizer.isAvailable else {
             state = .failed("Speech recognition is not available for your language.")
@@ -38,11 +44,13 @@ final class SpeechListener {
         let speech = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
         }
+        guard !stopped else { return }
         guard speech == .authorized else {
             state = .failed("Speech recognition is off. Turn it on in Settings › Privacy & Security › Speech Recognition.")
             return
         }
         let mic = await AVAudioApplication.requestRecordPermission()
+        guard !stopped else { return }
         guard mic else {
             state = .failed("The microphone is off. Turn it on in Settings › Privacy & Security › Microphone.")
             return
@@ -81,6 +89,7 @@ final class SpeechListener {
 
     /// Ends the listening; the transcript is whatever was heard by then.
     func stop() {
+        stopped = true
         guard state == .listening else { return }
         request?.endAudio()
         finish()

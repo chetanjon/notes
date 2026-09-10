@@ -246,3 +246,29 @@ extension ChecklistTests {
                        Checklist.toggleItem(in: text, at: 6))
     }
 }
+
+extension ChecklistTests {
+    func testDifferenceKeepsCharactersWhole() {
+        // The common part ends between the two halves of an emoji; cutting
+        // there would hand back half a character and print a lozenge.
+        let change = Checklist.difference(from: "😀 gym", to: "😃 gym")
+        let old = "😀 gym" as NSString
+        XCTAssertEqual(old.replacingCharacters(in: change.range, with: change.replacement), "😃 gym")
+        let swap = Checklist.difference(from: "□ 😀 gym\n□ 😃 shop", to: "□ 😃 shop\n□ 😀 gym")
+        let before = "□ 😀 gym\n□ 😃 shop" as NSString
+        XCTAssertEqual(before.replacingCharacters(in: swap.range, with: swap.replacement), "□ 😃 shop\n□ 😀 gym")
+    }
+
+    func testDeletingABlankLineAboveAnItemKeepsTheItem() {
+        // Backspace at the start of the item removes the blank line only.
+        XCTAssertEqual(Checklist.handleDeletion(in: "a\n\n□ b", range: NSRange(location: 2, length: 1)), nil)
+        // A whole item line selected with its break: the next item keeps its marker.
+        XCTAssertNil(Checklist.handleDeletion(in: "Shop\n□ milk\n□ eggs", range: NSRange(location: 5, length: 7)))
+    }
+
+    func testReturnOnTheMarkerIsLeftToTheTextView() {
+        XCTAssertNil(Checklist.handleReturn(in: "□ milk", selection: NSRange(location: 0, length: 0)))
+        XCTAssertNil(Checklist.handleReturn(in: "□ milk", selection: NSRange(location: 1, length: 0)))
+        XCTAssertNotNil(Checklist.handleReturn(in: "□ milk", selection: NSRange(location: 6, length: 0)))
+    }
+}
