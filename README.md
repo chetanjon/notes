@@ -6,7 +6,8 @@ delete, search, checklists, and one extra: pin a note to the Lock Screen.
 Notes sync between your own devices through iCloud; there are no accounts and
 no server.
 
-The spec this was built from is `NOTES_APP_SPEC.md`.
+The spec this was built from is `NOTES_APP_SPEC.md`. `HANDOVER.md` says where
+the work stands, what to open, and what is left to do.
 
 ## Layout
 
