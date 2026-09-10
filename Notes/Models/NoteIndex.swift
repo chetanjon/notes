@@ -16,7 +16,7 @@ enum NoteIndex {
     /// Kept across launches: in memory alone, every cold launch rebuilt the
     /// whole index whether or not anything had changed.
     private static let lastReindexKey = "index.lastReindex"
-    @MainActor private static var lastReindex: Date? {
+    private static var lastReindex: Date? {
         get {
             let stamp = PinStore.suite.double(forKey: lastReindexKey)
             return stamp > 0 ? Date(timeIntervalSince1970: stamp) : nil
@@ -28,7 +28,6 @@ enum NoteIndex {
     /// most every ten minutes. That also covers what iCloud brought in or
     /// took away while the app was closed, which no save on this phone
     /// would have seen.
-    @MainActor
     static func reindex(in context: ModelContext) {
         guard CSSearchableIndex.isIndexingAvailable() else { return }
         if let last = lastReindex, Date.now.timeIntervalSince(last) < reindexInterval { return }

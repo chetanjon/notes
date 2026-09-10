@@ -273,7 +273,10 @@ enum NoteStore {
             recentTask = Task { @MainActor in
                 try? await Task.sleep(for: recentDelay)
                 guard !Task.isCancelled else { return }
-                writeRecent(in: context)
+                // The container's own context, not the caller's: a context
+                // cannot be carried across to another task, and every caller
+                // is on this one anyway.
+                writeRecent(in: container.mainContext)
             }
         }
     }

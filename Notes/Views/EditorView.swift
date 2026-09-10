@@ -393,8 +393,8 @@ struct EditorView: View {
     /// A word from the sparkle in place of the date line, for a moment.
     /// Runs a model action with a deadline, keeping `working` true only
     /// while it is really working. Nil means it gave up.
-    private func act<T>(_ work: @escaping @Sendable () async -> T?,
-                        then finish: @escaping (T?) -> Void) {
+    private func act<T: Sendable>(_ work: @escaping @Sendable () async -> T?,
+                                  then finish: @escaping (T?) -> Void) {
         guard !working else { return }
         working = true
         actionTask?.cancel()
