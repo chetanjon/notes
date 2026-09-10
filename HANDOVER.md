@@ -104,8 +104,6 @@ left there:
 
 - Deploy the CloudKit schema to production, after running the current build
   once so the schema is complete in development.
-- Turn on GitHub Pages for `docs/`, since the listing links the privacy and
-  support pages.
 - Five screenshots.
 - Paste `AppStore/LISTING.md` into the form.
 - Bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `project.yml`,
