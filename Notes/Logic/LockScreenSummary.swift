@@ -37,6 +37,13 @@ enum LockScreenSummary {
         lock.withLock { cache.first(where: { $0.text == text })?.line }
     }
 
+    /// Drops what was written for this text. The cache is keyed on the
+    /// note's words, so a deleted note would otherwise sit in memory until
+    /// sixteen more notes pushed it out.
+    static func forget(_ text: String) {
+        lock.withLock { cache.removeAll { $0.text == text } }
+    }
+
     static func line(for text: String) async -> String? {
         if let hit = cached(for: text) { return hit }
         #if canImport(FoundationModels)

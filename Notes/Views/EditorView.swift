@@ -18,6 +18,7 @@ struct EditorView: View {
     @State private var saveTask: Task<Void, Never>?
     /// Set by the trash: the note is gone, so onDisappear must not touch it.
     @State private var isDeleted = false
+    @State private var wasBlankOnOpen = false
     /// The sparkle is at work; it is a spinner meanwhile.
     @State private var working = false
     /// What a sparkle action had to say when it changed nothing, in place
@@ -44,6 +45,11 @@ struct EditorView: View {
 
     /// The recall waits this long after the last keystroke.
     private static let recallDelay: Duration = .milliseconds(2500)
+    /// The model has this long to answer a sparkle action. Past it the
+    /// spinner goes and the notice says so, rather than turning for ever.
+    private static let modelLimit: Duration = .seconds(20)
+    /// The sparkle action in flight, so leaving the note drops it.
+    @State private var actionTask: Task<Void, Never>?
     /// What "Reminders" found, shown on a sheet.
     @State private var foundReminders: [Reminders.Found] = []
     @State private var showingReminders = false
@@ -56,6 +62,10 @@ struct EditorView: View {
     init(note: Note) {
         self.note = note
         _text = State(initialValue: note.text)
+        // Whether it had anything in it when it opened. A note cleared by
+        // hand goes to the Trash like any other; only one that was never
+        // written in is dropped outright.
+        _wasBlankOnOpen = State(initialValue: note.isBlank)
         // A new note opens with the keyboard up; an existing one waits for a tap.
         _isFocused = State(initialValue: note.isBlank)
     }
@@ -100,6 +110,7 @@ struct EditorView: View {
                 .padding(.horizontal, Theme.pagePadding - 5)
         }
         .background(Theme.bg.ignoresSafeArea())
+        .background(EdgeSwipeBack().frame(width: 0, height: 0))
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .confirmationDialog(recallChoice?.title ?? "", isPresented: Binding(
@@ -142,12 +153,23 @@ struct EditorView: View {
             deleteTimer?.cancel()
             noticeTimer?.cancel()
             recallTask?.cancel()
-            guard !isDeleted else { return }
+            actionTask?.cancel()
             saveTask?.cancel()
             saveTask = nil
+            // A note taken away by another device is out of the store, and
+            // writing to it would fault or bring it back from the dead.
+            guard !isDeleted, note.modelContext != nil else { return }
             if NoteText.isBlank(text) {
-                // Only whitespace: discarded, not worth a place in the Trash.
-                NoteStore.erase(note, in: context)
+                if wasBlankOnOpen {
+                    // Never written in: discarded, not worth a place in the
+                    // Trash.
+                    NoteStore.erase(note, in: context)
+                } else {
+                    // It had something in it and now does not. That is a
+                    // deletion the user may not have meant, so it goes to
+                    // the Trash, where it can be got back.
+                    NoteStore.trash(note, in: context)
+                }
             } else {
                 NoteStore.update(note, text: text, in: context)
             }
@@ -260,11 +282,9 @@ struct EditorView: View {
     /// elsewhere. Applied as one edit, so a shake takes it back.
     private func makeList() {
         let plain = Checklist.plainBody(of: text)
-        guard !plain.isEmpty, !working else { return }
-        working = true
-        Task { @MainActor in
-            let items = await ListMaker.items(from: plain)
-            working = false
+        guard !plain.isEmpty else { return }
+        act({ await ListMaker.items(from: plain) }) { items in
+            guard let items else { return }
             if items.isEmpty { show("No list in this note") } else { command = .makeList(items: items, from: plain) }
         }
     }
@@ -272,12 +292,9 @@ struct EditorView: View {
     /// The model reads the note and puts a title on a new first line, with
     /// the cursor at its end. One edit; a shake takes it back.
     private func addTitle() {
-        guard !isBlank, !working else { return }
-        working = true
+        guard !isBlank else { return }
         let snapshot = text
-        Task { @MainActor in
-            let title = await OnDevice.title(for: snapshot)
-            working = false
+        act({ await OnDevice.title(for: snapshot) }) { title in
             if let title { command = .addTitle(title) } else { show("Couldn't find a title for this") }
         }
     }
@@ -286,13 +303,10 @@ struct EditorView: View {
     /// markers kept out of the model's hands and the items kept fragments.
     /// One edit; a shake takes it back.
     private func tidy() {
-        guard !isBlank, !working else { return }
-        working = true
+        guard !isBlank else { return }
         let lines = Checklist.bareLines(of: text)
         let items = Checklist.itemFlags(of: text)
-        Task { @MainActor in
-            let tidied = await OnDevice.tidied(lines, items: items)
-            working = false
+        act({ await OnDevice.tidied(lines, items: items) }) { tidied in
             if let tidied { command = .tidy(lines: tidied, from: lines) } else { show("Nothing to fix") }
         }
     }
@@ -304,12 +318,10 @@ struct EditorView: View {
     /// ticks and the plain lines stay where they are. One edit; a shake
     /// takes it back.
     private func sortList() {
-        guard canSortList, !working else { return }
-        working = true
+        guard canSortList else { return }
         let items = Checklist.items(of: text)
-        Task { @MainActor in
-            let sorted = await OnDevice.sorted(items)
-            working = false
+        act({ await OnDevice.sorted(items) }) { sorted in
+            guard let sorted else { return }
             switch sorted {
             case let .order(order): command = .sortList(order: order, items: items)
             case .alreadyGrouped: show("Already in order")
@@ -322,13 +334,12 @@ struct EditorView: View {
     /// model, found by it too; a sheet shows them, and one tap there puts
     /// them in the Reminders app or sets a notification.
     private func findReminders() {
-        guard !isBlank, !working else { return }
-        working = true
+        guard !isBlank else { return }
         let snapshot = text
-        Task { @MainActor in
-            let found = await Reminders.find(in: snapshot)
-            working = false
-            foundReminders = found
+        act({ await Reminders.find(in: snapshot) }) { found in
+            // The sheet opens either way: with nothing found it says so,
+            // which is better than a tap that appears to do nothing.
+            foundReminders = found ?? []
             showingReminders = true
         }
     }
@@ -336,14 +347,21 @@ struct EditorView: View {
     /// The brief: what the note has settled, what is open, what is next,
     /// in place of the date line. On demand the spinner shows meanwhile.
     private func loadBrief(onDemand: Bool) {
-        guard Brief.wanted(for: text), !working else { return }
-        if onDemand { working = true }
+        guard Brief.wanted(for: text) else { return }
         let snapshot = text
-        Task { @MainActor in
-            let made = await OnDevice.brief(for: snapshot)
-            if onDemand { working = false }
+        guard onDemand else {
+            // The one that appears on its own after a day away: no spinner,
+            // and nothing to say if it comes back empty.
+            Task { @MainActor in
+                let made = await withTimeout(Self.modelLimit) { await OnDevice.brief(for: snapshot) }
+                guard text == snapshot, let made else { return }
+                brief = made.line
+            }
+            return
+        }
+        act({ await OnDevice.brief(for: snapshot) }) { made in
             guard text == snapshot else { return }
-            if let made { brief = made.line } else if onDemand { show("Nothing to sum up yet") }
+            if let made { brief = made.line } else { show("Nothing to sum up yet") }
         }
     }
 
@@ -373,6 +391,22 @@ struct EditorView: View {
     }
 
     /// A word from the sparkle in place of the date line, for a moment.
+    /// Runs a model action with a deadline, keeping `working` true only
+    /// while it is really working. Nil means it gave up.
+    private func act<T>(_ work: @escaping @Sendable () async -> T?,
+                        then finish: @escaping (T?) -> Void) {
+        guard !working else { return }
+        working = true
+        actionTask?.cancel()
+        actionTask = Task { @MainActor in
+            let made = await withTimeout(Self.modelLimit, work)
+            guard !Task.isCancelled else { return }
+            working = false
+            if made == nil, OnDevice.isAvailable { show("That took too long") }
+            finish(made)
+        }
+    }
+
     private func show(_ text: String) {
         // The brief sits in the same line and outranks the notice there, so
         // "Already in order" behind one would never be seen.
@@ -394,7 +428,6 @@ struct EditorView: View {
             // Mid-edit: a line cut on its way to being pasted lower down is
             // absent for a moment, and its notification must not go with it.
             NoteStore.update(note, text: value, in: context, settled: false)
-            saveTask = nil
         }
     }
 
@@ -452,6 +485,11 @@ struct EditorView: View {
         deleteTimer?.cancel()
         saveTask?.cancel()
         saveTask = nil
+        // Save first, so what the Trash holds is what was on screen rather
+        // than what it was a third of a second ago.
+        if !NoteText.isBlank(text), note.modelContext != nil {
+            NoteStore.update(note, text: text, in: context)
+        }
         isDeleted = true
         NoteStore.trash(note, in: context)
         dismiss()

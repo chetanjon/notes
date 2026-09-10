@@ -20,16 +20,44 @@ enum PinActivity {
     /// run side by side, both would find nothing showing and both would
     /// start an activity, and the note would be on the Lock Screen twice.
     static func show(_ pinned: PinStore.Pinned?) {
-        let previous = latest
-        latest = Task { @MainActor in
-            await previous?.value
-            await sync(pinned)
+        Task { @MainActor in
+            // Typing in the pinned note saves three times a second, and iOS
+            // budgets how often an activity may be updated: past it the card
+            // is throttled or ended. So the last state within the window is
+            // the one that goes, unless the card is being taken down, which
+            // should not wait.
+            pending?.cancel()
+            guard pinned != nil else {
+                await run(nil)
+                return
+            }
+            pending = Task { @MainActor in
+                try? await Task.sleep(for: updateDelay)
+                guard !Task.isCancelled else { return }
+                await run(pinned)
+            }
         }
     }
 
-    /// The last call's task; the next waits on it. Only ever touched from
-    /// the main thread, where every caller runs.
-    private static var latest: Task<Void, Never>?
+    /// How long the pinned note's text has to hold still before the card is
+    /// told about it.
+    private static let updateDelay: Duration = .milliseconds(500)
+    @MainActor private static var pending: Task<Void, Never>?
+
+    /// One at a time, in order.
+    @MainActor
+    private static func run(_ pinned: PinStore.Pinned?) async {
+        let previous = latest
+        let task = Task { @MainActor in
+            await previous?.value
+            await sync(pinned)
+        }
+        latest = task
+        await task.value
+    }
+
+    /// The last call's task; the next waits on it.
+    @MainActor private static var latest: Task<Void, Never>?
 
     @MainActor
     static func sync(_ pinned: PinStore.Pinned?) async {

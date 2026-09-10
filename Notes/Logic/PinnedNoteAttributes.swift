@@ -45,6 +45,19 @@ struct PinnedNoteAttributes: ActivityAttributes {
     /// The note this activity stands for; tapping the activity opens it.
     var noteID: UUID
 
+    init(noteID: UUID) {
+        self.noteID = noteID
+    }
+
+    /// iOS keeps a running activity's attributes across an app update, so
+    /// this has to decode what an older build wrote. Undecodable attributes
+    /// hide the running activity from `Activity.activities`, and the app
+    /// would then start a second card beside the one already on screen.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        noteID = try c.decode(UUID.self, forKey: .noteID)
+    }
+
     /// `notes://note/<uuid>`, the same URL the widget uses.
     var url: URL? { URL(string: "\(PinStore.urlScheme)://note/\(noteID.uuidString)") }
 }

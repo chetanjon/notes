@@ -176,6 +176,8 @@ struct RemindersSheet: View {
                 trouble = "Notifications are off for Matte. Turn them on in Settings › Notifications › Matte."
             case .full:
                 trouble = "Too many notifications are already set. Some have to pass or be removed first."
+            case .failed:
+                trouble = "Those could not be set. Try again in a moment."
             }
         }
     }

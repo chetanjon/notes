@@ -175,3 +175,24 @@ extension NoteTextTests {
         XCTAssertEqual(NoteText.normalised("plain\ntext"), "plain\ntext")
     }
 }
+
+extension NoteTextTests {
+    func testPreviewsAreBoundedSoTheWidgetPayloadStaysSmall() {
+        // The Live Activity's whole payload has to stay under four
+        // kilobytes, and these strings are copied into it.
+        let long = String(repeating: "word ", count: 5_000)
+        XCTAssertLessThanOrEqual(NoteText.preview("Title\n" + long).count, NoteText.previewLimit + 1)
+        XCTAssertLessThanOrEqual(NoteText.widgetPreview("Title\n" + long).count, NoteText.previewLimit + 1)
+        XCTAssertLessThanOrEqual(NoteText.title(long).count, NoteText.titleLimit + 1)
+        // A checklist of many open items is bounded too.
+        let list = "Shop\n" + (1...500).map { "□ item \($0)" }.joined(separator: "\n")
+        XCTAssertLessThanOrEqual(NoteText.widgetPreview(list).count, NoteText.previewLimit + 1)
+        // Short text is untouched.
+        XCTAssertEqual(NoteText.preview("Title\nmilk and eggs"), "milk and eggs")
+    }
+
+    func testCutBreaksOnASpace() {
+        XCTAssertEqual(NoteText.cut("one two three", limit: 8), "one two…")
+        XCTAssertEqual(NoteText.cut("short", limit: 8), "short")
+    }
+}

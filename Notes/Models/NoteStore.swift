@@ -13,18 +13,32 @@ enum NoteStore {
     /// The container the app runs on. CloudKit when the entitlement is
     /// there, local storage when it is not, so a free-account build that
     /// cannot carry the iCloud capability still opens.
+    /// True when neither store on disk would open and the app is running on
+    /// a container that lives only until it quits. The list says so, because
+    /// anything written in that state is lost.
+    private(set) static var isEphemeral = false
+
     static func makeContainer() -> ModelContainer {
         let schema = Schema([Note.self])
         let cloud = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
         if let container = try? ModelContainer(for: schema, configurations: [cloud]) {
             return container
         }
+        // The same file, without iCloud: a free-account build has no
+        // entitlement to carry, and the notes already written are there.
         let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
-        do {
-            return try ModelContainer(for: schema, configurations: [local])
-        } catch {
-            fatalError("Could not open the notes store: \(error)")
+        if let container = try? ModelContainer(for: schema, configurations: [local]) {
+            return container
         }
+        // Neither opened. Crashing here would be a launch loop with no way
+        // out but deleting the app, which would take the notes with it, so
+        // the app opens on a container that lives in memory and says so.
+        if let container = try? ModelContainer(
+            for: schema, configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)]) {
+            isEphemeral = true
+            return container
+        }
+        fatalError("Could not open the notes store, on disk or in memory")
     }
 
     @discardableResult
@@ -40,6 +54,7 @@ enum NoteStore {
     /// back.
     static func trash(_ note: Note, in context: ModelContext) {
         let wasPinned = note.isPinned
+        LockScreenSummary.forget(note.text)
         note.isPinned = false
         note.deletedAt = .now
         save(context)
@@ -60,6 +75,7 @@ enum NoteStore {
     static func erase(_ note: Note, in context: ModelContext) {
         let wasPinned = note.isPinned
         let id = note.id
+        LockScreenSummary.forget(note.text)
         context.delete(note)
         save(context)
         NoteIndex.remove([id])
@@ -245,9 +261,36 @@ enum NoteStore {
     /// list's own order (last opened or edited), blank notes left out.
     /// Written after every save and on each foreground, when iCloud may
     /// have changed things.
+    /// The widget's list is rebuilt this long after the last save, not on
+    /// each one: typing saves three times a second, and each rebuild reads
+    /// every note in the store.
+    private static let recentDelay: Duration = .milliseconds(800)
+    @MainActor private static var recentTask: Task<Void, Never>?
+
     static func syncRecent(in context: ModelContext) {
-        let notes = (try? context.fetch(FetchDescriptor<Note>(
-            predicate: #Predicate { $0.deletedAt == nil }))) ?? []
+        Task { @MainActor in
+            recentTask?.cancel()
+            recentTask = Task { @MainActor in
+                try? await Task.sleep(for: recentDelay)
+                guard !Task.isCancelled else { return }
+                writeRecent(in: context)
+            }
+        }
+    }
+
+    /// Now, without waiting: the app is going away and the widget should
+    /// not be left a save behind.
+    static func syncRecentNow(in context: ModelContext) {
+        writeRecent(in: context)
+    }
+
+    private static func writeRecent(in context: ModelContext) {
+        guard let notes = try? context.fetch(FetchDescriptor<Note>(
+            predicate: #Predicate { $0.deletedAt == nil })) else {
+            // A failed fetch is not an empty store: writing [] here would
+            // blank the widget for a reason that has nothing to do with it.
+            return
+        }
         let recent = RecentStore.order(notes.filter { !$0.isBlank }.map {
             RecentStore.Summary(id: $0.id, title: $0.title, preview: $0.preview,
                                 updatedAt: $0.touchedAt, isPinned: $0.isPinned)
@@ -283,8 +326,24 @@ enum NoteStore {
         try? context.fetch(FetchDescriptor<Note>(predicate: #Predicate { $0.id == id })).first
     }
 
-    private static func save(_ context: ModelContext) {
-        do { try context.save() } catch { assertionFailure("Save failed: \(error)") }
+    /// False when the write did not land. Views carry on, since there is
+    /// nothing useful to say mid-typing and the next save will try again,
+    /// but Siri must not answer "Added milk to Groceries" for a note that
+    /// was never written.
+    @discardableResult
+    private static func save(_ context: ModelContext) -> Bool {
+        var saved = true
+        do { try context.save() } catch {
+            assertionFailure("Save failed: \(error)")
+            saved = false
+        }
         syncRecent(in: context)
+        return saved
+    }
+
+    /// The same, for the callers that have to know: the App Intents.
+    @discardableResult
+    static func saveChecked(_ context: ModelContext) -> Bool {
+        save(context)
     }
 }

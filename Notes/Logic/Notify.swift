@@ -14,12 +14,16 @@ enum Notify {
         case set(Int)
         case denied
         case full
+        /// Permission was given and iOS still took none of them.
+        case failed
     }
 
     /// Asks once. The count is how many iOS actually took.
     static func schedule(_ found: [Reminders.Found], noteID: UUID, noteTitle: String) async -> Outcome {
         let center = UNUserNotificationCenter.current()
-        let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        // No badge: the app never sets one, so asking for it is asking for
+        // a permission it does not use.
+        let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
         guard granted else { return .denied }
         let pending = await center.pendingNotificationRequests().count
         guard pending + found.count <= NotifyPlan.pendingLimit else { return .full }
@@ -44,13 +48,16 @@ enum Notify {
                 continue
             }
         }
-        return added > 0 ? .set(added) : .denied
+        return added > 0 ? .set(added) : .failed
     }
 
     /// Pending notifications for notes that are no longer in the store: a
     /// note deleted on another device syncs its deletion in, but nothing
     /// local cancelled its notifications. Run on each foreground.
     static func cancelOrphans(liveNoteIDs: Set<UUID>) {
+        // No notes in hand is not the same as no notes: a query that has not
+        // resolved would otherwise cancel every notification in the app.
+        guard !liveNoteIDs.isEmpty else { return }
         let live = Set(liveNoteIDs.map(\.uuidString))
         let center = UNUserNotificationCenter.current()
         center.getPendingNotificationRequests { requests in
@@ -59,15 +66,31 @@ enum Notify {
                 .map(\.identifier)
             if !ids.isEmpty { center.removePendingNotificationRequests(withIdentifiers: ids) }
         }
+        center.getDeliveredNotifications { delivered in
+            let ids = delivered
+                .filter { !$0.request.content.threadIdentifier.isEmpty
+                    && !live.contains($0.request.content.threadIdentifier) }
+                .map(\.request.identifier)
+            if !ids.isEmpty { center.removeDeliveredNotifications(withIdentifiers: ids) }
+        }
     }
 
-    /// Everything pending for these notes: the Trash, or gone for good.
+    /// Everything pending for these notes, and anything of theirs already
+    /// sitting in Notification Center: the Trash, or gone for good. A
+    /// delivered notification keeps the note's title and one of its lines
+    /// on the Lock Screen, so deleting the note has to take it too.
     static func cancel(noteIDs: [UUID]) {
         let threads = Set(noteIDs.map(\.uuidString))
         let center = UNUserNotificationCenter.current()
         center.getPendingNotificationRequests { requests in
             let ids = requests.filter { threads.contains($0.content.threadIdentifier) }.map(\.identifier)
             if !ids.isEmpty { center.removePendingNotificationRequests(withIdentifiers: ids) }
+        }
+        center.getDeliveredNotifications { delivered in
+            let ids = delivered
+                .filter { threads.contains($0.request.content.threadIdentifier) }
+                .map(\.request.identifier)
+            if !ids.isEmpty { center.removeDeliveredNotifications(withIdentifiers: ids) }
         }
     }
 
@@ -83,6 +106,14 @@ enum Notify {
             let stale = Set(NotifyPlan.stale(mine.map(\.content.body), in: text))
             let ids = mine.filter { stale.contains($0.content.body) }.map(\.identifier)
             if !ids.isEmpty { center.removePendingNotificationRequests(withIdentifiers: ids) }
+            // And the same line if it has already been shown.
+            center.getDeliveredNotifications { delivered in
+                let gone = delivered
+                    .filter { $0.request.content.threadIdentifier == noteID.uuidString
+                        && stale.contains($0.request.content.body) }
+                    .map(\.request.identifier)
+                if !gone.isEmpty { center.removeDeliveredNotifications(withIdentifiers: gone) }
+            }
         }
     }
 }

@@ -16,6 +16,26 @@ enum RecentStore {
         let updatedAt: Date
         let isPinned: Bool
 
+        init(id: UUID, title: String, preview: String, updatedAt: Date, isPinned: Bool) {
+            self.id = id
+            self.title = title
+            self.preview = preview
+            self.updatedAt = updatedAt
+            self.isPinned = isPinned
+        }
+
+        /// As with the pinned record: a field added later must not make the
+        /// list this version wrote unreadable, or the widget empties until
+        /// the app is next opened.
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decode(UUID.self, forKey: .id)
+            title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
+            preview = try c.decodeIfPresent(String.self, forKey: .preview) ?? ""
+            updatedAt = try c.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+            isPinned = try c.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+        }
+
         /// `notes://note/<uuid>`, what a tap on the row opens.
         var url: URL? { URL(string: "\(PinStore.urlScheme)://note/\(id.uuidString)") }
     }
