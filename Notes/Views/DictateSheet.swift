@@ -8,7 +8,11 @@ import SwiftUI
 struct DictateSheet: View {
     /// Called with the note's text once; the sheet dismisses itself.
     let onDone: (String) -> Void
+    /// Names out of the user's own notes, so they are heard as they are
+    /// written. It never leaves the phone.
+    var vocabulary: [String] = []
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @State private var listener = SpeechListener()
     @State private var cleaning = false
 
@@ -25,12 +29,23 @@ struct DictateSheet: View {
                 .padding(.horizontal, Theme.pagePadding)
                 .padding(.top, 28)
             ScrollView {
-                Text(body_)
-                    .font(Theme.Font.rowBody)
-                    .foregroundStyle(listener.transcript.isEmpty ? Theme.muted : Theme.fg)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, Theme.pagePadding)
-                    .padding(.top, 12)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(body_)
+                        .font(Theme.Font.rowBody)
+                        .foregroundStyle(listener.transcript.isEmpty ? Theme.muted : Theme.fg)
+                    // Something took the microphone away mid-sentence. The
+                    // words above are all there is, and saying so is the
+                    // only way the user finds out.
+                    if let notice = listener.notice {
+                        Text(notice)
+                            .font(Theme.Font.label)
+                            .foregroundStyle(Theme.muted)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Theme.pagePadding)
+                .padding(.top, 12)
+                .animation(.easeOut(duration: 0.15), value: listener.notice)
             }
             Button {
                 stop()
@@ -52,8 +67,13 @@ struct DictateSheet: View {
         .presentationDetents([.medium, .large])
         .presentationBackground(Theme.bg)
         .presentationDragIndicator(.visible)
-        .task { await listener.start() }
+        .task { await listener.start(vocabulary: vocabulary) }
         .onDisappear { listener.stop() }
+        // There is no background audio mode, so iOS is about to take the
+        // session down anyway. Stopping deliberately keeps the words.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { listener.stop() }
+        }
         // A swipe down while it is thinking would otherwise still make the
         // note a moment later, after the user had given up on it.
         .interactiveDismissDisabled(cleaning)
@@ -70,19 +90,23 @@ struct DictateSheet: View {
 
     private var body_: String {
         if case let .failed(reason) = listener.state { return reason }
-        return listener.transcript.isEmpty ? "Say what the note should say." : listener.transcript
+        return listener.transcript.isEmpty ? listener.placeholder : listener.transcript
     }
 
     /// Stop listening, clean what was heard, hand it over.
     private func stop() {
         listener.stop()
-        let heard = listener.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !heard.isEmpty else {
-            dismiss()
-            return
-        }
         cleaning = true
         Task { @MainActor in
+            // The recogniser's considered pass fixes casing and
+            // punctuation the partials got wrong, and is worth the moment
+            // it takes. It is bounded, so Stop always lets the user out.
+            let heard = await listener.settled().trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !heard.isEmpty else {
+                cleaning = false
+                dismiss()
+                return
+            }
             // The model has a limit here too: the words are already heard,
             // and a call that never returns must not cost the user the note.
             let cleaned = await withTimeout(Self.cleanLimit) { await OnDevice.cleaned(dictation: heard) }

@@ -357,11 +357,11 @@ struct NotesListView: View {
         .accessibilityLabel("New note")
         .accessibilityHint("Hold to dictate a note")
         .sheet(isPresented: $showingDictate) {
-            DictateSheet { text in
+            DictateSheet(onDone: { text in
                 let note = NoteStore.create(in: context)
                 NoteStore.update(note, text: text, in: context)
                 navigation.open(note.id)
-            }
+            }, vocabulary: Vocabulary.terms(in: notes.prefix(Vocabulary.notesRead).map(\.text)))
         }
     }
 
