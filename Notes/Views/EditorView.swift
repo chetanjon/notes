@@ -13,6 +13,8 @@ struct EditorView: View {
     @State private var text: String
     @State private var isFocused: Bool
     @State private var command: ChecklistTextView.Command?
+    /// The model is working on a dictation this note was written from.
+    @State private var cleaning = false
     @State private var confirmingDelete = false
     @State private var deleteTimer: Task<Void, Never>?
     @State private var saveTask: Task<Void, Never>?
@@ -66,8 +68,12 @@ struct EditorView: View {
         // hand goes to the Trash like any other; only one that was never
         // written in is dropped outright.
         _wasBlankOnOpen = State(initialValue: note.isBlank)
-        // A new note opens with the keyboard up; an existing one waits for a tap.
-        _isFocused = State(initialValue: note.isBlank)
+        // A new note opens with the keyboard up; an existing one waits for a
+        // tap. A dictated note is not blank, so without the second half of
+        // this the text view never becomes first responder, and a shake
+        // reaches nothing: the whole way back from the model's version to
+        // the words as spoken would silently do nothing at all.
+        _isFocused = State(initialValue: note.isBlank || Dictations.shared.isPending(note.id))
     }
 
     var body: some View {
@@ -76,7 +82,7 @@ struct EditorView: View {
             // When the note was last edited: small, centred under the bar,
             // in the muted grey, the way a note's date sits. A notice or the
             // brief takes the same slot. It follows each autosave.
-            Text(brief ?? notice ?? DateFormat.stamp(note.updatedAt))
+            Text(brief ?? notice ?? (cleaning ? "Cleaning up…" : DateFormat.stamp(note.updatedAt)))
                 .font(Theme.Font.meta)
                 .foregroundStyle(Theme.muted)
                 .multilineTextAlignment(.center)
@@ -88,6 +94,7 @@ struct EditorView: View {
                 .onTapGesture { brief = nil }
                 .animation(.easeOut(duration: 0.15), value: notice)
                 .animation(.easeOut(duration: 0.15), value: brief)
+                .animation(.easeOut(duration: 0.15), value: cleaning)
             if let recall {
                 // An older note that bears on this one. A tap asks: open it,
                 // or move what was written here into it.
@@ -130,6 +137,26 @@ struct EditorView: View {
                 loadBrief(onDemand: false)
             }
         }
+        // The note was written from a dictation and the model is still
+        // working on its version. Nothing is blocked meanwhile: the note is
+        // open, readable and editable, and the word under the bar is the
+        // only sign anything is coming.
+        .task {
+            guard Dictations.shared.isPending(note.id) else { return }
+            cleaning = true
+            let outcome = await Dictations.shared.outcome(for: note.id)
+            cleaning = false
+            switch outcome {
+            case let .cleaned(tidied):
+                // Against the live text, so the guard inside the command is
+                // exact rather than against what it was when it started.
+                command = .cleaned(was: text, now: tidied)
+            case let .some(other):
+                if let line = Dictation.notice(for: other) { show(line) }
+            case .none:
+                break
+            }
+        }
         .sheet(isPresented: $showingReminders) {
             RemindersSheet(found: foundReminders, noteID: note.id, noteTitle: NoteText.title(text)) { count in
                 show(count == 1 ? "Notification set" : "\(count) notifications set")
@@ -138,6 +165,14 @@ struct EditorView: View {
         .onChange(of: text) { _, newValue in
             scheduleSave(newValue)
             if brief != nil { brief = nil }
+            // The user started writing, so the model's version is no longer
+            // theirs to impose. Silent, because they did not ask for it and
+            // a notice here would be noise. This is also the control that
+            // can be discovered, where a shake has to be known about.
+            if cleaning {
+                Dictations.shared.cancel()
+                cleaning = false
+            }
             scheduleRecall(newValue)
         }
         .onChange(of: note.text) { _, synced in
@@ -156,6 +191,9 @@ struct EditorView: View {
             actionTask?.cancel()
             saveTask?.cancel()
             saveTask = nil
+            // Landing the model's version on a note nobody is looking at
+            // would be a change the user never saw and could not shake away.
+            Dictations.shared.cancel()
             // A note taken away by another device is out of the store, and
             // writing to it would fault or bring it back from the dead.
             guard !isDeleted, note.modelContext != nil else { return }
