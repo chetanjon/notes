@@ -16,6 +16,12 @@ struct NotesListView: View {
     @FocusState private var searchFocused: Bool
     /// Holding the pencil: the dictation sheet.
     @State private var showingDictate = false
+    /// Set when the hold fires, so the tap that follows it is not also a
+    /// new blank note.
+    @State private var held = false
+    /// What the sheet heard, kept until it has gone and the note can be
+    /// made without pushing behind it.
+    @State private var heard: String?
 
     /// What the on-device model found for a question the letters did not
     /// answer; kept while the query is the one it was asked.
@@ -339,6 +345,13 @@ struct NotesListView: View {
     /// A tap starts a note; holding it starts a dictation.
     private var composeButton: some View {
         Button {
+            // The long press does not cancel the button's own action, so a
+            // held-then-released press used to do both: a blank note pushed
+            // under the dictate sheet, waiting to be found later.
+            if held {
+                held = false
+                return
+            }
             let note = NoteStore.create(in: context)
             searchFocused = false
             navigation.open(note.id)
@@ -352,17 +365,41 @@ struct NotesListView: View {
         .buttonStyle(PressedButtonStyle())
         .simultaneousGesture(LongPressGesture(minimumDuration: 0.5).onEnded { _ in
             searchFocused = false
+            held = true
             showingDictate = true
         })
         .accessibilityLabel("New note")
         .accessibilityHint("Hold to dictate a note")
-        .sheet(isPresented: $showingDictate) {
-            DictateSheet(onDone: { text in
-                let note = NoteStore.create(in: context)
-                NoteStore.update(note, text: text, in: context)
-                navigation.open(note.id)
-            }, vocabulary: Vocabulary.terms(in: notes.prefix(Vocabulary.notesRead).map(\.text)))
+        // A hold is not something VoiceOver can perform, so dictation was
+        // unreachable with it on. The hint alone was an instruction to do
+        // the one thing the user could not do.
+        .accessibilityAction(named: "Dictate a note") {
+            searchFocused = false
+            showingDictate = true
         }
+        .sheet(isPresented: $showingDictate, onDismiss: { land() }) {
+            DictateSheet(onDone: { heard = $0 },
+                         vocabulary: Vocabulary.terms(in: notes.prefix(Vocabulary.notesRead).map(\.text)))
+        }
+    }
+
+    /// The note, the moment the speaking stops.
+    ///
+    /// Written from the pure shaping, which costs nothing, so it is there
+    /// and readable straight away rather than after the model has had its
+    /// twenty seconds. The model is started on the same words and its
+    /// version lands in the editor if and when it comes.
+    ///
+    /// This runs as the sheet goes rather than inside it, so the push
+    /// begins on an empty screen instead of behind a sheet still animating.
+    private func land() {
+        held = false
+        guard let words = heard else { return }
+        heard = nil
+        let note = NoteStore.create(in: context)
+        NoteStore.update(note, text: Dictation.plain(words), in: context)
+        Dictations.shared.start(heard: words, for: note.id)
+        navigation.open(note.id)
     }
 
     private func open(_ note: Note) {
