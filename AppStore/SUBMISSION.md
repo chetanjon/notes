@@ -14,10 +14,11 @@ text the forms ask for.
   still in beta, so steps 1 to 3 and 5 can be done now and step 4 waits for
   the release, or for a Mac running the current release Xcode.
 - `xcodegen` (`brew install xcodegen`).
-- The privacy and support pages live. They are in `docs/`; turn on GitHub
-  Pages once (repository Settings → Pages → Deploy from a branch → `main`,
-  `/docs`), then open https://chetanjon.github.io/notes/privacy.html in a
-  browser and confirm it loads before you fill in the form.
+- The privacy and support pages are already live, served by GitHub Pages from
+  `main` at `/docs`: https://chetanjon.github.io/notes/ is support and
+  https://chetanjon.github.io/notes/privacy.html is privacy. They rebuild on
+  every push to `main`. Open both and confirm they load before you paste the
+  URLs into the form.
 
 ## 0. Two account gates
 
