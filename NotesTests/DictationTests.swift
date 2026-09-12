@@ -71,3 +71,12 @@ extension DictationTests {
         }
     }
 }
+
+extension DictationTests {
+    func testSiriIsNotKeptWaitingTheWayTheEditorIs() {
+        // An intent has to answer while somebody is listening to it. The
+        // note is saved before the model is asked, so the whole cost of
+        // giving up early is that it stays as the plain rules shaped it.
+        XCTAssertLessThanOrEqual(Dictation.siriLimit, .seconds(5))
+    }
+}

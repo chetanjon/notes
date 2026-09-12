@@ -72,7 +72,7 @@ targets:
         NSRemindersFullAccessUsageDescription: To add the dates found in a note to your Reminders. Nothing is read.
         # Holding the pencil dictates a note: iOS's speech recognition, on the
         # phone only (requiresOnDeviceRecognition), through the microphone.
-        NSMicrophoneUsageDescription: To hear a note you dictate by holding the pencil. Speech is turned into text on the phone.
+        NSMicrophoneUsageDescription: To hear a note you dictate. Speech is turned into text on the phone.
         NSSpeechRecognitionUsageDescription: To turn a dictated note into text, on the phone. Nothing is sent to Apple or anyone.
     entitlements:
       path: Notes/Notes.entitlements
