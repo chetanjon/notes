@@ -15,6 +15,10 @@ struct EditorView: View {
     @State private var command: ChecklistTextView.Command?
     /// The model is working on a dictation this note was written from.
     @State private var cleaning = false
+    @State private var showingDictate = false
+    /// What was said into this note, kept until the sheet has gone so the
+    /// words land on a text view that has its cursor back.
+    @State private var spoken: String?
     @State private var confirmingDelete = false
     @State private var deleteTimer: Task<Void, Never>?
     @State private var saveTask: Task<Void, Never>?
@@ -157,6 +161,13 @@ struct EditorView: View {
                 break
             }
         }
+        .sheet(isPresented: $showingDictate, onDismiss: { speak() }) {
+            DictateSheet(onDone: { spoken = $0 },
+                         vocabulary: Vocabulary.terms(
+                            in: NoteStore.liveCards(in: context, excluding: note.id)
+                                .prefix(Vocabulary.notesRead).map(\.text)),
+                         purpose: .intoNote)
+        }
         .sheet(isPresented: $showingReminders) {
             RemindersSheet(found: foundReminders, noteID: note.id, noteTitle: NoteText.title(text)) { count in
                 show(count == 1 ? "Notification set" : "\(count) notifications set")
@@ -231,6 +242,11 @@ struct EditorView: View {
                 // off or still downloading, the menu says so instead of
                 // pretending.
                 Menu {
+                    // No model needed, so it is never missing and never
+                    // explained away. The keyboard's own microphone puts
+                    // words at the cursor too; what it cannot do is know
+                    // the note is a list.
+                    Button("Dictate", systemImage: "mic") { showingDictate = true }
                     if OnDevice.status == .off {
                         Text("Apple Intelligence is off in Settings")
                     } else if OnDevice.status == .downloading {
@@ -467,6 +483,14 @@ struct EditorView: View {
             // absent for a moment, and its notification must not go with it.
             NoteStore.update(note, text: value, in: context, settled: false)
         }
+    }
+
+    /// The words go in where the cursor is, shaped like the line they land
+    /// on. One edit, so a shake takes the whole lot back out.
+    private func speak() {
+        guard let words = spoken else { return }
+        spoken = nil
+        command = .speak(words)
     }
 
     private func togglePin() {
