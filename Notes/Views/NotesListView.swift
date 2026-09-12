@@ -107,6 +107,15 @@ struct NotesListView: View {
                 }
             }
         }
+        // Asked for from outside the app. Held on the navigation rather
+        // than passed in, so a cold launch and a running app take the same
+        // path to the same sheet.
+        .onChange(of: navigation.isDictating) { _, wants in
+            guard wants else { return }
+            navigation.isDictating = false
+            searchFocused = false
+            showingDictate = true
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { foregroundSync() }
         }
@@ -126,6 +135,13 @@ struct NotesListView: View {
     /// appearance, since a change handler does not fire for a first value
     /// and a cold launch would otherwise skip all of it.
     private func foregroundSync() {
+        // A cold launch: the dictate intent ran before there was a
+        // navigation to tell, so the request was left here to be collected.
+        if DictateNoteIntent.requested {
+            DictateNoteIntent.requested = false
+            searchFocused = false
+            showingDictate = true
+        }
         OnDevice.prewarm()
         NoteStore.purgeTrash(in: context)
         NoteStore.syncLockScreen(in: context)

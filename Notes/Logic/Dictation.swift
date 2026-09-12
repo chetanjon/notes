@@ -106,6 +106,14 @@ enum Dictation {
         case tooSlow
     }
 
+    /// How long the model gets inside a Siri intent.
+    ///
+    /// Much shorter than the editor's twenty seconds, because somebody is
+    /// standing there listening to Siri rather than reading a note that is
+    /// already open. The note is written and saved before the model is
+    /// asked, so giving up early costs nothing but the tidier wording.
+    static let siriLimit: Duration = .seconds(4)
+
     /// What to say under the editor's bar, or nothing.
     ///
     /// Success says nothing, because the text changing says it, and

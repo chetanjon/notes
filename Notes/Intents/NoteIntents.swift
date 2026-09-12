@@ -24,13 +24,30 @@ struct CreateNoteIntent: AppIntent {
         // Siri heard nothing usable: no note rather than a blank one that
         // nothing would ever clear away, since the editor never opens here.
         guard !NoteText.isBlank(text) else { throw NoteIntentError.empty }
+        OnDevice.prewarm()
         let context = NoteStore.container.mainContext
         let note = NoteStore.create(in: context)
-        NoteStore.update(note, text: text, in: context)
+        // Shaped by the pure rules, which cost nothing: a spoken note gets
+        // a title and a checklist here as it does everywhere else, where
+        // before it was saved as one run-on line exactly as Siri heard it.
+        NoteStore.update(note, text: Dictation.plain(text), in: context)
         // The store can refuse a write, and a locked phone is one of the
         // ways: better to say so than to answer "Added" for nothing.
         guard NoteStore.saveChecked(context) else { throw NoteIntentError.notSaved }
+        // Only now the model, and only briefly. Saving first is what makes
+        // the short deadline safe: iOS can stop an intent at any moment,
+        // and if it does the note is already there and already shaped.
+        if OnDevice.isAvailable,
+           case let .cleaned(better) = await withTimeout(Dictation.siriLimit, {
+               await OnDevice.cleaned(dictation: text)
+           }) ?? .tooSlow {
+            NoteStore.update(note, text: better, in: context)
+            _ = NoteStore.saveChecked(context)
+        }
         NotesShortcuts.updateAppShortcutParameters()
+        // Read after the model, so Siri says the better title where there
+        // is one. Nothing is said about a cleanup that did not happen:
+        // there is no room in a spoken answer for a caveat nobody asked for.
         return .result(value: NoteEntity(note), dialog: "Added \(note.title).")
     }
 }
@@ -161,6 +178,36 @@ enum NoteIntentError: Error, CustomLocalizedStringResourceConvertible {
     }
 }
 
+/// "Dictate a note in Matte": the app opens already listening.
+///
+/// This one opens the app, where New Note does not, because the microphone
+/// needs the app in front and no third-party app gets it from a locked
+/// phone. From the Lock Screen that means one glance at Face ID and then
+/// the listening sheet, with no Home Screen and no hunting for the app,
+/// which is as close to hands-free as iOS allows. Truly hands-free is
+/// "New note in Matte", which writes in the background and works locked.
+struct DictateNoteIntent: AppIntent {
+    static var title: LocalizedStringResource = "Dictate a Note"
+    static var description = IntentDescription("Opens Matte and starts listening.")
+    static var openAppWhenRun = true
+
+    /// Installed by the app as it starts. The intent can run before there
+    /// is anything to tell, which is what a cold launch looks like, so the
+    /// request waits in `requested` until the list comes up and takes it.
+    @MainActor static var handler: (() -> Void)?
+    @MainActor static var requested = false
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        if let handler = Self.handler {
+            handler()
+        } else {
+            Self.requested = true
+        }
+        return .result()
+    }
+}
+
 /// The phrases Siri answers to without any setup. The app's name in a
 /// phrase is "Matte", the name on the Home Screen and in the store.
 struct NotesShortcuts: AppShortcutsProvider {
@@ -173,6 +220,14 @@ struct NotesShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "New Note",
             systemImageName: "square.and.pencil")
+        AppShortcut(
+            intent: DictateNoteIntent(),
+            phrases: [
+                "Dictate a note in \(.applicationName)",
+                "Take a voice note in \(.applicationName)",
+            ],
+            shortTitle: "Dictate a Note",
+            systemImageName: "mic")
         AppShortcut(
             intent: AddToListIntent(),
             phrases: [
