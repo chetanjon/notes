@@ -27,6 +27,11 @@ struct ChecklistTextView: UIViewRepresentable {
         /// "Sort the list": the items' new order, and the items it was made
         /// for, so a list that changed meanwhile is left alone.
         case sortList(order: [Int], items: [String])
+        /// Words spoken into a note that is already open. Only the words:
+        /// where they go is worked out against the live text view, so the
+        /// cursor is where the user left it and not where it was when the
+        /// sheet went up.
+        case speak(String)
         /// The model's version of a dictation, landing after the note has
         /// already opened with the words as they were spoken. It carries
         /// the text it was worked out against, so a note typed into
@@ -305,6 +310,10 @@ struct ChecklistTextView: UIViewRepresentable {
                 guard Checklist.items(of: view.text) == items,
                       let edit = Checklist.reordering(items: order, in: view.text) else { return }
                 apply(edit, to: view)
+            case let .speak(words):
+                apply(Insertion.landing(words, in: view.text, at: view.selectedRange), to: view)
+                // The sheet took first responder away on its way up.
+                if !view.isFirstResponder { view.becomeFirstResponder() }
             case let .cleaned(was, now):
                 // The note is already open and already the user's. If they
                 // have touched a character of it, the model's version is

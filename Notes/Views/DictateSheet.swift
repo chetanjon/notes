@@ -10,12 +10,20 @@ import SwiftUI
 /// version arrives afterwards, in the editor, as an edit that can be
 /// shaken away.
 struct DictateSheet: View {
+    enum Purpose {
+        case newNote
+        case intoNote
+    }
+
     /// Called once with the words as they were heard. The caller decides
     /// what they become.
     let onDone: (String) -> Void
     /// Names out of the user's own notes, so they are heard as they are
     /// written. It never leaves the phone.
     var vocabulary: [String] = []
+    /// What the words are for. It changes nothing that is drawn: only what
+    /// the button tells VoiceOver it is about to do.
+    var purpose: Purpose = .newNote
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var listener = SpeechListener()
@@ -82,7 +90,9 @@ struct DictateSheet: View {
             }
             .buttonStyle(PressedButtonStyle())
             .disabled(finishing)
-            .accessibilityHint("Ends the dictation and makes the note")
+            .accessibilityHint(purpose == .newNote
+                               ? "Ends the dictation and makes the note"
+                               : "Ends the dictation and puts the words in the note")
             .padding(.horizontal, Theme.pagePadding)
             .padding(.bottom, 20)
         }
