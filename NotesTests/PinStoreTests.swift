@@ -58,3 +58,17 @@ extension PinStoreTests {
         XCTAssertThrowsError(try JSONDecoder().decode(PinStore.Pinned.self, from: Data("{\"title\":\"Shop\"}".utf8)))
     }
 }
+
+extension PinStoreTests {
+    func testTheDictateURLIsRecognised() {
+        XCTAssertTrue(PinStore.isDictate(PinStore.dictateURL))
+    }
+
+    func testTheThreeLinkShapesAreNotMistakenForEachOther() {
+        // They all arrive at the same place in the app and do very
+        // different things there.
+        XCTAssertFalse(PinStore.isDictate(PinStore.newNoteURL))
+        XCTAssertFalse(PinStore.isNewNote(PinStore.dictateURL))
+        XCTAssertNil(PinStore.noteID(from: PinStore.dictateURL))
+    }
+}

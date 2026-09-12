@@ -520,6 +520,65 @@ struct NewNoteWidget: Widget {
     }
 }
 
+struct DictateEntry: TimelineEntry {
+    let date: Date
+}
+
+struct DictateProvider: TimelineProvider {
+    func placeholder(in context: Context) -> DictateEntry { DictateEntry(date: .now) }
+
+    func getSnapshot(in context: Context, completion: @escaping (DictateEntry) -> Void) {
+        completion(DictateEntry(date: .now))
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<DictateEntry>) -> Void) {
+        completion(Timeline(entries: [DictateEntry(date: .now)], policy: .never))
+    }
+}
+
+/// Round, on the Lock Screen, or small, on the Home Screen: a microphone.
+/// One tap opens the app already listening. On a locked phone that is one
+/// glance at Face ID and then the sheet, with no Home Screen in between.
+struct DictateView: View {
+    @Environment(\.widgetFamily) private var family
+
+    var body: some View {
+        Group {
+            if family == .accessoryCircular {
+                ZStack {
+                    AccessoryWidgetBackground()
+                    Image(systemName: "mic")
+                        .font(.system(size: 24, weight: .regular))
+                }
+                .widgetAccentable()
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    Mic(size: 36)
+                    Spacer(minLength: 0)
+                    Text("Dictate")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .containerBackground(Color(.systemBackground), for: .widget)
+            }
+        }
+        .widgetURL(PinStore.dictateURL)
+        .accessibilityLabel("Dictate a note")
+    }
+}
+
+struct DictateWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "NotesDictate", provider: DictateProvider()) { _ in
+            DictateView()
+        }
+        .configurationDisplayName("Dictate a note")
+        .description("One tap, and it is listening.")
+        .supportedFamilies([.accessoryCircular, .systemSmall])
+    }
+}
+
 // MARK: - Marks
 
 /// The app's compose button, small, in the system's colours: a filled
@@ -530,6 +589,19 @@ struct Pencil: View {
 
     var body: some View {
         Image(systemName: "pencil")
+            .font(.system(size: size / 2, weight: .semibold))
+            .foregroundStyle(.background)
+            .frame(width: size, height: size)
+            .background(.primary, in: Circle())
+    }
+}
+
+/// The compose button's mark with a microphone in place of the pencil.
+struct Mic: View {
+    var size: CGFloat = Pencil.small
+
+    var body: some View {
+        Image(systemName: "mic.fill")
             .font(.system(size: size / 2, weight: .semibold))
             .foregroundStyle(.background)
             .frame(width: size, height: size)
@@ -574,6 +646,7 @@ struct NotesWidgetBundle: WidgetBundle {
     var body: some Widget {
         RecentNotesWidget()
         NewNoteWidget()
+        DictateWidget()
         NotesWidget()
         PinnedNoteLiveActivity()
     }

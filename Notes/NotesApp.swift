@@ -13,6 +13,9 @@ struct NotesApp: App {
         StepCounterIntent.handler = { noteID, line, delta, label in
             NoteStore.stepCounter(noteID: noteID, line: line, delta: delta, label: label)
         }
+        // The Action button, a Shortcut, or the microphone on a widget.
+        // The intent runs in this process and asks the list to listen.
+        DictateNoteIntent.handler = { [navigation = self.navigation] in navigation.dictate() }
         // A tapped notification opens its note; one that lands while the
         // app is open shows as a banner.
         let navigation = self.navigation
@@ -29,7 +32,9 @@ struct NotesApp: App {
                 .onOpenURL { url in
                     // notes://note/<uuid> from a widget or the Lock Screen
                     // card; notes://new from the Home Screen widget's pencil.
-                    if PinStore.isNewNote(url) {
+                    if PinStore.isDictate(url) {
+                        navigation.dictate()
+                    } else if PinStore.isNewNote(url) {
                         let note = NoteStore.create(in: NoteStore.container.mainContext)
                         navigation.open(note.id)
                     } else if let id = PinStore.noteID(from: url) {
@@ -58,8 +63,19 @@ final class Navigation {
     }
 
     var path: [Route] = []
+    /// Asked for by the Action button, a widget's microphone, a Shortcut or
+    /// Siri. The list watches this and puts the sheet up.
+    var isDictating = false
 
     func open(_ id: UUID) {
         path = [.note(id)]
+    }
+
+    /// Back to the list, listening. The path is cleared because the ask is
+    /// for a new note by voice: hitting the Action button from deep inside
+    /// an editor should not leave the sheet sitting over it.
+    func dictate() {
+        path = []
+        isDictating = true
     }
 }
