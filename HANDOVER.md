@@ -22,14 +22,24 @@ pure logic, git and the store copy are all fine from the terminal.
 
 ## Where things stand
 
-`main` carries nine merged pull requests, #42 through #50: four rounds of
-fixes from testing on the phone, a full audit, and a security, architecture
-and resilience pass. 128 tests pass. Nothing is open, nothing is half done,
-and no branch is waiting.
+`main` carries #42 through #56: four rounds of fixes from testing on the
+phone, a full audit, a security and resilience pass, and four rounds on
+voice. 167 tests pass. Nothing is open, nothing is half done, and no branch
+is waiting.
 
 Every acceptance item in the spec is built, and so is everything past it that
 was asked for since. **What is left is not code.** It is one round of testing
 on the phone, then the store.
+
+The voice work (#53 to #56) is the largest thing never seen on a device.
+Four defects on the microphone path were fixed by reading it: the
+recogniser's considered pass was thrown away on every dictation, punctuation
+was never asked for, a dictation longer than about a minute was silently
+truncated, and a call left the sheet listening at a dead microphone for ever.
+After that: the note is written the instant you stop rather than after the
+model, the model's version lands as an edit a shake takes back, voice reaches
+a note that is already open, and Siri, the Action button and a Lock Screen
+widget all get there too.
 
 ## The daily loop
 
@@ -61,36 +71,83 @@ CI runs the same tests on macOS for every push. It is the first place a
 SwiftUI or SwiftData file is really compiled, so a green run is what makes a
 change true, not a reading of the diff.
 
+**If `xcodebuild test` will not run at all**, the installed simulator runtime
+does not match the Xcode in use, and neither a simulator nor a device build
+can be made. `xcodebuild -downloadPlatform iOS` fixes it and is a large
+download. Until then two things still work locally and are worth knowing:
+
+```bash
+# Typecheck the whole app against the SDK, without any simulator.
+SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+swiftc -typecheck -sdk "$SDK" -target arm64-apple-ios17.0 -swift-version 5 \
+  -enable-bare-slash-regex \
+  -plugin-path "$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins" \
+  $(find Notes -name '*.swift')
+```
+
+`-enable-bare-slash-regex` is needed for the regex literal in `OnDevice`, and
+`-plugin-path` for the `@Generable` macros. Swap `Notes` for the widget's
+source list to check that target. This catches everything but SwiftUI's
+runtime behaviour, in seconds rather than minutes.
+
+And the pure logic in `Notes/Logic/` is Foundation only, so those files and
+their `NotesTests` suites compile and run on the Mac with `swiftc` directly,
+given a handful of `XCTAssert` stand-ins. That is the fast red-green loop;
+CI is still the authority.
+
 ## Test on the phone before anything else
 
 Delete the old app from the phone first: the bundle was renamed to **Matte**,
 and Siri only learns the new name from a clean install.
 
-Five things changed without ever being seen on a device, so start here:
+**Voice first.** It is the newest and the least proven, and none of it has
+ever run on a device:
 
-1. Type a note, clear all of its text, leave. It should be **in the Trash**,
-   not gone. (Clearing a note used to erase it outright.)
-2. Pin a note and type in it for a minute. The Lock Screen card should keep
-   up and not disappear.
-3. Hold the pencil, dictate, tap Stop. The sheet must always let you out.
-4. Delete a note whose notification is already showing in Notification
-   Center. The notification should go with it.
-5. A sparkle action that hangs should say "That took too long" rather than
-   spin until you leave the note.
+1. Speak for two minutes without stopping. Nothing is lost at the joins.
+2. Take a call mid-sentence. The sheet keeps the words and says what took
+   the microphone, rather than sitting at "Listening" for ever.
+3. Tap Stop. The note is there at once, with no wait, and a moment later
+   the text settles into the model's version.
+4. Shake after it settles. The model's pass comes off and the words stay.
+5. Start typing while it says "Cleaning up…". The model's version never
+   lands.
+6. Dictate into a note already open, with the cursor in a checklist, then
+   in a paragraph, then mid-word, then over a selection.
+7. Say a name you have written in other notes. It should come back spelled
+   your way.
+8. Hold the pencil and release without speaking. No stray blank note.
+9. Swipe the sheet away mid-sentence. The words are kept; Cancel throws
+   them away.
+10. Turn the microphone off in Settings, then hold the pencil. The sentence
+    names the right place. Do the same for Speech Recognition.
+11. "Hey Siri, new note in Matte, milk eggs and call the dentist Tuesday",
+    with the phone locked. A titled checklist, not a run-on line.
+12. The Action button, the microphone widget on the Lock Screen, and
+    `notes://dictate`: each opens straight into the listening sheet, from
+    cold and from running.
+13. VoiceOver through the whole sheet, and the Dictate action on the
+    compose button, which is the only way to reach dictation with it on.
 
-Then the ones carried over from the last round:
+**The one real unknown** is item 6: it relies on `UITextView` keeping its
+selected range while the sheet is up. If the cursor jumps to the end
+instead, record the selection in `textViewDidEndEditing` and use that.
 
-6. Tidy up on a line with a typo: `buy tomatos` should become
-   `Buy tomatoes`, and three lines must stay three lines.
-7. Reminders on `bread 2.20` (a price, not a time) and `rent on the 31st`
-   (a real day in the next month that has one).
-8. A checklist with an emoji in it, through Sort the list: the emoji must
-   survive.
-9. The Trash: a tap offers Put back or Delete; a swipe asks before deleting
-   for good; Empty does not fire on a double tap.
-10. Sort the list, ask-a-question search, the checklist over a selection, the
-    edit time under the bar, the widgets in light and dark, the recall line
-    and Move this there, and Siri under "in Matte".
+Then the ones carried over from earlier rounds:
+
+14. Type a note, clear all of its text, leave. It should be **in the
+    Trash**, not gone.
+15. Pin a note and type in it for a minute. The Lock Screen card keeps up.
+16. Delete a note whose notification is already showing in Notification
+    Center. The notification goes with it.
+17. Tidy up on a line with a typo: `buy tomatos` becomes `Buy tomatoes`,
+    and three lines stay three lines.
+18. Reminders on `bread 2.20` (a price, not a time) and `rent on the 31st`.
+19. A checklist with an emoji, through Sort the list: the emoji survives.
+20. The Trash: a tap offers Put back or Delete; a swipe asks before
+    deleting for good; Empty does not fire on a double tap.
+21. Sort the list, ask-a-question search, the checklist over a selection,
+    the edit time under the bar, the widgets in light and dark, the recall
+    line and Move this there, and Siri under "in Matte".
 
 Anything that fails becomes a `fix/*` branch, one pull request, the same as
 the four rounds before it.
@@ -122,7 +179,12 @@ left there:
 | The check on what the model returns | `Notes/Logic/ModelGuard.swift` |
 | The brief, and "you thought about this before" | `Notes/Logic/Brief.swift` |
 | Sorting a checklist by kind | `Notes/Logic/ListSorter.swift` |
-| Dictation: listening, then composing | `SpeechListener.swift`, `Dictation.swift` |
+| Dictation: the microphone, and what is heard | `SpeechListener.swift`, `Transcript.swift` |
+| What a dictation becomes, and why a tidy failed | `Dictation.swift` |
+| The cleanup that lands after the note is open | `Dictations.swift` |
+| Spoken words at the cursor in an open note | `Insertion.swift` |
+| The names from your own notes, for recognition | `Vocabulary.swift` |
+| What the sheet says when nothing is heard | `Hearing.swift` |
 | The record the widgets read | `Notes/Logic/PinStore.swift`, `RecentStore.swift` |
 | The Live Activity | `Notes/Logic/PinActivity.swift`, `PinnedNoteAttributes.swift` |
 | A deadline on slow work | `Notes/Logic/Timeout.swift` |
@@ -158,6 +220,17 @@ left there:
   field must follow the same pattern with a test.
 - **Every write to a note goes through `NoteStore`**, or the Spotlight index,
   the widgets, the Lock Screen and the notifications drift apart.
+- **A view that is not first responder cannot be undone into.** The editor
+  takes the keyboard only for a blank note, and a dictated note is not
+  blank, so an edit landing on it afterwards had no undo stack to land on
+  and a shake reached nothing. Nothing failed; it simply did not happen.
+- **Ask for permission before reading availability.** `isAvailable` on the
+  speech recogniser is false until the user has said yes, so checking it
+  first told a first-time user their language was unsupported.
+- **Deleting a branch closes every pull request based on it.** When merging
+  a stack, retarget the next one to `main` first and delete afterwards. And
+  after a squash merge the branches above it must be rebased onto the new
+  `main`, or their diffs contain the work that just landed.
 - Match a regex against the text as written. Matching a lowercased copy and
   cutting those ranges out of the original crashed the app, because a letter
   can grow when it folds.
