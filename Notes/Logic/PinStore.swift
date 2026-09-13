@@ -116,4 +116,12 @@ enum PinStore {
     static func isNewNote(_ url: URL) -> Bool {
         url.scheme == urlScheme && url.host == "new"
     }
+
+    /// `notes://dictate`: the microphone on a widget, the Action button, or
+    /// a Shortcut. The app opens already listening.
+    static let dictateURL = URL(string: "\(urlScheme)://dictate")!
+
+    static func isDictate(_ url: URL) -> Bool {
+        url.scheme == urlScheme && url.host == "dictate"
+    }
 }
