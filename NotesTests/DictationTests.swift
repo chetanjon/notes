@@ -42,3 +42,32 @@ extension DictationTests {
         XCTAssertEqual(Dictation.plain("Shop. milk and eggs"), "Shop\nmilk and eggs")
     }
 }
+
+extension DictationTests {
+    func testNothingIsSaidWhenThereIsNoModelToTidyWith() {
+        // A permanent fact about the phone, not about this note. Saying it
+        // after every dictation would be nagging, and the plain shaping is
+        // a real answer rather than a failure.
+        XCTAssertNil(Dictation.notice(for: .noModel))
+    }
+
+    func testNothingIsSaidWhenTheTidyingWorked() {
+        // The text changing is the report, as it is for Make a list and
+        // Sort the list, neither of which says anything when they work.
+        XCTAssertNil(Dictation.notice(for: .cleaned("Shop\n□ milk")))
+    }
+
+    func testWhatWentWrongIsNamedWhenThereWasAModel() {
+        XCTAssertEqual(Dictation.notice(for: .tooSlow), "That took too long")
+        XCTAssertEqual(Dictation.notice(for: .tooLong), "Too long to tidy")
+        XCTAssertEqual(Dictation.notice(for: .notTrusted), "Couldn't tidy that")
+    }
+
+    func testEveryNoticeFitsTheOneLineItIsGiven() {
+        // The slot under the editor's bar is a single line at caption size.
+        // A longer sentence is not shortened there, it is cut off.
+        for outcome in [Dictation.Cleaning.tooSlow, .tooLong, .notTrusted] {
+            XCTAssertTrue((Dictation.notice(for: outcome) ?? "").count <= 24)
+        }
+    }
+}

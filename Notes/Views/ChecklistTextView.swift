@@ -27,6 +27,11 @@ struct ChecklistTextView: UIViewRepresentable {
         /// "Sort the list": the items' new order, and the items it was made
         /// for, so a list that changed meanwhile is left alone.
         case sortList(order: [Int], items: [String])
+        /// The model's version of a dictation, landing after the note has
+        /// already opened with the words as they were spoken. It carries
+        /// the text it was worked out against, so a note typed into
+        /// meanwhile is left exactly as the user left it.
+        case cleaned(was: String, now: String)
     }
 
     @Binding var text: String
@@ -300,6 +305,15 @@ struct ChecklistTextView: UIViewRepresentable {
                 guard Checklist.items(of: view.text) == items,
                       let edit = Checklist.reordering(items: order, in: view.text) else { return }
                 apply(edit, to: view)
+            case let .cleaned(was, now):
+                // The note is already open and already the user's. If they
+                // have touched a character of it, the model's version is
+                // out of date and is dropped rather than imposed.
+                guard view.text == was else { return }
+                // One replacement, so a shake takes the whole tidy back and
+                // leaves the words as they were spoken.
+                let cursor = min(view.selectedRange.location, (now as NSString).length)
+                apply(Checklist.Edit(text: now, cursor: cursor), to: view)
             }
         }
 

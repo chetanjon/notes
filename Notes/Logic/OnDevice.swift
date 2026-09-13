@@ -206,22 +206,28 @@ enum OnDevice {
     /// punctuation fixed and filler dropped, each spoken task or item on a
     /// line of its own as a checklist item. Nil where there is no model, it
     /// gave nothing, or it kept less than half of what was said.
-    static func cleaned(dictation: String) async -> String? {
+    /// Answers why, not just nil. Every way this can fail used to look the
+    /// same to the caller, so a note that came back untidied never said
+    /// whether the model was missing, busy, or simply not believed.
+    static func cleaned(dictation: String) async -> Dictation.Cleaning {
         #if canImport(FoundationModels)
-        if #available(iOS 26, *), isAvailable, dictation.count < limit,
-           let made = try? await Model.cleaned(dictation: dictation) {
+        if #available(iOS 26, *) {
+            guard isAvailable else { return .noModel }
+            guard dictation.count < limit else { return .tooLong }
+            guard let made = try? await Model.cleaned(dictation: dictation) else { return .notTrusted }
             let lines = made.lines.map { $0.isItem ? "- " + $0.text : $0.text }
             let body = made.lines.map(\.text).joined(separator: "\n")
             // The model was told to drop "um", "like", "you know"; counting
             // those as words lost means the more filler is spoken, the more
             // certain a good cleanup is thrown away.
             guard ModelGuard.kept(of: Dictation.withoutFiller(dictation),
-                                  in: made.title + "\n" + body) >= 0.5 else { return nil }
+                                  in: made.title + "\n" + body) >= 0.5 else { return .notTrusted }
             let text = Dictation.compose(title: made.title, lines: lines)
-            if !NoteText.isBlank(text) { return text }
+            guard !NoteText.isBlank(text) else { return .notTrusted }
+            return .cleaned(text)
         }
         #endif
-        return nil
+        return .noModel
     }
 
     #if canImport(FoundationModels)

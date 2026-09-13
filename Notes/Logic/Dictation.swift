@@ -86,4 +86,39 @@ enum Dictation {
         }
         return nil
     }
+
+    /// What came of asking the model to tidy a dictation.
+    ///
+    /// The reasons are kept apart rather than collapsed into nil because
+    /// they are not equally worth saying: one is a standing fact about the
+    /// phone and the rest are about this note. Before this, every one of
+    /// them left the user with the plain shaping and no idea why.
+    enum Cleaning: Equatable, Sendable {
+        case cleaned(String)
+        /// No Apple Intelligence on this phone, or it is off, or it is
+        /// still downloading.
+        case noModel
+        /// More words than the model is given at one time.
+        case tooLong
+        /// The model answered and the guard did not believe the answer.
+        case notTrusted
+        /// The model did not answer in time.
+        case tooSlow
+    }
+
+    /// What to say under the editor's bar, or nothing.
+    ///
+    /// Success says nothing, because the text changing says it, and
+    /// because Make a list and Sort the list say nothing when they work
+    /// either. `noModel` says nothing because it would say the same thing
+    /// after every dictation for as long as the app was owned, and the
+    /// sparkle menu already explains itself to anyone who goes looking.
+    static func notice(for outcome: Cleaning) -> String? {
+        switch outcome {
+        case .cleaned, .noModel: nil
+        case .tooLong: "Too long to tidy"
+        case .notTrusted: "Couldn't tidy that"
+        case .tooSlow: "That took too long"
+        }
+    }
 }
