@@ -255,16 +255,30 @@ note's title and the line, a tap opening the note (`Notify`,
 line and finds the ones a later edit no longer backs, which are cancelled
 on save; the Trash cancels a note's). No repeats or snooze; those are the
 Reminders app's. Notifications are asked for at that tap. The note is
-not changed. Holding the
-pencil in the list dictates a note: iOS's speech recognition with
-on-device recognition required (`SpeechListener`; where the language has
-none, the app does not listen), the words shown as they are heard, and
-on Stop the model turns them into a note with a title, spelling and
-punctuation fixed, and a checklist where a list was spoken
-(`OnDevice.cleaned`, `Dictation.compose`); without a model the note is
-the words as spoken, first sentence as the title (`Dictation.plain`).
-The microphone and speech recognition are asked for at that first hold.
-Either way the text stays on the phone.
+not changed. Voice reaches
+four places: holding the pencil in the list, Dictate in the sparkle menu,
+Siri, and a `notes://dictate` link from the Action button, a Shortcut or
+a microphone widget. Recognition is iOS's own with on-device recognition
+required (`SpeechListener`; where the language has none, the app does not
+listen), punctuated, seeded with the names in your own notes
+(`Vocabulary`, tested) so they come back spelled your way. A dictation
+longer than iOS will recognise in one go is several recognitions joined
+without losing a word (`Transcript`, tested), and Stop waits briefly for
+the recogniser's considered pass, which is what fixes casing. A call, a
+route change or a media server reset is picked up rather than leaving the
+sheet listening at a dead microphone; the line asking for words changes
+when none arrive (`Hearing`, tested), since that screen has no other way
+to say so. On Stop the note is written at once from the pure shaping
+(`Dictation.plain`), so there is never a wait, and the model's version
+lands afterwards in the editor as one undoable edit, which a shake takes
+back and typing cancels outright (`Dictations`, `OnDevice.cleaned`, which
+answers why rather than nil so a cleanup that did not happen can say so).
+Into a note already open the words land at the cursor in the form of the
+line they land on, items in a checklist and prose in a paragraph
+(`Insertion`, tested). Siri's own New Note takes the same shaping and a
+four-second model deadline, the note saved before the model is asked. The
+microphone and speech recognition are asked for at that first use. All of
+it stays on the phone.
 
 How the model is driven, the same for every task: an instruction with two
 worked examples, since this is a small model and examples do more than
