@@ -58,6 +58,19 @@ xcodebuild test -project Notes.xcodeproj -scheme Notes \
   -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
+That is the suite, and CI runs it on every push. For the loop while writing,
+there is also
+
+```bash
+scripts/pure-tests.sh            # every suite, no simulator, ~20 seconds
+scripts/pure-tests.sh Insertion  # just the ones whose name matches
+```
+
+which compiles `Notes/Logic/` and every `NotesTests` suite for the Mac and
+runs them without a simulator at all. It proves the logic and nothing else:
+no SwiftUI view, SwiftData model or widget is built, so it is necessary and
+never sufficient.
+
 ### Free developer account
 
 A free account cannot carry the iCloud or push entitlements. Delete the
