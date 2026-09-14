@@ -22,24 +22,50 @@ pure logic, git and the store copy are all fine from the terminal.
 
 ## Where things stand
 
-`main` carries #42 through #56: four rounds of fixes from testing on the
-phone, a full audit, a security and resilience pass, and four rounds on
-voice. 167 tests pass. Nothing is open, nothing is half done, and no branch
-is waiting.
+`main` carries #42 through #63: four rounds of fixes from testing on the
+phone, a full audit, a security and resilience pass, four rounds on voice,
+and then an audit of the voice work itself. 175 tests pass. Nothing is open,
+nothing is half done, and no branch is waiting.
 
 Every acceptance item in the spec is built, and so is everything past it that
 was asked for since. **What is left is not code.** It is one round of testing
-on the phone, then the store.
+on the phone, then the store — but read the next section before that round,
+because some of what it would find is already written down.
 
-The voice work (#53 to #56) is the largest thing never seen on a device.
-Four defects on the microphone path were fixed by reading it: the
-recogniser's considered pass was thrown away on every dictation, punctuation
-was never asked for, a dictation longer than about a minute was silently
-truncated, and a call left the sheet listening at a dead microphone for ever.
-After that: the note is written the instant you stop rather than after the
-model, the model's version lands as an edit a shake takes back, voice reaches
-a note that is already open, and Siri, the Action button and a Lock Screen
-widget all get there too.
+The voice work (#53 to #57) is still the largest thing never seen on a
+device. On 2026-09-14 the whole of it was read again, dimension by dimension,
+and it was not clean. Forty-five findings, of which twenty-six survived
+verifiers whose job was to refute them. What has been acted on is #58 to #63:
+
+- **#59** rewrote the microphone path, six defects from one root cause: a
+  single result handler served every recognition task, and a task that has
+  been finished or cancelled goes on calling it. An `isFinal` flag that was
+  never cleared made the listener permanently deaf part way through a long
+  dictation. `rotate()` cancelling its own task produced an error that was
+  read as "the recognition ended on its own", which rotated again, for ever.
+  Each recognition now carries a generation number and stale callbacks are
+  dropped. With it: a failing recogniser says so rather than letting the quiet
+  timer blame the microphone, an interruption no longer writes the last
+  sentence twice, a route change only rebuilds when the input really changed,
+  and a first run waits for the local model instead of telling the user their
+  language is unsupported.
+- **#62** made dictation from outside the app survive a cold launch. The
+  intent's fallback was unreachable, the request arrived as a change nobody
+  was watching for yet, and the flag carrying it latched — so the Action
+  button, Siri, Shortcuts and the widget's microphone were all dead for the
+  rest of the run, and only the pencil worked.
+- **#63** made a cancelled cleanup stay cancelled. Typing while the editor
+  said "Cleaning up…" did not stop the model's version landing on top of it:
+  cancelling cannot reach a task that is already being awaited.
+- **#61** came from the phone rather than from the audit. A note beginning
+  with a blank line showed its first line twice, as the title and again at the
+  head of the preview.
+- **#58** is `scripts/pure-tests.sh`, below. **#60** builds the widget
+  extension-API-only, so the rule about what the shared files may reach for is
+  the compiler's job rather than a habit.
+
+None of those has run on a device either. A fix read off the page is still a
+guess, and four of them are guesses about exactly the numbered items below.
 
 ## The daily loop
 
@@ -156,6 +182,16 @@ ever run on a device:
 selected range while the sheet is up. If the cursor jumps to the end
 instead, record the selection in `textViewDidEndEditing` and use that.
 
+Item 6 has a second, known problem waiting for it: the spoken words are
+applied to the text view before it is made first responder again
+(`ChecklistTextView.swift:313`), and a view that is not first responder has no
+undo stack to land on, so the shake in item 4 reaches nothing. That is in the
+list below rather than fixed, because the fix and the unknown are the same
+few lines and the phone should decide both at once.
+
+Items 1, 2, 5 and 12 now test code written specifically to fix them, so a
+failure there means the fix is wrong, not that the feature was never built.
+
 Then the ones carried over from earlier rounds:
 
 14. Type a note, clear all of its text, leave. It should be **in the
@@ -175,6 +211,57 @@ Then the ones carried over from earlier rounds:
 
 Anything that fails becomes a `fix/*` branch, one pull request, the same as
 the four rounds before it.
+
+## What the audit found and nobody has fixed
+
+Eleven findings survived verification and are still in the code, and two more
+were never judged at all because the audit hit a session limit twice. They are
+written down so the next round is not spent finding them again. Roughly in the
+order they are worth doing:
+
+- **`Notify.reconcile` never runs for an edit made in the editor.**
+  `EditorView.swift:484` with `NoteStore.swift:119`: the debounced save lands
+  first, so the settled save early-returns on text equality and never reaches
+  the reconcile step. Change or remove a reminder line and the old
+  notification still fires. That is item 16, and it is two sites of one bug.
+- **VoiceOver never speaks the "microphone was taken" notice.**
+  `DictateSheet.swift:74`: the children are combined and the accessibility
+  value is the transcript alone, so the notice is drawn and never read out. A
+  blind user is not told what happened. Item 13.
+- **Siri and Shortcut intents return before the widget write.**
+  `NoteIntents.swift:78`: a note made by Siri without opening the app leaves
+  the widgets and the Lock Screen card stale until the app is next opened.
+- **Every model feature is silently off for Chinese, Japanese and Thai.**
+  `ModelGuard.swift:16` splits on whitespace, so a line in those scripts is
+  one word and every guard that counts overlapping words rejects everything.
+  `OnDevice.swift:223` is the same mistake in the dictation cleanup's guard.
+  Tidy up, cleanup and titles all do nothing, without saying so.
+- **A dictated insertion and the cleaned edit both land on a text view that is
+  not first responder**, so a shake takes back neither
+  (`ChecklistTextView.swift:313` and `:325`). See item 6 above.
+- **A Live Activity the user swiped off the Lock Screen is re-requested by the
+  next keystroke** in the pinned note (`PinActivity.swift:85`). *Never
+  judged.*
+- **A change synced in from another device never rewrites the App Group record
+  or the Live Activity** (`NoteStore.swift:179`), so the card keeps the old
+  text until the app is opened and the note touched. *Never judged.*
+- **Two things #59 left in `SpeechListener` on purpose.** A rollover still
+  cancels its recognition rather than ending the audio and letting it finish
+  (`rotate()` at `SpeechListener.swift:305`), so whatever had been fed in but
+  not yet transcribed at the 45 second mark is thrown away — the generation
+  number stopped the cascade, not this. And the audio session is configured
+  and the engine started synchronously on the main actor while the sheet
+  animates in (`:150`), which with Bluetooth is a visible hitch. Item 1 will say whether the first one
+  loses a word at the joins; the second is only ever a nuisance.
+- The dictate sheet's Cancel is about a 22pt tap target where the spec says 44
+  (`DictateSheet.swift:46`).
+
+Ten further findings were **refuted** on inspection and should not be raised
+again. The two most convincing-sounding were that dictated items separated by
+pauses land as one run-on checklist item, and that a dictate request arriving
+while the sheet is already up latches the flag. Both were read carefully by
+three verifiers each and both were wrong. An audit's refutations are worth as
+much as its findings, and cost as much to redo.
 
 ## Then the store
 
@@ -259,3 +346,34 @@ left there:
 - Match a regex against the text as written. Matching a lowercased copy and
   cutting those ranges out of the original crashed the app, because a letter
   can grow when it folds.
+- **One callback handler serving many tasks needs a generation number.** A
+  finished or cancelled `SFSpeechRecognitionTask` goes on calling its handler,
+  and the handler cannot tell which task it is hearing from. Every bug in #59
+  was a version of that, including one where the listener's own rollover fed
+  itself an error and rotated for ever.
+- **`cancel()` cannot reach a task that is already being awaited.** The flag
+  is set, the `await` does not return, and the answer arrives anyway. If an
+  answer can become unwanted, say so where it is *used*, not where it is
+  cancelled.
+- **A cancellation handler cannot decide an answer; it can only unblock one.**
+  Cancelling the work makes the work's own `try? await` return early with
+  whatever it was holding, and that settles first. Decide after the wait,
+  where it is not a race. This one took two attempts and only the test caught
+  the first.
+- **`onChange` does not fire for a value that was already what it is when the
+  body was first evaluated.** A cold launch is exactly that case. And a flag
+  cleared only inside its own change handler latches for ever when the handler
+  never runs, which is how one missed sheet became a dead feature for the
+  rest of the run. `foregroundSync()` exists for this; use it.
+- **Two functions that both mean "the first line" have to agree.** `title`
+  skipped blank lines and `bodyLines` dropped exactly one, so a note beginning
+  with a blank line showed that line as its title and again in its preview —
+  and offered a title of "Water 3" a + on the Lock Screen.
+- **A guard written against the live value is not a guard.**
+  `guard view.text == was` compares the text with itself when `was` was read a
+  moment earlier from the same source. It reads like a check and passes
+  always.
+- **When an audit loses a verifier, the finding is unjudged, not refuted.**
+  The first run of this one hit a session limit and lost 73 of them, and the
+  harness scored every loss as "refuted" — which would have buried 32 real
+  findings as though they had been examined and dismissed.
