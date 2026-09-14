@@ -110,12 +110,7 @@ struct NotesListView: View {
         // Asked for from outside the app. Held on the navigation rather
         // than passed in, so a cold launch and a running app take the same
         // path to the same sheet.
-        .onChange(of: navigation.isDictating) { _, wants in
-            guard wants else { return }
-            navigation.isDictating = false
-            searchFocused = false
-            showingDictate = true
-        }
+        .onChange(of: navigation.isDictating) { _, _ in takeDictateRequest() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { foregroundSync() }
         }
@@ -128,6 +123,28 @@ struct NotesListView: View {
         }
     }
 
+    /// Takes a dictate request from outside the app — the Action button, a
+    /// Shortcut, Siri, or a widget's microphone — if one is waiting.
+    ///
+    /// Both ways in come through here, and either one clears both flags.
+    /// `onChange` does not fire for a value that was already true when the
+    /// body was first evaluated, and on a cold launch the intent runs before
+    /// the list exists, so the request was already true and was never seen.
+    /// The flag was also only ever cleared inside that same handler, so it
+    /// stayed true, and every later request wrote true over true and was
+    /// ignored as well: the Action button, Siri, Shortcuts and the widget's
+    /// microphone all went dead for the rest of the run, and only the pencil
+    /// still worked. `foregroundSync()` runs on first appearance as well as
+    /// on every return to the front, which is where the cold launch is
+    /// caught.
+    private func takeDictateRequest() {
+        guard navigation.isDictating || DictateNoteIntent.requested else { return }
+        navigation.isDictating = false
+        DictateNoteIntent.requested = false
+        searchFocused = false
+        showingDictate = true
+    }
+
     /// Everything that has to catch up when the app comes to the front: the
     /// Trash's thirty days, the Lock Screen after iOS ends an activity, the
     /// widget's list, the phone's search index and Siri's note names, and
@@ -135,13 +152,7 @@ struct NotesListView: View {
     /// appearance, since a change handler does not fire for a first value
     /// and a cold launch would otherwise skip all of it.
     private func foregroundSync() {
-        // A cold launch: the dictate intent ran before there was a
-        // navigation to tell, so the request was left here to be collected.
-        if DictateNoteIntent.requested {
-            DictateNoteIntent.requested = false
-            searchFocused = false
-            showingDictate = true
-        }
+        takeDictateRequest()
         OnDevice.prewarm()
         NoteStore.purgeTrash(in: context)
         NoteStore.syncLockScreen(in: context)
