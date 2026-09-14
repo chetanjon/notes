@@ -71,10 +71,15 @@ CI runs the same tests on macOS for every push. It is the first place a
 SwiftUI or SwiftData file is really compiled, so a green run is what makes a
 change true, not a reading of the diff.
 
-**If `xcodebuild test` will not run at all**, the installed simulator runtime
-does not match the Xcode in use, and neither a simulator nor a device build
-can be made. `xcodebuild -downloadPlatform iOS` fixes it and is a large
-download. Until then two things still work locally and are worth knowing:
+**If `xcodebuild test` will not run at all**, the iOS platform for the Xcode
+in use is not installed, and neither a simulator nor a device build can be
+made. The symptom is "Unable to find a destination matching the provided
+destination specifier" for every destination tried. Do not be misled by
+`xcrun simctl list`: it can show a perfectly good older runtime with devices
+on it, and `xcodebuild -showdestinations` will still list no eligible
+destination at all, because the platform Xcode wants is a different version.
+`xcodebuild -downloadPlatform iOS` fixes it and is a large download. Until
+then two things still work locally and are worth knowing:
 
 ```bash
 # Typecheck the whole app against the SDK, without any simulator.
@@ -90,10 +95,27 @@ swiftc -typecheck -sdk "$SDK" -target arm64-apple-ios17.0 -swift-version 5 \
 source list to check that target. This catches everything but SwiftUI's
 runtime behaviour, in seconds rather than minutes.
 
-And the pure logic in `Notes/Logic/` is Foundation only, so those files and
-their `NotesTests` suites compile and run on the Mac with `swiftc` directly,
-given a handful of `XCTAssert` stand-ins. That is the fast red-green loop;
-CI is still the authority.
+And `scripts/pure-tests.sh` runs the suites on the Mac with no simulator at
+all, in about twenty seconds:
+
+```bash
+scripts/pure-tests.sh            # all 167, in 19 suites
+scripts/pure-tests.sh Insertion  # just the suites whose name matches
+```
+
+It compiles `Notes/Logic/` and every file in `NotesTests/` for macOS against
+the `XCTAssert` stand-ins in `scripts/puretests/Shim.swift`, generates a
+runner, and reports failures as `suite.test — got != expected (file:line)`.
+Four files are left out because they cannot build for the Mac under any
+circumstances: `PinActivity` and `PinnedNoteAttributes` need ActivityKit,
+`StepCounterIntent` is a `LiveActivityIntent`, and `SpeechListener` is
+`AVAudioSession`. None of them has a suite, because none of them is logic.
+
+That is the fast red-green loop. CI is still the authority: nothing in it
+compiles a SwiftUI view, a SwiftData model or the widget, so a green run
+here is necessary and never sufficient. Adding an assertion to a suite means
+adding it to the shim too, which shows up as a compile error rather than as
+a quietly skipped test.
 
 ## Test on the phone before anything else
 
@@ -196,6 +218,7 @@ left there:
 | Siri and Shortcuts | `Notes/Intents/` |
 | The widgets | `NotesWidget/NotesWidget.swift` |
 | The icon | `scripts/make-icon.py` (run it; never edit the PNG) |
+| The suites, run on the Mac without a simulator | `scripts/pure-tests.sh` |
 
 ## Things learned the expensive way
 
