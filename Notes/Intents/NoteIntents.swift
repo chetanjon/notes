@@ -191,19 +191,22 @@ struct DictateNoteIntent: AppIntent {
     static var description = IntentDescription("Opens Matte and starts listening.")
     static var openAppWhenRun = true
 
-    /// Installed by the app as it starts. The intent can run before there
-    /// is anything to tell, which is what a cold launch looks like, so the
-    /// request waits in `requested` until the list comes up and takes it.
+    /// `handler` reaches a list that is already on screen. `requested` is
+    /// what a list that has not appeared yet collects when it does. A cold
+    /// launch needs the second, because the intent runs before the list
+    /// exists.
     @MainActor static var handler: (() -> Void)?
     @MainActor static var requested = false
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        if let handler = Self.handler {
-            handler()
-        } else {
-            Self.requested = true
-        }
+        // Both, always, and whoever takes the request clears both. Setting
+        // only one of them is how a cold launch lost it: `NotesApp.init()`
+        // installs the handler before any intent can run, so the `requested`
+        // fallback was unreachable, and the handler's own signal was an edge
+        // that nothing was watching for yet.
+        Self.requested = true
+        Self.handler?()
         return .result()
     }
 }
