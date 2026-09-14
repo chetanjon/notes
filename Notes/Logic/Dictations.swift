@@ -22,6 +22,11 @@ final class Dictations {
 
     private var noteID: UUID?
     private var job: Task<Dictation.Cleaning, Never>?
+    /// Bumped whenever a job is cancelled, and so whenever one starts. An
+    /// answer that comes back holding an older one is an answer nobody
+    /// wants: since it was asked for, the user has started typing, left, or
+    /// dictated something else.
+    private var ticket = 0
 
     /// Starts the model on `heard` for the note just written from it. It
     /// begins at once, while the editor is still being pushed, so most of
@@ -42,7 +47,15 @@ final class Dictations {
     /// for it. Either way the job is finished with afterwards.
     func outcome(for id: UUID) async -> Dictation.Cleaning? {
         guard noteID == id, let job else { return nil }
+        let mine = ticket
         let answer = await job.value
+        // Cancelling was never able to stop this. `cancel()` cannot reach a
+        // task that is already being awaited, so the answer arrives whatever
+        // happens; what cancelling can do is make it unwanted, and this is
+        // where that is noticed. Clearing is conditional for the same
+        // reason: a newer dictation may have registered while this one was
+        // still thinking, and finishing must not deregister that one.
+        guard mine == ticket else { return nil }
         clear()
         return answer
     }
@@ -51,6 +64,7 @@ final class Dictations {
     /// longer wanted: landing it on a note they have started editing would
     /// be a change they did not make and did not see coming.
     func cancel() {
+        ticket &+= 1
         job?.cancel()
         clear()
     }

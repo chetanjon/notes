@@ -20,10 +20,27 @@ func withTimeout<T: Sendable>(_ limit: Duration,
         try? await Task.sleep(for: limit)
         await answer.settle(nil)
     }
-    let result = await answer.wait()
+    // Both of those are unstructured, so cancelling whoever called this
+    // does not reach them, and `wait()` is a continuation, which
+    // cancellation does not interrupt either. Without this the caller stays
+    // here for the whole limit after it has given up — and a dictation
+    // cleanup cancelled because the user started typing came back anyway
+    // and landed on top of what they had written.
+    let result = await withTaskCancellationHandler {
+        await answer.wait()
+    } onCancel: {
+        // Unblocks the wait. It cannot decide the answer, though: cancelling
+        // the worker makes the work's own `try? await` return early with
+        // whatever it had, and that would settle first.
+        worker.cancel()
+        timer.cancel()
+        Task { await answer.settle(nil) }
+    }
     worker.cancel()
     timer.cancel()
-    return result
+    // So the decision is made here, where it is not a race. A caller that
+    // has given up gets nothing, whatever arrived while it was giving up.
+    return Task.isCancelled ? nil : result
 }
 
 /// Whichever answer arrives first, once.
