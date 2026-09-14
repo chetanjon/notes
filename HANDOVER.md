@@ -106,6 +106,8 @@ scripts/pure-tests.sh Insertion  # just the suites whose name matches
 It compiles `Notes/Logic/` and every file in `NotesTests/` for macOS against
 the `XCTAssert` stand-ins in `scripts/puretests/Shim.swift`, generates a
 runner, and reports failures as `suite.test — got != expected (file:line)`.
+Test methods may be `async`; the whole run happens inside one task so that
+they can be awaited.
 Four files are left out because they cannot build for the Mac under any
 circumstances: `PinActivity` and `PinnedNoteAttributes` need ActivityKit,
 `StepCounterIntent` is a `LiveActivityIntent`, and `SpeechListener` is
