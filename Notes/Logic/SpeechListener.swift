@@ -66,6 +66,19 @@ final class SpeechListener {
     private var observers: [NSObjectProtocol] = []
     private var isFinal = false
 
+    /// Which recognition a callback belongs to. One handler serves every
+    /// task, and a task that has been finished or cancelled goes on
+    /// calling it, so without this the words from a segment already
+    /// settled are folded back in and — worse — the cancel inside
+    /// `rotate()` arrives as an error, is read as "the recognition ended
+    /// on its own", and rotates again, for ever.
+    private var generation = 0
+    /// Rotations caused by an error that heard nothing. A recogniser that
+    /// fails the moment it is opened fails the same way on the next one,
+    /// and rotating into it for ever leaves the sheet saying "Listening"
+    /// at a microphone that will never work.
+    private var barren = 0
+
     /// Set when the sheet goes while `start` is still waiting on a
     /// permission prompt. Without it, `stop` sees `.idle`, does nothing, and
     /// `start` carries on to open the microphone for a view that has gone.
@@ -78,6 +91,7 @@ final class SpeechListener {
         guard state != .listening else { return }
         stopped = false
         isFinal = false
+        barren = 0
         heard = Transcript()
         transcript = ""
         notice = nil
@@ -114,9 +128,21 @@ final class SpeechListener {
             state = .failed("Speech recognition is not available for your language.")
             return
         }
-        guard recognizer.supportsOnDeviceRecognition else {
-            state = .failed("On-device speech recognition is not available for your language, so Matte does not listen.")
-            return
+        // Asked once, immediately after the first yes, this is false while
+        // iOS is still fetching the local model — which on a clean install
+        // is exactly when the first dictation happens. It then dead-ends
+        // the first run with a sentence about the language, which is not
+        // what is wrong. So give it a moment before believing it.
+        if !recognizer.supportsOnDeviceRecognition {
+            let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+            while !recognizer.supportsOnDeviceRecognition, ContinuousClock.now < deadline {
+                try? await Task.sleep(for: .milliseconds(150))
+            }
+            guard !stopped else { return }
+            guard recognizer.supportsOnDeviceRecognition else {
+                state = .failed("On-device dictation is not ready. It downloads the first time, over Wi-Fi; try again in a moment.")
+                return
+            }
         }
         self.recognizer = recognizer
 
@@ -217,15 +243,21 @@ final class SpeechListener {
             try engine.start()
         }
 
+        // A new recognition is a new segment: the last one's final result
+        // has nothing to say about this one.
+        isFinal = false
+        let mine = generation
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.took(result: result, error: error)
+                self.took(result: result, error: error, from: mine)
             }
         }
     }
 
-    private func took(result: SFSpeechRecognitionResult?, error: Error?) {
+    private func took(result: SFSpeechRecognitionResult?, error: Error?, from generation: Int) {
+        // From a recognition that has since been replaced or thrown away.
+        guard generation == self.generation else { return }
         // Results still matter after Stop: the considered pass arrives
         // then. They stop mattering once it has.
         guard !isFinal, state == .listening || state == .stopped else { return }
@@ -237,16 +269,28 @@ final class SpeechListener {
                 lastWords = .now
                 placeholder = Hearing.placeholder(silence: 0)
                 scheduleQuiet()
+                // Words arrived, so whatever failed before was not fatal.
+                barren = 0
             }
             if result.isFinal { isFinal = true }
         }
         guard error != nil || result?.isFinal == true else { return }
-        if state == .listening, !stopped {
-            // The recognition ended on its own, part way through a long
-            // dictation. Keep the words and open another rather than
-            // stopping, which is what used to happen silently.
-            rotate()
+        guard state == .listening, !stopped else { return }
+        // An error that carried no words at all, three times over, is a
+        // recogniser that is not going to work. Saying so beats rotating
+        // into it until the quiet timer blames the microphone.
+        if error != nil, result == nil {
+            barren += 1
+            if barren >= 3 {
+                state = .failed("Dictation is not available. Check that Enable Dictation is on in Settings › General › Keyboard, then try again.")
+                teardown()
+                return
+            }
         }
+        // The recognition ended on its own, part way through a long
+        // dictation. Keep the words and open another rather than
+        // stopping, which is what used to happen silently.
+        rotate()
     }
 
     /// Rotates to a fresh recognition, keeping everything heard so far.
@@ -319,8 +363,12 @@ final class SpeechListener {
             }
         })
         observers.append(centre.addObserver(forName: AVAudioSession.routeChangeNotification,
-                                            object: session, queue: .main) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.routeChanged() }
+                                            object: session, queue: .main) { [weak self] note in
+            // Read here, on the queue the notification came in on: a
+            // `Notification` is not `Sendable` and has no business crossing
+            // into the actor. The reason is a number, which is.
+            let reason = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+            Task { @MainActor [weak self] in self?.routeChanged(reason: reason) }
         })
         observers.append(centre.addObserver(forName: AVAudioSession.mediaServicesWereResetNotification,
                                             object: session, queue: .main) { [weak self] _ in
@@ -330,7 +378,10 @@ final class SpeechListener {
 
     private func interrupted(_ reason: String) {
         guard state == .listening else { return }
-        heard.settle()
+        // Deliberately not settled here. `stop()` asks the task to finish,
+        // and its considered pass restates this whole segment; settling
+        // first would leave that pass to be appended to the words it is a
+        // better version of, and the sentence would land in the note twice.
         transcript = heard.text
         notice = reason
         stop()
@@ -338,8 +389,18 @@ final class SpeechListener {
 
     /// Headphones in or out. The engine's format is stale afterwards, so
     /// the tap has to be laid again on the new one.
-    private func routeChanged() {
+    private func routeChanged(reason raw: UInt?) {
         guard state == .listening else { return }
+        // iOS posts this for reasons that do not touch the input at all: a
+        // category change, a routine reconfiguration. Rebuilding on those
+        // costs a segment boundary in the middle of a sentence, and with a
+        // `.record` session live they arrive on their own.
+        switch raw.flatMap(AVAudioSession.RouteChangeReason.init(rawValue:)) {
+        case .newDeviceAvailable, .oldDeviceUnavailable, .override, .noSuitableRouteForCategory:
+            break
+        default:
+            return
+        }
         heard.settle()
         transcript = heard.text
         finishTask()
@@ -373,6 +434,10 @@ final class SpeechListener {
     // MARK: Taking it down
 
     private func finishTask() {
+        // Anything this task says from here on belongs to a recognition
+        // that is over. `stop()` deliberately does not come through here:
+        // it wants the considered pass that is still to arrive.
+        generation &+= 1
         task?.cancel()
         task = nil
         sinkLock.lock()
