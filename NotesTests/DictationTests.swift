@@ -9,6 +9,10 @@ final class DictationTests: XCTestCase {
 
     func testComposeWithNothingIsEmpty() {
         XCTAssertEqual(Dictation.compose(title: "", lines: ["", " "]), "")
+        // No title from the model must not mean a blank first line: the note
+        // would take its title from line two and show it in the preview too.
+        XCTAssertEqual(Dictation.compose(title: "", lines: ["milk", "eggs"]), "milk\neggs")
+        XCTAssertEqual(Dictation.compose(title: "  ", lines: ["milk"]), "milk")
         XCTAssertEqual(Dictation.compose(title: "Only a title", lines: []), "Only a title")
     }
 

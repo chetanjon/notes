@@ -24,7 +24,10 @@ enum Dictation {
         while body.last?.isEmpty == true { body.removeLast() }
         while body.first?.isEmpty == true { body.removeFirst() }
         if head.isEmpty, body.isEmpty { return "" }
-        return ([head] + body).joined(separator: "\n")
+        // No title from the model must not become a blank first line. The
+        // note would take its title from the line below and then show that
+        // line in the preview as well, which is the same line twice.
+        return (head.isEmpty ? body : [head] + body).joined(separator: "\n")
     }
 
     /// Words a speaker fills a pause with, which the model is told to drop.

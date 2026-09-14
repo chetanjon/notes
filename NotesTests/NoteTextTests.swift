@@ -15,6 +15,40 @@ final class NoteTextTests: XCTestCase {
         XCTAssertEqual(NoteText.preview("Title"), "")
     }
 
+    /// A note that begins with a blank line took its title from the first
+    /// line with something on it, but its body from everything after line
+    /// zero. The title line was in both, so the list showed it twice: once
+    /// as the title and again at the head of the preview.
+    func testTheTitleLineIsNeverAlsoTheBody() {
+        let text = "\nmilk\neggs"
+        XCTAssertEqual(NoteText.title(text), "milk")
+        XCTAssertEqual(NoteText.bodyLines(text), ["eggs"])
+        XCTAssertEqual(NoteText.preview(text), "eggs")
+        XCTAssertEqual(NoteText.widgetPreview(text), "eggs")
+    }
+
+    func testBlankLinesBeforeTheTitleAreNotBody() {
+        XCTAssertEqual(NoteText.preview("\n\nmilk\neggs"), "eggs")
+        XCTAssertEqual(NoteText.preview("   \nmilk\neggs"), "eggs")
+        XCTAssertEqual(NoteText.preview("\nmilk"), "")
+        // An item with nothing in it is not a title either, so it is not body.
+        XCTAssertEqual(NoteText.preview("\n\u{25A1} \nmilk\neggs"), "eggs")
+    }
+
+    /// The title line is never a counter row, however many blank lines
+    /// come before it: "Water 3" as a title must not also get a + on the card.
+    func testCountersSkipTheTitleLineAfterABlankOne() {
+        XCTAssertEqual(NoteText.counters("\nWater 3\nSteps 10").map(\.label), ["Steps"])
+        XCTAssertEqual(NoteText.counters("Water 3\nSteps 10").map(\.label), ["Steps"])
+    }
+
+    func testChecklistAfterALeadingBlankLine() {
+        let text = "\nGroceries\n\u{25A1} milk\n\u{25A0} eggs"
+        XCTAssertTrue(NoteText.isChecklist(text))
+        XCTAssertEqual(NoteText.title(text), "Groceries")
+        XCTAssertEqual(NoteText.preview(text), "1/2 done · milk")
+    }
+
     func testChecklistSummary() {
         let text = "Groceries\n■ eggs\n□ milk\n□ rice\n■ bread"
         XCTAssertTrue(NoteText.isChecklist(text))
