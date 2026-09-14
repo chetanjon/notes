@@ -20,14 +20,33 @@ enum NoteText {
     static let titleLimit = 120
 
     private static func rawTitle(_ text: String) -> String {
-        lines(text)
-            .map { Checklist.content($0).trimmingCharacters(in: .whitespaces) }
-            .first(where: { !$0.isEmpty }) ?? untitled
+        guard let index = titleLine(text) else { return untitled }
+        return Checklist.content(lines(text)[index]).trimmingCharacters(in: .whitespaces)
     }
 
-    /// Every line after the first.
+    /// Which line the title came from: the first with something on it once
+    /// any marker is off. `nil` when no line has anything on it.
+    private static func titleLine(_ text: String) -> Int? {
+        lines(text).firstIndex {
+            !Checklist.content($0).trimmingCharacters(in: .whitespaces).isEmpty
+        }
+    }
+
+    /// Where the body starts: the line after the title's. Not line one.
+    ///
+    /// A note can begin with blank lines — a dictation the model could not
+    /// title used to be exactly that — and then the title is not on line
+    /// zero. Taking the body from line one regardless left the title line
+    /// in both, and the list showed it twice: as the title, and again at
+    /// the head of the preview.
+    private static func bodyStart(_ text: String) -> Int {
+        guard let index = titleLine(text) else { return lines(text).count }
+        return index + 1
+    }
+
+    /// Every line after the one the title came from.
     static func bodyLines(_ text: String) -> [String] {
-        Array(lines(text).dropFirst())
+        Array(lines(text).dropFirst(bodyStart(text)))
     }
 
     static func isChecklist(_ text: String) -> Bool {
@@ -127,7 +146,7 @@ enum NoteText {
         // A counter line has a row of its own on the card, so it is not
         // also the preview: "Water 11" once, not twice.
         let counted = Set(counters(text).map(\.lineIndex))
-        return lines(text).enumerated().dropFirst()
+        return lines(text).enumerated().dropFirst(bodyStart(text))
             .filter { !counted.contains($0.offset) }
             .map { $0.element.trimmingCharacters(in: .whitespaces) }
             .first(where: { !$0.isEmpty })
@@ -156,7 +175,7 @@ enum NoteText {
     /// The Lock Screen gives such a line a + that edits the number.
     static func counters(_ text: String) -> [Counter] {
         var found: [Counter] = []
-        for (index, line) in lines(text).enumerated().dropFirst() {
+        for (index, line) in lines(text).enumerated().dropFirst(bodyStart(text)) {
             if let counter = counter(in: line, at: index) { found.append(counter) }
         }
         return found
