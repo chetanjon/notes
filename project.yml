@@ -119,6 +119,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.cj.notes.widget
         SKIP_INSTALL: YES
+        # CLAUDE.md says the shared files must not reach for anything the app
+        # has and an extension does not — `PinActivity` starts Live Activities
+        # and is app-only, and extensions cannot start them. Xcode's own widget
+        # template sets this and xcodegen does not, so until now that rule was
+        # kept by hand. With it on, breaking it is a compile error.
+        APPLICATION_EXTENSION_API_ONLY: YES
   NotesTests:
     type: bundle.unit-test
     platform: iOS
