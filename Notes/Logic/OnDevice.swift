@@ -222,6 +222,14 @@ enum OnDevice {
             // certain a good cleanup is thrown away.
             guard ModelGuard.kept(of: Dictation.withoutFiller(dictation),
                                   in: made.title + "\n" + body) >= 0.5 else { return .notTrusted }
+            // That ratio sits at 0.5 because filler and false starts are
+            // meant to go. A number or a day is not: this is the loosest
+            // guard in the file, and the one place a cleanup could quietly
+            // turn a spoken 3500 into 3800. Dropping one is still allowed,
+            // because "meet at three, no, at four" is a thing people say.
+            guard ModelGuard.inventsNoFigure(made.title + "\n" + body, in: dictation) else {
+                return .notTrusted
+            }
             let text = Dictation.compose(title: made.title, lines: lines)
             guard !NoteText.isBlank(text) else { return .notTrusted }
             return .cleaned(text)
