@@ -198,7 +198,10 @@ Then the ones carried over from earlier rounds:
     Trash**, not gone.
 15. Pin a note and type in it for a minute. The Lock Screen card keeps up.
 16. Delete a note whose notification is already showing in Notification
-    Center. The notification goes with it.
+    Center. The notification goes with it. Then the editor's half: change
+    a reminder line to a different day and leave the note. The old day's
+    notification is gone, pending and already-shown alike — until now the
+    settled save returned early on unchanged text and never reconciled.
 17. Tidy up on a line with a typo: `buy tomatos` becomes `Buy tomatoes`,
     and three lines stay three lines.
 18. Reminders on `bread 2.20` (a price, not a time) and `rent on the 31st`.
@@ -214,16 +217,11 @@ the four rounds before it.
 
 ## What the audit found and nobody has fixed
 
-Nine findings survived verification and are still in the code, and two more
+Seven findings survived verification and are still in the code, and two more
 were never judged at all because the audit hit a session limit twice. They are
 written down so the next round is not spent finding them again. Roughly in the
 order they are worth doing:
 
-- **`Notify.reconcile` never runs for an edit made in the editor.**
-  `EditorView.swift:484` with `NoteStore.swift:119`: the debounced save lands
-  first, so the settled save early-returns on text equality and never reaches
-  the reconcile step. Change or remove a reminder line and the old
-  notification still fires. That is item 16, and it is two sites of one bug.
 - **VoiceOver never speaks the "microphone was taken" notice.**
   `DictateSheet.swift:74`: the children are combined and the accessibility
   value is the transcript alone, so the notice is drawn and never read out. A
