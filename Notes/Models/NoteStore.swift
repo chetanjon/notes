@@ -354,9 +354,19 @@ enum NoteStore {
         return saved
     }
 
-    /// The same, for the callers that have to know: the App Intents.
+    /// The same, for the callers that have to know: the App Intents. It
+    /// also writes the widget's list now rather than in 800 milliseconds,
+    /// because iOS may suspend an intent's process the moment `perform()`
+    /// returns, and the debounced rebuild dies in its sleep: a note made by
+    /// Siri with the phone locked left the widgets a save behind until the
+    /// app was next opened. The debounce still lands later when the process
+    /// lives on, and costs only a read, since `writeRecent` compares before
+    /// writing.
+    @MainActor
     @discardableResult
     static func saveChecked(_ context: ModelContext) -> Bool {
-        save(context)
+        let saved = save(context)
+        writeRecent(in: context)
+        return saved
     }
 }

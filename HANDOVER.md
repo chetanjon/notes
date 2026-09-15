@@ -217,14 +217,11 @@ the four rounds before it.
 
 ## What the audit found and nobody has fixed
 
-Five findings survived verification and are still in the code, and two more
+Four findings survived verification and are still in the code, and two more
 were never judged at all because the audit hit a session limit twice. They are
 written down so the next round is not spent finding them again. Roughly in the
 order they are worth doing:
 
-- **Siri and Shortcut intents return before the widget write.**
-  `NoteIntents.swift:78`: a note made by Siri without opening the app leaves
-  the widgets and the Lock Screen card stale until the app is next opened.
 - **Numbers shorter than three characters are invisible to every guard, in
   every language.** Found while fixing the tokeniser, not by the audit: the
   three-letter floor in `ModelGuard.words` drops "16" and "3800", so a model
