@@ -34,6 +34,27 @@ enum ModelGuard {
         0xF900...0xFAFF, 0xFF66...0xFF9D, 0x20000...0x3FFFF,
     ]
 
+    /// The days and months that are never an ordinary English word.
+    /// "may", "march" and "august" are left out on purpose, and so is every
+    /// three-letter abbreviation: refusing "may need a hotel" for naming a
+    /// month would be a worse guard than the hole it closed. What is left
+    /// is pinned in `testTheKnownHolesStayKnown`.
+    private static let dayWords: Set<String> = [
+        "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+        "january", "february", "april", "june", "july", "september", "october",
+        "november", "december",
+    ]
+
+    /// A weekday written in Han is taken whole, so that the 三 inside
+    /// 周三 is the day and not a number standing on its own.
+    private static let weekPrefixes = ["星期", "礼拜", "禮拜", "周", "週"]
+    private static let weekDays: Set<Character> = [
+        "一", "二", "三", "四", "五", "六", "日", "天",
+    ]
+    private static let japaneseWeekDays: Set<Character> = [
+        "月", "火", "水", "木", "金", "土", "日",
+    ]
+
     static func isSpaceless(_ character: Character) -> Bool {
         guard let scalar = character.unicodeScalars.first else { return false }
         return spacelessRanges.contains { $0.contains(scalar.value) }
@@ -42,8 +63,9 @@ enum ModelGuard {
     static func hasSpaceless(_ text: String) -> Bool { text.contains(where: isSpaceless) }
 
     /// The tokens that carry meaning. For spaced scripts: whole words,
-    /// three letters or more, lowercased, accents dropped, the stop words
-    /// left out. For a run of a spaceless script: its overlapping
+    /// three letters or more — or any length at all if there is a number
+    /// in them — lowercased, accents dropped, the stop words left out.
+    /// For a run of a spaceless script: its overlapping
     /// character pairs — and a run of a single character is that
     /// character, because an empty set passes the subset check by being
     /// empty, and 米 on a shopping list is an ordinary item, not noise.
@@ -57,7 +79,10 @@ enum ModelGuard {
                 guard !spaced.isEmpty else { return }
                 let word = String(spaced)
                 spaced.removeAll(keepingCapacity: true)
-                if word.count >= 3, !stopWords.contains(word) { found.insert(word) }
+                // The floor is about letters: "at" and "to" say nothing.
+                // A number always says something, however short.
+                let carries = word.count >= 3 || word.contains(where: \.isNumber)
+                if carries, !stopWords.contains(word) { found.insert(word) }
             }
             func takeDense() {
                 if dense.count == 1 {
@@ -82,10 +107,101 @@ enum ModelGuard {
         return found
     }
 
+    /// The numbers and days a line says, as themselves rather than as
+    /// tokens: runs of digits, runs of Han numerals, the weekdays written
+    /// in Han, and the day and month words of English. Neither path in
+    /// `words` can carry these. The three-letter floor drops "16" before
+    /// any guard sees it, and 周二下午三点看牙医 becomes eight character
+    /// pairs, of which changing the day alters two — which is exactly the
+    /// quarter a 0.75 ratio is willing to spare.
+    static func figures(_ text: String) -> Set<String> {
+        let characters = Array(text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil))
+        var found: Set<String> = []
+        var letters: [Character] = []
+        var number: [Character] = []
+
+        func takeLetters() {
+            let word = String(letters)
+            letters.removeAll(keepingCapacity: true)
+            if dayWords.contains(word) { found.insert(word) }
+        }
+        func takeNumber() {
+            // A thousands separator is the same amount written out, so it
+            // comes off rather than splitting 3,500 into a 3 and a 500.
+            let digits = String(number.filter(\.isNumber))
+            number.removeAll(keepingCapacity: true)
+            if !digits.isEmpty { found.insert(digits) }
+        }
+        func takeAll() { takeLetters(); takeNumber() }
+
+        var index = 0
+        while index < characters.count {
+            if let day = weekday(at: index, in: characters) {
+                takeAll()
+                found.insert(day)
+                index += day.count
+                continue
+            }
+            let character = characters[index]
+            // `isNumber` is asked before `isLetter` because Swift calls 三
+            // both. It is true of every Han numeral, so 3500 and 三千 come
+            // down one path and neither needs a table of its own. The cost
+            // is that the 一 in 一起 ("together") reads as a one, which can
+            // make a cleanup that adds such a word refused — never
+            // accepted, so it errs the safe way.
+            if character.isNumber {
+                takeLetters()
+                number.append(character)
+            } else if character == "," || character == "，",
+                      !number.isEmpty,
+                      index + 1 < characters.count, characters[index + 1].isNumber {
+                number.append(character)
+            } else if character.isLetter {
+                takeNumber()
+                letters.append(character)
+            } else {
+                takeAll()
+            }
+            index += 1
+        }
+        takeAll()
+        return found
+    }
+
+    /// 星期三, 周三, 礼拜三, 水曜日: the weekday starting here, or nothing.
+    /// A trailing 日 is left off 水曜日 so that it and 水曜 are one day.
+    private static func weekday(at index: Int, in characters: [Character]) -> String? {
+        for prefix in weekPrefixes where index + prefix.count < characters.count {
+            let day = index + prefix.count
+            guard String(characters[index..<day]) == prefix, weekDays.contains(characters[day]) else { continue }
+            return prefix + String(characters[day])
+        }
+        guard index + 1 < characters.count, characters[index + 1] == "曜",
+              japaneseWeekDays.contains(characters[index]) else { return nil }
+        return String(characters[index...(index + 1)])
+    }
+
+    /// Every number and day in `candidate` is one the source says. A figure
+    /// is the same one or a different one and there is nothing in between,
+    /// so no ratio spares it and no spelling allowance reaches it: 3800 is
+    /// one edit from 3500 and a different amount all the same.
+    static func inventsNoFigure(_ candidate: String, in source: String) -> Bool {
+        figures(candidate).isSubset(of: figures(source))
+    }
+
+    /// A figure in the tidy that the line did not say, allowed only when
+    /// the line has a word near it that is not a figure of its own:
+    /// "tuesdy" becoming "Tuesday". Both halves of one real day becoming
+    /// another are figures, so that never takes this path.
+    private static func correcting(_ figure: String, of source: String) -> Bool {
+        let said = figures(source)
+        return words(source).contains { !said.contains($0) && near(figure, $0) }
+    }
+
     /// A single character of a spaceless script, found inside one of the
     /// set's tokens. The pairs 买米 and 米和 both contain the item 米; no
-    /// pair anywhere contains an invented 猫. Spaced words never take this
-    /// path, because the shortest of them is three letters.
+    /// pair anywhere contains an invented 猫. A spaced word never takes
+    /// this path, however short: the character has to be a spaceless one.
     private static func containsLone(_ word: String, in set: Set<String>) -> Bool {
         guard word.count == 1, let only = word.first, isSpaceless(only) else { return false }
         return set.contains { $0.contains(word) }
@@ -94,6 +210,7 @@ enum ModelGuard {
     /// The candidate's words all occur in the source: nothing was invented.
     /// A candidate with no words of its own passes.
     static func sharesWords(_ candidate: String, with source: String) -> Bool {
+        guard inventsNoFigure(candidate, in: source) else { return false }
         let theirs = words(source)
         return words(candidate).allSatisfy { theirs.contains($0) || containsLone($0, in: theirs) }
     }
@@ -183,6 +300,7 @@ enum ModelGuard {
     /// invention through, and refuses a candidate made only of small words,
     /// which the strict form waves past because its word set is empty.
     static func grounded(_ candidate: String, in source: String, keeping: Double = 0.75) -> Bool {
+        guard inventsNoFigure(candidate, in: source) else { return false }
         let mine = words(candidate)
         guard !mine.isEmpty else { return false }
         let theirs = words(source)
@@ -216,6 +334,12 @@ enum ModelGuard {
         // differ. "不用给牙医打电话" gets no free pass for containing
         // "给牙医打电话"; it is a different string.
         if bare(before) == bare(after) { return true }
+        // Punctuation and spelling are what a tidy is for; numbers and days
+        // are not. Every one the line said has to still be there, and one
+        // the tidy added has to be the line's own misspelling put right.
+        let said = figures(before), now = figures(after)
+        guard said.isSubset(of: now) else { return false }
+        guard now.subtracting(said).allSatisfy({ correcting($0, of: before) }) else { return false }
         guard keptAllowingSpelling(of: before, in: after) >= keeping else { return false }
         guard Double(wordCount(after)) <= Double(wordCount(before)) * 1.5 + 1 else { return false }
         return !absorbs(after, own: before, from: others)

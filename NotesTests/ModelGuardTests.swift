@@ -178,11 +178,98 @@ extension ModelGuardTests {
         let note = "给牙医打电话\n买牛奶"
         XCTAssertTrue(ModelGuard.grounded("给牙医买牛奶", in: note))
         XCTAssertFalse(ModelGuard.sharesWords("给牙医买牛奶", with: note))
-        // A swapped day survives the ratio when enough of the line around
-        // it is unchanged: 周三 for 周二 keeps three quarters of the pairs,
-        // and "Wednesday" for "Tuesday" does the same to English words.
-        // Closing this needs numbers and day-words matched exactly, which
-        // is a change of its own, in every language at once.
-        XCTAssertTrue(ModelGuard.grounded("周三下午三点看牙医", in: "周二下午三点看牙医"))
+        // The swapped day that used to be pinned here is closed: numbers
+        // and days are matched exactly now, so 周三 for 周二 is refused and
+        // so is 3800 for 3500. What is left of the hole is the day and
+        // month words that are also ordinary English. "may", "march" and
+        // "august" are deliberately not treated as dates — refusing "may
+        // need a hotel" for naming a month is worse than this — so those
+        // three alone still ride the ratio when the rest of a long line
+        // is unchanged.
+        XCTAssertTrue(ModelGuard.grounded("meeting in may about the parcel and the dentist",
+                                          in: "meeting in march about the parcel and the dentist"))
+    }
+}
+
+// MARK: Numbers and days are matched exactly
+//
+// A ratio can absorb one changed token when the rest of the line is
+// unchanged, and the spelling allowance reads 3800 as one edit from 3500 —
+// a typo. Both are right about words and wrong about figures: a number or a
+// day is the same one or a different one, and there is nothing in between.
+// So they are checked apart from the ratios, and a figure the source does
+// not say refuses the whole candidate.
+
+extension ModelGuardTests {
+    func testAChangedAmountIsRefused() {
+        XCTAssertFalse(ModelGuard.grounded("pay 3800", in: "pay 3500"))
+        XCTAssertFalse(ModelGuard.tidyKeeps("rent 3500 due friday", "Rent 3800, due Friday.", others: []))
+        XCTAssertFalse(ModelGuard.sharesWords("pay 3800", with: "pay 3500"))
+    }
+
+    func testANumberTooShortToBeAWordIsStillChecked() {
+        // The three-letter floor in `words` dropped "16" before it reached
+        // any guard, so a model answer that changed it was checked against
+        // nothing at all.
+        XCTAssertFalse(ModelGuard.grounded("bus 16 at noon", in: "bus 18 at noon"))
+        XCTAssertFalse(ModelGuard.sharesWords("bus 16", with: "bus 18"))
+        XCTAssertFalse(ModelGuard.tidyKeeps("take bus 18", "Take bus 16.", others: []))
+    }
+
+    func testAChangedDayIsRefused() {
+        XCTAssertFalse(ModelGuard.grounded("wednesday afternoon at three",
+                                           in: "tuesday afternoon at three"))
+        XCTAssertFalse(ModelGuard.tidyKeeps("dentist on tuesday", "Dentist on Wednesday.", others: []))
+        // The Chinese half of the same hole: 周三 for 周二 kept three
+        // quarters of the pairs, which cleared the 0.75 ratio exactly.
+        XCTAssertFalse(ModelGuard.grounded("周三下午三点看牙医", in: "周二下午三点看牙医"))
+    }
+
+    func testAChangedAmountInAScriptWithoutSpacesIsRefused() {
+        XCTAssertFalse(ModelGuard.tidyKeeps("房租3500块", "房租3800块", others: []))
+        XCTAssertFalse(ModelGuard.grounded("预算五千美元", in: "预算三千美元"))
+        XCTAssertFalse(ModelGuard.grounded("十一月十五号出发", in: "十月十五号出发"))
+    }
+
+    func testNothingElseWasCalibratedLooserToCompensate() {
+        // The figures that did not change must still pass everything they
+        // passed before, in both kinds of script.
+        XCTAssertTrue(ModelGuard.tidyKeeps("rent 3500 due friday", "Rent 3500, due Friday.", others: []))
+        XCTAssertTrue(ModelGuard.tidyKeeps("buy 2 tomatos", "Buy 2 tomatoes", others: []))
+        XCTAssertTrue(ModelGuard.tidyKeeps("房租3500块", "房租3500块。", others: []))
+        XCTAssertTrue(ModelGuard.grounded("3500 rent", in: "rent 3500 due friday"))
+        XCTAssertTrue(ModelGuard.grounded("周二下午看牙医", in: "周二下午三点看牙医"))
+        XCTAssertTrue(ModelGuard.sharesWords("bus 18", with: "take bus 18 at noon"))
+        // A thousands separator is the same amount written out.
+        XCTAssertTrue(ModelGuard.tidyKeeps("rent 3500", "Rent: 3,500", others: []))
+    }
+
+    func testAShortNumberIsAWordLikeAnyOther() {
+        // The three-letter floor is about letters: "at" and "to" say
+        // nothing. A number always says something, however short — a bus,
+        // a flat, a time, an amount — and a ratio that cannot see one
+        // reads two different bus numbers as the same line.
+        XCTAssertTrue(ModelGuard.words("take bus 16").contains("16"))
+        XCTAssertTrue(ModelGuard.kept(of: "bus 16", in: "bus 18") < 1)
+        XCTAssertEqual(ModelGuard.kept(of: "bus 16", in: "the 16 bus"), 1.0)
+    }
+
+    func testAYearWrittenInHanIsOneNumber() {
+        // A run of Han numerals is one figure, so 二〇 is not a piece of
+        // 二〇二五 that a candidate can be grounded in — the same way 16 is
+        // not a piece of 1600.
+        XCTAssertFalse(ModelGuard.grounded("二〇年去日本", in: "二〇二五年去日本"))
+        XCTAssertTrue(ModelGuard.grounded("二〇二五年去日本", in: "二〇二五年去日本"))
+        XCTAssertFalse(ModelGuard.grounded("flat 16", in: "flat 1600"))
+    }
+
+    func testADayMisspeltCanStillBePutRight() {
+        // The one correction exactness must not take away: a misspelling
+        // that is not itself a day becoming the day it meant. Changing one
+        // real day into another is the thing being refused, not this.
+        XCTAssertTrue(ModelGuard.tidyKeeps("wenesday meeting", "Wednesday meeting", others: []))
+        XCTAssertTrue(ModelGuard.tidyKeeps("see you tuesady", "See you Tuesday.", others: []))
+        // An invented time is not a correction of anything.
+        XCTAssertFalse(ModelGuard.tidyKeeps("call teh dentist", "Call the dentist at 3.", others: []))
     }
 }
