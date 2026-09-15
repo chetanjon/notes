@@ -24,7 +24,7 @@ pure logic, git and the store copy are all fine from the terminal.
 
 `main` carries #42 through #63: four rounds of fixes from testing on the
 phone, a full audit, a security and resilience pass, four rounds on voice,
-and then an audit of the voice work itself. 175 tests pass. Nothing is open,
+and then an audit of the voice work itself. 193 tests pass. Nothing is open,
 nothing is half done, and no branch is waiting.
 
 Every acceptance item in the spec is built, and so is everything past it that
@@ -125,7 +125,7 @@ And `scripts/pure-tests.sh` runs the suites on the Mac with no simulator at
 all, in about twenty seconds:
 
 ```bash
-scripts/pure-tests.sh            # all 167, in 19 suites
+scripts/pure-tests.sh            # all 193, in 20 suites
 scripts/pure-tests.sh Insertion  # just the suites whose name matches
 ```
 
@@ -217,21 +217,11 @@ the four rounds before it.
 
 ## What the audit found and nobody has fixed
 
-Four findings survived verification and are still in the code, and two more
+Three findings survived verification and are still in the code, and two more
 were never judged at all because the audit hit a session limit twice. They are
 written down so the next round is not spent finding them again. Roughly in the
 order they are worth doing:
 
-- **Numbers shorter than three characters are invisible to every guard, in
-  every language.** Found while fixing the tokeniser, not by the audit: the
-  three-letter floor in `ModelGuard.words` drops "16" and "3800", so a model
-  answer that changes a date or an amount written in Arabic numerals is not
-  checked against the note at all — "房租3800块" for "房租3500块", "pay 3800"
-  for "pay 3500". The same ratio arithmetic also lets a swapped day-word
-  through when the rest of the line is unchanged, in English as in Chinese;
-  the deliberate pass is pinned in `ModelGuardTests.testTheKnownHolesStayKnown`.
-  Closing it means matching numerals and day-words exactly, everywhere at
-  once, and calibrating nothing else looser to compensate.
 - **A dictated insertion and the cleaned edit both land on a text view that is
   not first responder**, so a shake takes back neither
   (`ChecklistTextView.swift:313` and `:325`). See item 6 above.
