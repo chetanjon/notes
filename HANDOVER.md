@@ -217,15 +217,11 @@ the four rounds before it.
 
 ## What the audit found and nobody has fixed
 
-Seven findings survived verification and are still in the code, and two more
+Five findings survived verification and are still in the code, and two more
 were never judged at all because the audit hit a session limit twice. They are
 written down so the next round is not spent finding them again. Roughly in the
 order they are worth doing:
 
-- **VoiceOver never speaks the "microphone was taken" notice.**
-  `DictateSheet.swift:74`: the children are combined and the accessibility
-  value is the transcript alone, so the notice is drawn and never read out. A
-  blind user is not told what happened. Item 13.
 - **Siri and Shortcut intents return before the widget write.**
   `NoteIntents.swift:78`: a note made by Siri without opening the app leaves
   the widgets and the Lock Screen card stale until the app is next opened.
@@ -256,8 +252,6 @@ order they are worth doing:
   and the engine started synchronously on the main actor while the sheet
   animates in (`:150`), which with Bluetooth is a visible hitch. Item 1 will say whether the first one
   loses a word at the joins; the second is only ever a nuisance.
-- The dictate sheet's Cancel is about a 22pt tap target where the spec says 44
-  (`DictateSheet.swift:46`).
 
 Ten further findings were **refuted** on inspection and should not be raised
 again. The two most convincing-sounding were that dictated items separated by
