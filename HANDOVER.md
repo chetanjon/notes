@@ -24,7 +24,7 @@ pure logic, git and the store copy are all fine from the terminal.
 
 `main` carries #42 through #63: four rounds of fixes from testing on the
 phone, a full audit, a security and resilience pass, four rounds on voice,
-and then an audit of the voice work itself. 175 tests pass. Nothing is open,
+and then an audit of the voice work itself. 193 tests pass. Nothing is open,
 nothing is half done, and no branch is waiting.
 
 Every acceptance item in the spec is built, and so is everything past it that
@@ -125,7 +125,7 @@ And `scripts/pure-tests.sh` runs the suites on the Mac with no simulator at
 all, in about twenty seconds:
 
 ```bash
-scripts/pure-tests.sh            # all 192, in 20 suites
+scripts/pure-tests.sh            # all 193, in 20 suites
 scripts/pure-tests.sh Insertion  # just the suites whose name matches
 ```
 
@@ -217,14 +217,11 @@ the four rounds before it.
 
 ## What the audit found and nobody has fixed
 
-Four findings survived verification and are still in the code, and two more
+Three findings survived verification and are still in the code, and two more
 were never judged at all because the audit hit a session limit twice. They are
 written down so the next round is not spent finding them again. Roughly in the
 order they are worth doing:
 
-- **Siri and Shortcut intents return before the widget write.**
-  `NoteIntents.swift:78`: a note made by Siri without opening the app leaves
-  the widgets and the Lock Screen card stale until the app is next opened.
 - **A dictated insertion and the cleaned edit both land on a text view that is
   not first responder**, so a shake takes back neither
   (`ChecklistTextView.swift:313` and `:325`). See item 6 above.
