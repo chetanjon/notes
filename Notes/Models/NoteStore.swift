@@ -116,17 +116,27 @@ enum NoteStore {
     /// lower down is absent for a moment and its notification would go for
     /// good.
     static func update(_ note: Note, text: String, in context: ModelContext, settled: Bool = true) {
-        guard note.text != text else { return }
-        note.text = text
-        note.updatedAt = .now
-        save(context)
-        if !note.isTrashed { NoteIndex.index(note) }
-        // A notification whose line left the note goes with it.
-        if settled { Notify.reconcile(noteID: note.id, text: text) }
-        if note.isPinned {
-            showOnLockScreen(pinnedRecord(note))
-            summarizeOnLockScreen(note)
+        if note.text != text {
+            note.text = text
+            note.updatedAt = .now
+            save(context)
+            if !note.isTrashed { NoteIndex.index(note) }
+            if note.isPinned {
+                showOnLockScreen(pinnedRecord(note))
+                summarizeOnLockScreen(note)
+            }
         }
+        // A notification whose line left the note goes with it — and this
+        // stands OUTSIDE the change check, deliberately. The debounced
+        // autosave writes the text 350 ms after the last keystroke, so by
+        // the time the settled save arrives, on leaving or backgrounding,
+        // the text is already stored and an early return here skipped the
+        // reconcile for ever: edit a reminder line away and its
+        // notification kept firing. Storing the text is the part that is
+        // usually already done; reconciling is what a settled save is for.
+        // Harmless when nothing changed, since reconcile only removes
+        // notifications whose line is no longer in the note.
+        if settled { Notify.reconcile(noteID: note.id, text: text) }
     }
 
     /// "Move this there": what was written in `note` goes to the end of
