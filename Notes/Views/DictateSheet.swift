@@ -47,6 +47,11 @@ struct DictateSheet: View {
                     .font(Theme.Font.toolbar)
                     .foregroundStyle(Theme.muted)
                     .buttonStyle(.plain)
+                    // The word is small; the target must not be. The title
+                    // beside it is a largeTitle, so the header does not
+                    // visibly grow to make room.
+                    .frame(minWidth: Theme.tapTarget, minHeight: Theme.tapTarget, alignment: .trailing)
+                    .contentShape(Rectangle())
                     .accessibilityHint("Throws away what was said")
             }
             .padding(.horizontal, Theme.pagePadding)
@@ -73,7 +78,10 @@ struct DictateSheet: View {
                 // out on every partial result.
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("What you said")
-                .accessibilityValue(body_)
+                // The notice is part of what this element has to say:
+                // without it, VoiceOver reads the words and never the fact
+                // that the microphone was taken away mid-sentence.
+                .accessibilityValue(listener.notice.map { "\(body_). \($0)" } ?? body_)
                 .accessibilityAddTraits(.updatesFrequently)
             }
             Button {
@@ -116,6 +124,14 @@ struct DictateSheet: View {
         // session down anyway. Stopping deliberately keeps the words.
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { listener.stop() }
+        }
+        // `.updatesFrequently` keeps VoiceOver from reading out every
+        // partial result — and from volunteering anything else. The notice
+        // is the one thing that must be volunteered: a call took the
+        // microphone, and a sighted user sees that the moment it happens.
+        .onChange(of: listener.notice) { _, notice in
+            guard let notice else { return }
+            AccessibilityNotification.Announcement(notice).post()
         }
     }
 
