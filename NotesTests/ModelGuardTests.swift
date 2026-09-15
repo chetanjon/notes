@@ -81,4 +81,108 @@ extension ModelGuardTests {
         XCTAssertFalse(ModelGuard.grounded("do it", in: note))
         XCTAssertFalse(ModelGuard.grounded("", in: note))
     }
+
+    // MARK: Scripts without word spaces
+    //
+    // Chinese, Japanese and Thai write without spaces, so the tokeniser
+    // used to see a whole line as one word and every guard collapsed the
+    // moment the model changed anything — including adding the punctuation
+    // it is asked for. These tests assert OUTCOMES, never token lists: the
+    // segmentation is ours, but pinning its exact shape would make every
+    // internal improvement a test failure.
+
+    func testCleanupSurvivesPunctuationInChinese() {
+        let said = "买牛奶和鸡蛋然后给牙医打电话"
+        let cleaned = "买牛奶和鸡蛋，然后给牙医打电话。"
+        // OnDevice accepts a dictation cleanup at 0.5; punctuation alone
+        // must leave a wide margin, not scrape by.
+        XCTAssertTrue(ModelGuard.kept(of: said, in: cleaned) >= 0.9)
+        XCTAssertTrue(ModelGuard.grounded(cleaned, in: said))
+    }
+
+    func testCleanupSurvivesPunctuationInJapanese() {
+        let said = "牛乳と卵を買って歯医者に電話する"
+        let cleaned = "牛乳と卵を買って、歯医者に電話する。"
+        XCTAssertTrue(ModelGuard.kept(of: said, in: cleaned) >= 0.9)
+        XCTAssertTrue(ModelGuard.grounded(cleaned, in: said))
+    }
+
+    func testCleanupSurvivesASpaceInThai() {
+        let said = "ซื้อนมและไข่แล้วโทรหาหมอฟัน"
+        let cleaned = "ซื้อนมและไข่ แล้วโทรหาหมอฟัน"
+        XCTAssertTrue(ModelGuard.kept(of: said, in: cleaned) >= 0.9)
+    }
+
+    func testKoreanIsUntouched() {
+        // Korean writes with spaces and already worked; it must not be
+        // routed through anything new.
+        let said = "우유와 계란을 사고 치과에 전화하기"
+        let cleaned = "우유와 계란을 사고, 치과에 전화하기."
+        XCTAssertEqual(ModelGuard.kept(of: said, in: cleaned), 1.0)
+        XCTAssertTrue(ModelGuard.tidyKeeps(said, cleaned, others: []))
+    }
+
+    func testAPunctuationOnlyTidyIsTheSameLine() {
+        XCTAssertTrue(ModelGuard.tidyKeeps("买米面油", "买米、面、油", others: []))
+        XCTAssertTrue(ModelGuard.tidyKeeps("买牛奶和鸡蛋", "买牛奶和鸡蛋。", others: []))
+    }
+
+    func testInventedChineseIsRefused() {
+        let note = "去日本旅行\n预算三千美元\n十月十五号出发\n住在车站附近的酒店"
+        // Five thousand for three thousand, November for October: numbers
+        // and dates the note does not say, refused.
+        XCTAssertFalse(ModelGuard.grounded("预算五千美元", in: note))
+        XCTAssertFalse(ModelGuard.grounded("十一月去日本", in: note))
+    }
+
+    func testARewrittenJapaneseLineIsRefused() {
+        XCTAssertFalse(ModelGuard.tidyKeeps("牛乳と卵を買って歯医者に電話する",
+                                            "スーパーで新しい食材を注文する", others: []))
+    }
+
+    func testASingleCharacterItemIsRealAndAnInventedOneIsNot() {
+        // 米 (rice) is in the note even though the note writes it with no
+        // space around it; 猫 (cat) is not in the note at all. One-character
+        // items are ordinary on a Chinese list, and an empty word set must
+        // never pass the subset check by being empty.
+        XCTAssertTrue(ModelGuard.sharesWords("米", with: "买米和油"))
+        XCTAssertFalse(ModelGuard.sharesWords("猫", with: "买米和油"))
+        XCTAssertTrue(ModelGuard.grounded("米、油", in: "买米和油"))
+    }
+
+    func testChineseFitsTheWordLimits() {
+        // OnDevice refuses a title over eight words; a ten-character
+        // Chinese title is about five words, not one and not ten.
+        XCTAssertTrue((2...8).contains(ModelGuard.wordCount("十月去日本的旅行计划")))
+        XCTAssertEqual(ModelGuard.wordCount("买iPhone手机"), 3)
+        XCTAssertTrue(ModelGuard.lengthClose("买牛奶和鸡蛋然后给牙医打电话",
+                                             "买牛奶和鸡蛋，然后给牙医打电话。"))
+    }
+
+    func testTheKnownHolesStayKnown() {
+        // These pass DELIBERATELY, and each is a hole English has too.
+        // If a change makes one fail, that is an improvement to make on
+        // purpose, not to discover in CI.
+        //
+        // Negation survives the tidy guard: "don't call the dentist" keeps
+        // every word of "call the dentist", in any language.
+        XCTAssertTrue(ModelGuard.tidyKeeps("给牙医打电话", "不用给牙医打电话。", others: []))
+        // A short dense line can be rewritten within the 0.6 ratio:
+        // "buy eggs" to "buy bread" shares its verb, and two characters of
+        // three. Better than before the fix (which accepted more), not solved.
+        XCTAssertTrue(ModelGuard.tidyKeeps("卵を買う", "パンを買う", others: []))
+        // Recombination passes grounded — "buy milk for the dentist" out of
+        // a note that says call the dentist and buy milk — though the
+        // stricter subset check does catch it, because the joined phrase
+        // contains a character pair the note never wrote.
+        let note = "给牙医打电话\n买牛奶"
+        XCTAssertTrue(ModelGuard.grounded("给牙医买牛奶", in: note))
+        XCTAssertFalse(ModelGuard.sharesWords("给牙医买牛奶", with: note))
+        // A swapped day survives the ratio when enough of the line around
+        // it is unchanged: 周三 for 周二 keeps three quarters of the pairs,
+        // and "Wednesday" for "Tuesday" does the same to English words.
+        // Closing this needs numbers and day-words matched exactly, which
+        // is a change of its own, in every language at once.
+        XCTAssertTrue(ModelGuard.grounded("周三下午三点看牙医", in: "周二下午三点看牙医"))
+    }
 }

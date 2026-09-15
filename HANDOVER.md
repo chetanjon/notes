@@ -214,7 +214,7 @@ the four rounds before it.
 
 ## What the audit found and nobody has fixed
 
-Eleven findings survived verification and are still in the code, and two more
+Nine findings survived verification and are still in the code, and two more
 were never judged at all because the audit hit a session limit twice. They are
 written down so the next round is not spent finding them again. Roughly in the
 order they are worth doing:
@@ -231,11 +231,16 @@ order they are worth doing:
 - **Siri and Shortcut intents return before the widget write.**
   `NoteIntents.swift:78`: a note made by Siri without opening the app leaves
   the widgets and the Lock Screen card stale until the app is next opened.
-- **Every model feature is silently off for Chinese, Japanese and Thai.**
-  `ModelGuard.swift:16` splits on whitespace, so a line in those scripts is
-  one word and every guard that counts overlapping words rejects everything.
-  `OnDevice.swift:223` is the same mistake in the dictation cleanup's guard.
-  Tidy up, cleanup and titles all do nothing, without saying so.
+- **Numbers shorter than three characters are invisible to every guard, in
+  every language.** Found while fixing the tokeniser, not by the audit: the
+  three-letter floor in `ModelGuard.words` drops "16" and "3800", so a model
+  answer that changes a date or an amount written in Arabic numerals is not
+  checked against the note at all — "房租3800块" for "房租3500块", "pay 3800"
+  for "pay 3500". The same ratio arithmetic also lets a swapped day-word
+  through when the rest of the line is unchanged, in English as in Chinese;
+  the deliberate pass is pinned in `ModelGuardTests.testTheKnownHolesStayKnown`.
+  Closing it means matching numerals and day-words exactly, everywhere at
+  once, and calibrating nothing else looser to compensate.
 - **A dictated insertion and the cleaned edit both land on a text view that is
   not first responder**, so a shake takes back neither
   (`ChecklistTextView.swift:313` and `:325`). See item 6 above.
