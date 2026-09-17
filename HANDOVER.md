@@ -217,20 +217,14 @@ the four rounds before it.
 
 ## What the audit found and nobody has fixed
 
-Three findings survived verification and are still in the code, and two more
-were never judged at all because the audit hit a session limit twice. They are
-written down so the next round is not spent finding them again. Roughly in the
-order they are worth doing:
+Three findings survived verification and are still in the code. The two the
+audit never reached have now been judged, and both were refuted; they are in
+the refuted paragraph below. What is left is written down so the next round is
+not spent finding it again. Roughly in the order it is worth doing:
 
 - **A dictated insertion and the cleaned edit both land on a text view that is
   not first responder**, so a shake takes back neither
   (`ChecklistTextView.swift:313` and `:325`). See item 6 above.
-- **A Live Activity the user swiped off the Lock Screen is re-requested by the
-  next keystroke** in the pinned note (`PinActivity.swift:85`). *Never
-  judged.*
-- **A change synced in from another device never rewrites the App Group record
-  or the Live Activity** (`NoteStore.swift:179`), so the card keeps the old
-  text until the app is opened and the note touched. *Never judged.*
 - **Two things #59 left in `SpeechListener` on purpose.** A rollover still
   cancels its recognition rather than ending the audio and letting it finish
   (`rotate()` at `SpeechListener.swift:305`), so whatever had been fed in but
@@ -240,12 +234,41 @@ order they are worth doing:
   animates in (`:150`), which with Bluetooth is a visible hitch. Item 1 will say whether the first one
   loses a word at the joins; the second is only ever a nuisance.
 
-Ten further findings were **refuted** on inspection and should not be raised
-again. The two most convincing-sounding were that dictated items separated by
-pauses land as one run-on checklist item, and that a dictate request arriving
-while the sheet is already up latches the flag. Both were read carefully by
-three verifiers each and both were wrong. An audit's refutations are worth as
-much as its findings, and cost as much to redo.
+Twelve further findings were **refuted** on inspection and should not be
+raised again. The two most convincing-sounding were that dictated items
+separated by pauses land as one run-on checklist item, and that a dictate
+request arriving while the sheet is already up latches the flag. Both were
+read carefully by three verifiers each and both were wrong. An audit's
+refutations are worth as much as its findings, and cost as much to redo.
+
+The last two of the twelve are the ones the audit never got to, judged on
+2026-09-15:
+
+- **The swiped-off Live Activity is not re-requested by a keystroke** in any
+  way the user can see. The code path is real — `update` calls
+  `showOnLockScreen` on every change to a pinned note, and `sync` looks for
+  an activity that is `.active`, which a dismissed one is not, so it does
+  request a new one. But it is never the *first* thing to do so. Typing means
+  being in the app, and every way back into the app passes `.active`:
+  `NotesListView` runs `foregroundSync` there and on `.task`, and that calls
+  `syncLockScreen`, which re-requests the card before a key can be pressed.
+  The Lock Screen, Notification Center and the Dynamic Island are the only
+  places to swipe one away, and returning from any of them changes
+  `scenePhase`. So what the finding describes as a keystroke bug is the
+  documented policy in `PinActivity`'s own comment: a swiped-away card comes
+  back when the app is next opened. **Whether it should is a product question,
+  not a defect** — respecting a dismissal would mean remembering it and not
+  re-requesting until the pin itself changes. Nothing in the spec asks for
+  either behaviour.
+- **A change synced in from another device does rewrite both**, and needs
+  neither the app reopened nor the note touched. `NotesListView` holds
+  `pinnedSignature` — the pinned note's id and `updatedAt` — over a `@Query`,
+  and `.onChange` of it calls `syncLockScreen`, which writes the App Group
+  record and the activity. A merge from iCloud changes `updatedAt`, so the
+  signature changes with it; another device pinning a different note changes
+  the id. The window the finding describes exists only while the app is not
+  running, and `foregroundSync` closes that on the next launch, with nothing
+  touched.
 
 ## Then the store
 
