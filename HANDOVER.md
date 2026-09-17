@@ -22,10 +22,10 @@ pure logic, git and the store copy are all fine from the terminal.
 
 ## Where things stand
 
-`main` carries #42 through #70: four rounds of fixes from testing on the
+`main` carries #42 through #72: four rounds of fixes from testing on the
 phone, a full audit, a security and resilience pass, four rounds on voice, an
 audit of the voice work itself, and then two passes acting on what that audit
-found. 193 tests pass. Nothing is open, nothing is half done, and no branch is
+found. 197 tests pass. Nothing is open, nothing is half done, and no branch is
 waiting.
 
 Every acceptance item in the spec is built, and so is everything past it that
@@ -65,7 +65,7 @@ verifiers whose job was to refute them. The first pass on them was #58 to #63:
   extension-API-only, so the rule about what the shared files may reach for is
   the compiler's job rather than a habit.
 
-The second pass was #64 to #70:
+The second pass was #64 to #72:
 
 - **#65** taught every guard to read the scripts that write without spaces.
   All of them stood on one tokeniser and it knew only spaces, so a line of
@@ -94,14 +94,20 @@ The second pass was #64 to #70:
   process. The widget's list rebuild is debounced 800 milliseconds, which an
   intent has no foreground to survive; every intent write now does it on the
   spot as well.
-- **#64** is this file. **#70** judged the two findings the audit never
-  reached and refuted both; the reasoning is in the refuted paragraph below.
+- **#72** holds a title the model writes to the note it came from. Sparkle →
+  Add title writes into the text rather than offering it, and was checked
+  only for length and for not being the first line handed back — while the
+  reminder titles forty lines away had been grounded all along.
+- **#64** and **#71** are this file. **#70** judged the two findings the
+  audit never reached and refuted both; the reasoning is in the refuted
+  paragraph below.
 
 None of those has run on a device either. A fix read off the page is still a
 guess, and most of them are guesses about exactly the numbered items below:
 #59 about 1 and 2, #63 about 5, #67 about 2 and 13, #62 about 12, #68 about
-11, #66 about 16. #65 and #69 differ only in being pure logic with suites of
-their own — the model features they guard have still never spoken to a phone.
+11, #66 about 16. #65, #69 and #72 differ only in being pure logic with
+suites of their own — the model features they guard have still never spoken
+to a phone.
 
 ## The daily loop
 
