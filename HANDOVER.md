@@ -125,7 +125,7 @@ And `scripts/pure-tests.sh` runs the suites on the Mac with no simulator at
 all, in about twenty seconds:
 
 ```bash
-scripts/pure-tests.sh            # all 193, in 20 suites
+scripts/pure-tests.sh            # all 197, in 21 suites
 scripts/pure-tests.sh Insertion  # just the suites whose name matches
 ```
 
