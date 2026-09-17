@@ -54,7 +54,8 @@ enum OnDevice {
 
     /// A title for the note: a few words in the writer's language, on one
     /// line, with no full stop. Nil when the model has nothing to give, or
-    /// gave the first line back, or ran on.
+    /// gave the first line back, or ran on, or wrote a title out of words
+    /// the note does not say.
     static func title(for text: String) async -> String? {
         #if canImport(FoundationModels)
         if #available(iOS 26, *), isAvailable, text.count < limit,
@@ -64,14 +65,30 @@ enum OnDevice {
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\"'“”‘’.:"))
                 .trimmingCharacters(in: .whitespaces) ?? ""
-            let first = NoteText.title(text)
-            if !title.isEmpty, ModelGuard.wordCount(title) <= 8,
-               title.compare(first, options: [.caseInsensitive, .diacriticInsensitive]) != .orderedSame {
-                return title
-            }
+            if titleFits(title, for: text) { return title }
         }
         #endif
         return nil
+    }
+
+    /// Whether a title the model wrote can be put on the note: it says
+    /// something, it is short enough to be a title, it is not the first line
+    /// handed back, and every word of it is the note's own. Pure, so the
+    /// rule is tested without the model.
+    ///
+    /// This is not a suggestion the user accepts. `EditorView.addTitle`
+    /// writes what passes here into the note as a new first line, which is
+    /// why it is held to `grounded` exactly as the reminder titles are.
+    static func titleFits(_ title: String, for text: String) -> Bool {
+        let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, ModelGuard.wordCount(title) <= 8 else { return false }
+        let first = NoteText.title(text)
+        guard title.compare(first, options: [.caseInsensitive, .diacriticInsensitive]) != .orderedSame
+        else { return false }
+        // `grounded` also refuses a title of nothing but small words — "To
+        // do", "TBD" — whose word set is empty and which the strict check
+        // waves past for being empty.
+        return ModelGuard.grounded(title, in: text)
     }
 
     /// The lines tidied, one out for each one in: the model makes each read
