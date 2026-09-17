@@ -22,10 +22,11 @@ pure logic, git and the store copy are all fine from the terminal.
 
 ## Where things stand
 
-`main` carries #42 through #63: four rounds of fixes from testing on the
-phone, a full audit, a security and resilience pass, four rounds on voice,
-and then an audit of the voice work itself. 193 tests pass. Nothing is open,
-nothing is half done, and no branch is waiting.
+`main` carries #42 through #70: four rounds of fixes from testing on the
+phone, a full audit, a security and resilience pass, four rounds on voice, an
+audit of the voice work itself, and then two passes acting on what that audit
+found. 193 tests pass. Nothing is open, nothing is half done, and no branch is
+waiting.
 
 Every acceptance item in the spec is built, and so is everything past it that
 was asked for since. **What is left is not code.** It is one round of testing
@@ -35,7 +36,7 @@ because some of what it would find is already written down.
 The voice work (#53 to #57) is still the largest thing never seen on a
 device. On 2026-09-14 the whole of it was read again, dimension by dimension,
 and it was not clean. Forty-five findings, of which twenty-six survived
-verifiers whose job was to refute them. What has been acted on is #58 to #63:
+verifiers whose job was to refute them. The first pass on them was #58 to #63:
 
 - **#59** rewrote the microphone path, six defects from one root cause: a
   single result handler served every recognition task, and a task that has
@@ -64,8 +65,43 @@ verifiers whose job was to refute them. What has been acted on is #58 to #63:
   extension-API-only, so the rule about what the shared files may reach for is
   the compiler's job rather than a habit.
 
+The second pass was #64 to #70:
+
+- **#65** taught every guard to read the scripts that write without spaces.
+  All of them stood on one tokeniser and it knew only spaces, so a line of
+  Chinese, Japanese or Thai arrived as a single "word": the first comma the
+  model added split that word in two and sent every ratio to zero. Tidy up,
+  dictation cleanup, titles, briefs and ask-a-question search were silently
+  off for whole languages, and the model's most routine act — adding the
+  punctuation the recogniser asks it for — was the precise act that tripped
+  the guard.
+- **#69** took the numbers and the day-words out from under the ratios. A
+  number under three characters never reached a guard at all; a longer one
+  reached it and then got the spelling allowance, where 3800 is one edit from
+  3500 and so reads as a typo; and a swapped day cleared the ratio on its own
+  whenever the rest of the line held still. All three are matched exactly now,
+  in every language at once, and the dictation cleanup — the loosest guard in
+  the app, at 0.5 — is held to the same rule.
+- **#66** made the settled save reconcile even when there is nothing left to
+  store. `update` opened with a guard on text equality and everything sat
+  behind it, so changing a reminder line and leaving the note left the old
+  day's notification to fire, pending and already-shown alike.
+- **#67** tells VoiceOver when the microphone is taken. The notice was drawn
+  for eyes only — folded into an element whose value was the transcript alone,
+  with `.updatesFrequently` keeping VoiceOver from volunteering anything — so
+  a blind user went on dictating into a dead microphone.
+- **#68** gets a note made by Siri to the widgets before iOS suspends the
+  process. The widget's list rebuild is debounced 800 milliseconds, which an
+  intent has no foreground to survive; every intent write now does it on the
+  spot as well.
+- **#64** is this file. **#70** judged the two findings the audit never
+  reached and refuted both; the reasoning is in the refuted paragraph below.
+
 None of those has run on a device either. A fix read off the page is still a
-guess, and four of them are guesses about exactly the numbered items below.
+guess, and most of them are guesses about exactly the numbered items below:
+#59 about 1 and 2, #63 about 5, #67 about 2 and 13, #62 about 12, #68 about
+11, #66 about 16. #65 and #69 differ only in being pure logic with suites of
+their own — the model features they guard have still never spoken to a phone.
 
 ## The daily loop
 
