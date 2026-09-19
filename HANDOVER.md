@@ -122,7 +122,16 @@ Tests, either `⌘U` in Xcode or:
 
 ```bash
 xcodebuild test -project Notes.xcodeproj -scheme Notes \
-  -destination 'platform=iOS Simulator,name=iPhone 16'
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
+
+`xcodebuild -showdestinations -project Notes.xcodeproj -scheme Notes` lists
+what this Mac actually has; the name above is one of them, not a guess. To
+build to the phone instead:
+
+```bash
+xcodebuild build -project Notes.xcodeproj -scheme Notes \
+  -destination 'id=00008130-0016699C26F9001C' -allowProvisioningUpdates
 ```
 
 A change goes on its own branch, never on `main`:
@@ -135,19 +144,34 @@ git push -u origin fix/what-it-is
 # open a pull request; merge it only when CI is green
 ```
 
-CI runs the same tests on macOS for every push. It is the first place a
-SwiftUI or SwiftData file is really compiled, so a green run is what makes a
-change true, not a reading of the diff.
+CI runs the same tests on a simulator for every push, and remains the
+authority: it starts from a clean checkout, so it catches what a stale
+`DerivedData` here would hide.
 
-**If `xcodebuild test` will not run at all**, the iOS platform for the Xcode
-in use is not installed, and neither a simulator nor a device build can be
-made. The symptom is "Unable to find a destination matching the provided
-destination specifier" for every destination tried. Do not be misled by
-`xcrun simctl list`: it can show a perfectly good older runtime with devices
-on it, and `xcodebuild -showdestinations` will still list no eligible
-destination at all, because the platform Xcode wants is a different version.
-`xcodebuild -downloadPlatform iOS` fixes it and is a large download. Until
-then two things still work locally and are worth knowing:
+**`xcodebuild test` runs on this Mac now**, which it could not for most of
+this project's life. The iOS platform was downloaded on 2026-09-17
+(`xcodebuild -downloadPlatform iOS`, 8.05 GB, iOS 27.0); on 2026-09-18 the
+full suite ran on a simulator in 74 seconds, and the app built and signed for
+the phone. Before that no destination was eligible at all, for simulator or
+device alike.
+
+Two things about getting there are worth keeping, because each cost a turn:
+
+- **`simctl` and `xcodebuild` disagree, and `xcodebuild` is the one that
+  counts.** `xcrun simctl list` cheerfully lists runtimes and devices that
+  `-showdestinations` will not accept — first because the platform was
+  missing, later because the CoreSimulator framework was one point release
+  behind Xcode (`1171.6.0` against `1171.7.0`), which disables simulator
+  support with a message printed *above* the destination list where it is
+  easy to miss. Launching Xcode.app once fixed that. Worse, `simctl` **hangs**
+  rather than failing when CoreSimulator is wrong, so it is the wrong thing to
+  probe with. Ask `-showdestinations`.
+- **Concrete simulator destinations appeared only after a real test run.**
+  Until then `-showdestinations` listed only the `Any iOS Simulator Device`
+  placeholder, which reads exactly like nothing being installed.
+
+So there are three speeds now, fastest first, and the first two still work
+with no simulator at all:
 
 ```bash
 # Typecheck the whole app against the SDK, without any simulator.
@@ -162,6 +186,11 @@ swiftc -typecheck -sdk "$SDK" -target arm64-apple-ios17.0 -swift-version 5 \
 `-plugin-path` for the `@Generable` macros. Swap `Notes` for the widget's
 source list to check that target. This catches everything but SwiftUI's
 runtime behaviour, in seconds rather than minutes.
+
+Third and slowest is `xcodebuild test` above, about seventy-five seconds: the
+only one of the three that compiles a SwiftUI view, a SwiftData model and the
+widget and then runs the suite against them. Use it before opening a pull
+request; use the other two while writing.
 
 And `scripts/pure-tests.sh` runs the suites on the Mac with no simulator at
 all, in about twenty seconds:
